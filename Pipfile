@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+gradio = "*"
+pypandoc = "*"
+werkzeug = "*"
+pandas = "*"
+langchain-community = "*"
+tenacity = "==8.3.0"
+langchain = "*"
+azure = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"
