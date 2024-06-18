@@ -43,7 +43,7 @@ def get_title(log_content, default_title=""):
         if first_message["content"] and len(first_message["content"]) > 0:
             first_content = first_message["content"][0]
             if first_content["type"] == "text":
-                first_text = first_content['text']['value'][:100]
+                first_text = first_content["text"]["value"][:100]
                 title = f"{title} {first_text}..."
     return title
 

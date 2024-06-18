@@ -57,7 +57,7 @@ class AzureDocumentLoader(DocumentLoader):
                         api_endpoint = doc_intelligence_endpoint,
                         api_version= "2024-02-29-preview",
                         api_model="prebuilt-layout",
-                        mode="page")
+                        mode="markdown")
     docs = self.loader.load()
 
     return docs
