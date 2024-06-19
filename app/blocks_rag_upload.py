@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from app import document_loader, splitter, vector_store
 
 UPLOAD_FOLDER = "./uploads"
-DOC_LIST_PATH = "doc_list.csv"
+DOC_LIST_PATH = "../assets/helper/doc_list.csv"
 
 
 def list_collections():
@@ -39,10 +39,9 @@ def on_file_uploaded(file_path: str, progress=gr.Progress()):
 
     # 3. Split the document
     chunks = splitter.split(document)
-    print(chunks)
 
     # 4. Add the document to the vector store
-    vector_store.add_document(chunks)
+    vector_store.add_document(secure_file_name, chunks)
 
     # 5. Add file to the list
     utils.add_to_doc_list(DOC_LIST_PATH, secure_file_name, file_hash, delete)

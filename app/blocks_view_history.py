@@ -64,7 +64,6 @@ def file_selected(chosen_file):
 
 def remove_file(chosen_file, log_folder):
     full_path = f"{log_folder}{chosen_file}"
-    print(full_path)
     if os.path.exists(full_path):
         os.remove(full_path)
     return load_files(log_folder)
