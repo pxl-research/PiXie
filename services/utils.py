@@ -2,7 +2,12 @@ import hashlib
 from pandas import read_csv, DataFrame, concat, Timestamp
 import json
 import os
-from langchain_core.messages import AIMessage, HumanMessage, messages_from_dict, messages_to_dict
+from langchain_core.messages import (
+    AIMessage,
+    HumanMessage,
+    messages_from_dict,
+    messages_to_dict,
+)
 
 history_path = "../assets/helper/chat_history.json"
 
@@ -53,6 +58,12 @@ def add_to_doc_list(
         }
     )
     doc_list = concat([doc_list, new_row], ignore_index=True)
+    doc_list.to_csv(doc_list_path, index=False)
+
+
+def remove_from_doc_list(doc_list_path: str, file_name: str):
+    doc_list = read_csv(doc_list_path)
+    doc_list = doc_list[doc_list.file_name != file_name]
     doc_list.to_csv(doc_list_path, index=False)
 
 

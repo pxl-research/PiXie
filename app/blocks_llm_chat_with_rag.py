@@ -10,7 +10,7 @@ def append_user(message, chat_history):
 
 
 def append_ai(thread, message, chat_history, log):
-    #TODO: Implement the following logic separately so that it is not coded into the UI
+    # TODO: Implement the following logic separately so that it is not coded into the UI
     # Current issue is the streaming answer, could not get it working from outside the UI
     top_docs = vector_store.retrieve_top_chunks(message, 10)
     final_docs = reranker.rerank(message, top_docs)

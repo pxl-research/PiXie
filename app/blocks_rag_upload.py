@@ -47,3 +47,14 @@ def on_file_uploaded(file_path: str, progress=gr.Progress()):
     utils.add_to_doc_list(DOC_LIST_PATH, secure_file_name, file_hash, delete)
     names = list_collections()
     return [file_path, names]
+
+
+def on_file_deleted(df_files: gr.Dataframe, selected: gr.State):
+    # 1. Remove the document from the vector store
+    vector_store.delete_document(selected)
+    # 2. Remove the document from the doc_list.csv
+    utils.remove_from_doc_list(DOC_LIST_PATH, selected)
+    # 3. Remove the document from the dataframe
+    df_files = df_files[df_files.iloc[:, 0] != selected]
+    print(f"Removing document {selected} from the vector store and doc_list.csv.")
+    return df_files
