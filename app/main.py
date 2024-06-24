@@ -22,6 +22,7 @@ def show_live():
         btn_upload: gr.Button(interactive=True),
     }
 
+
 def show_upload():
     return {
         cb_live: gr.Chatbot(visible=False),

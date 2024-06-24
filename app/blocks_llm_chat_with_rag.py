@@ -26,7 +26,7 @@ def append_ai(message, chat_history):
         chunk = s.content
         full_answer += chunk
         chat_history[-1] = (message, full_answer)
-        yield "", chat_history, ""
+        yield "", chat_history
 
     utils.save_chat_history(utils.history_path, message, full_answer)
 
