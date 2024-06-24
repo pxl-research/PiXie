@@ -7,9 +7,6 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from blocks_llm_chat_with_rag import append_user, append_ai, clear_log
 from blocks_rag_upload import on_file_uploaded, on_file_deleted, list_collections
-from blocks_view_history import load_files, file_selected, set_folder, remove_file
-
-from services.document_loader import AzureDocumentLoader
 
 
 def show_live():
@@ -18,33 +15,12 @@ def show_live():
         gr_live: gr.Group(visible=True),
         row_live: gr.Row(visible=True),
         btn_live: gr.Button(interactive=False),
-        cb_history: gr.Chatbot(visible=False),
-        gr_history: gr.Group(visible=False),
-        btn_history: gr.Button(interactive=True),
         lbl_explainer: gr.HTML(visible=False),
         file_upload: gr.File(visible=False),
         df_files: gr.Dataframe(visible=False),
         btn_delete: gr.Button(visible=False),
         btn_upload: gr.Button(interactive=True),
     }
-
-
-def show_history():
-    return {
-        cb_live: gr.Chatbot(visible=False),
-        gr_live: gr.Group(visible=False),
-        row_live: gr.Row(visible=False),
-        btn_live: gr.Button(interactive=True),
-        cb_history: gr.Chatbot(visible=True),
-        gr_history: gr.Group(visible=True),
-        btn_history: gr.Button(interactive=False),
-        lbl_explainer: gr.HTML(visible=False),
-        file_upload: gr.File(visible=False),
-        df_files: gr.Dataframe(visible=False),
-        btn_delete: gr.Button(visible=False),
-        btn_upload: gr.Button(interactive=True),
-    }
-
 
 def show_upload():
     return {
@@ -52,21 +28,12 @@ def show_upload():
         gr_live: gr.Group(visible=False),
         row_live: gr.Row(visible=False),
         btn_live: gr.Button(interactive=True),
-        cb_history: gr.Chatbot(visible=False),
-        gr_history: gr.Group(visible=False),
-        btn_history: gr.Button(interactive=True),
         lbl_explainer: gr.HTML(visible=True),
         file_upload: gr.File(visible=True),
         df_files: gr.Dataframe(visible=True),
         btn_delete: gr.Button(visible=True),
         btn_upload: gr.Button(interactive=False),
     }
-
-
-def on_login(request: gr.Request):
-    user_folder = "drphil"  # request.username.strip().lower()
-    new_thread = ""
-    return [set_folder(user_folder), new_thread]
 
 
 def on_select(evt: gr.SelectData):  # SelectData is a subclass of EventData
@@ -88,8 +55,6 @@ css = """
 # https://www.gradio.app/guides/creating-a-custom-chatbot-with-blocks
 with gr.Blocks(fill_height=True, title="PiXie", css=css) as llm_client_ui:
     # state that is unique to each user
-    log_folder = gr.State("logs/")
-    thread = gr.State()
     selected = gr.State()
 
     # live client UI
@@ -111,42 +76,15 @@ with gr.Blocks(fill_height=True, title="PiXie", css=css) as llm_client_ui:
         # event handlers
         tb_user.submit(append_user, [tb_user, cb_live], [cb_live]).then(
             append_ai,
-            [thread, tb_user, cb_live, log_folder],
+            [tb_user, cb_live],
             [tb_user, cb_live, lbl_debug],
         )
         btn_send.click(append_user, [tb_user, cb_live], [cb_live]).then(
             append_ai,
-            [thread, tb_user, cb_live, log_folder],
+            [tb_user, cb_live],
             [tb_user, cb_live, lbl_debug],
         )
-        btn_remove.click(clear_log, [thread], [tb_user, cb_live, thread])
-
-    # log viewer UI
-    cb_history = gr.Chatbot(label="History", scale=1, visible=False)
-
-    with gr.Group(visible=False) as gr_history:
-        with gr.Row():
-            dd_files = gr.Dropdown(
-                [],
-                show_label=False,
-                info="Select a log file to view the details",
-                scale=10,
-            )
-            btn_refresh = gr.Button(
-                value="", scale=0, min_width=64, icon="../assets/icons/refresh.png"
-            )
-            btn_remove = gr.Button(
-                value="",
-                scale=0,
-                min_width=64,
-                icon="../assets/icons/disposal.png",
-                elem_classes="danger",
-            )
-
-        # event handlers
-        btn_refresh.click(load_files, [log_folder], [dd_files])
-        btn_remove.click(remove_file, [dd_files, log_folder], [dd_files])
-        dd_files.input(file_selected, [dd_files], [cb_history])
+        btn_remove.click(clear_log, None, [tb_user, cb_live])
 
     # file uppload UI
     lbl_explainer = gr.HTML(explainer, visible=False)
@@ -173,7 +111,6 @@ with gr.Blocks(fill_height=True, title="PiXie", css=css) as llm_client_ui:
     # toggle UI
     with gr.Row():
         btn_live = gr.Button("Chat", icon="../assets/icons/chat.png", interactive=False)
-        btn_history = gr.Button("History", icon="../assets/icons/history.png")
         btn_upload = gr.Button("Upload")
 
         # event handlers
@@ -184,31 +121,10 @@ with gr.Blocks(fill_height=True, title="PiXie", css=css) as llm_client_ui:
                 cb_live,
                 gr_live,
                 row_live,
-                cb_history,
-                gr_history,
                 file_upload,
                 df_files,
                 lbl_explainer,
                 btn_live,
-                btn_history,
-                btn_delete,
-                btn_upload,
-            ],
-        )
-        btn_history.click(
-            show_history,
-            [],
-            [
-                cb_live,
-                gr_live,
-                row_live,
-                cb_history,
-                gr_history,
-                file_upload,
-                df_files,
-                lbl_explainer,
-                btn_live,
-                btn_history,
                 btn_delete,
                 btn_upload,
             ],
@@ -220,19 +136,15 @@ with gr.Blocks(fill_height=True, title="PiXie", css=css) as llm_client_ui:
                 cb_live,
                 gr_live,
                 row_live,
-                cb_history,
-                gr_history,
                 file_upload,
                 df_files,
                 lbl_explainer,
                 btn_live,
-                btn_history,
                 btn_delete,
                 btn_upload,
             ],
         )
     # global event
-    llm_client_ui.load(on_login, None, [log_folder, thread])
     llm_client_ui.load(list_collections, [], [df_files])
 
 # To create a public link, set `share=True` in `launch()`.

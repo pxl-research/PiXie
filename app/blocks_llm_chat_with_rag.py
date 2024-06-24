@@ -1,7 +1,6 @@
 from app import vector_store, reranker, llm, chain
 from services import utils
 from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.messages import AIMessage, HumanMessage
 
 
 def append_user(message, chat_history):
@@ -9,7 +8,7 @@ def append_user(message, chat_history):
     return chat_history
 
 
-def append_ai(thread, message, chat_history, log):
+def append_ai(message, chat_history):
     # TODO: Implement the following logic separately so that it is not coded into the UI
     # Current issue is the streaming answer, could not get it working from outside the UI
     top_docs = vector_store.retrieve_top_chunks(message, 10)
@@ -27,10 +26,10 @@ def append_ai(thread, message, chat_history, log):
         chunk = s.content
         full_answer += chunk
         chat_history[-1] = (message, full_answer)
-        yield chunk, chat_history, ""
+        yield "", chat_history, ""
 
     utils.save_chat_history(utils.history_path, message, full_answer)
 
 
-def clear_log(thread):
-    return ["", "", thread]
+def clear_log():
+    return ["", ""]
