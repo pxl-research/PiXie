@@ -1,1 +1,758 @@
-[{"type": "human", "data": {"content": "Wat is een functionele loopbaan?", "additional_kwargs": {}, "response_metadata": {}, "type": "human", "name": null, "id": null, "example": false}}, {"type": "ai", "data": {"content": "Een functionele loopbaan is de toekenning van een hogere salarisschaal binnen eenzelfde graad op basis van de graadanci\u00ebnniteit. Om aanspraak te maken op de functionele loopbaan moet een personeelslid een graadanci\u00ebnniteit van 10 jaar bereiken en moet er voldoende financi\u00ebble middelen zijn om de functionele loopbaan toe te passen. Het contractueel personeel komt in aanmerking voor de functionele loopbaan vanaf 1 februari 2017 en er wordt geen functionele loopbaan toegekend met terugwerkende kracht.\n\nBRON:\n- [e15e8bf4-8ab8-4b8c-952b-1cf372094410]\n- [ea5f244f-b66e-43ef-8b48-6c95a83d75de]\n- [515fbc3b-aee8-4764-9f66-339647f0efd9]", "additional_kwargs": {}, "response_metadata": {}, "type": "ai", "name": null, "id": null, "example": false, "tool_calls": [], "invalid_tool_calls": [], "usage_metadata": null}}, {"type": "human", "data": {"content": "Wat is een functionele loopbaan?", "additional_kwargs": {}, "response_metadata": {}, "type": "human", "name": null, "id": null, "example": false}}, {"type": "ai", "data": {"content": "Een functionele loopbaan is de toekenning van een hogere salarisschaal binnen eenzelfde graad op basis van de graadanci\u00ebnniteit. Om aanspraak te maken op de functionele loopbaan moet een personeelslid een graadanci\u00ebnniteit van 10 jaar bereiken en moet er voldoende financi\u00eble middelen zijn om de functionele loopbaan toe te passen. Het contractueel personeel komt in aanmerking voor de functionele loopbaan vanaf 1 februari 2017 en er wordt geen functionele loopbaan toegekend met terugwerkende kracht.\n\nBRON:\n- [e15e8bf4-8ab8-4b8c-952b-1cf372094410]\n- [ea5f244f-b66e-43ef-8b48-6c95a83d75de]\n- [515fbc3b-aee8-4764-9f66-339647f0efd9]", "additional_kwargs": {}, "response_metadata": {}, "type": "ai", "name": null, "id": null, "example": false, "tool_calls": [], "invalid_tool_calls": [], "usage_metadata": null}}, {"type": "human", "data": {"content": "Wat is de taak van een onderzoekshoofd?", "additional_kwargs": {}, "response_metadata": {}, "type": "human", "name": null, "id": null, "example": false}}, {"type": "ai", "data": {"content": "Een onderzoekshoofd is belast met de dagelijkse leiding van een expertisecentrum en is verantwoordelijk voor het uitstippelen van het onderzoeksbeleid van het centrum, het afstemmen van de verschillende deelgebieden en het ontwikkelen van een speerpuntenbeleid. Het onderzoekshoofd wordt om de twee jaar ge\u00ebvalueerd op basis van zijn/haar managementcapaciteiten en de output van het expertisecentrum. [Protocol nr. 37 - Mandaat onderzoekshoofd binnen Hogeschool PXL, Artikel 5, Artikel 7, \u00a72, Artikel 6, \u00a716] \n\nBRON:\n- Protocol nr. 37 - Mandaat onderzoekshoofd binnen Hogeschool PXL\n- Artikel 5\n- Artikel 6\n- Artikel 7, \u00a72\n- \u00a716", "additional_kwargs": {}, "response_metadata": {}, "type": "ai", "name": null, "id": null, "example": false, "tool_calls": [], "invalid_tool_calls": [], "usage_metadata": null}}, {"type": "human", "data": {"content": "En wie is daar de baas over?", "additional_kwargs": {}, "response_metadata": {}, "type": "human", "name": null, "id": null, "example": false}}, {"type": "ai", "data": {"content": "Het onderzoekshoofd staat aan het hoofd van een expertisecentrum en is belast met de dagelijkse leiding van het centrum en is de leidinggevende van de onderzoekers en het OP met een onderzoeksopdracht voor het taakgedeelte onderzoek en dienstverlening. [Protocol nr. 37 - Mandaat onderzoekshoofd binnen Hogeschool PXL]", "additional_kwargs": {}, "response_metadata": {}, "type": "ai", "name": null, "id": null, "example": false, "tool_calls": [], "invalid_tool_calls": [], "usage_metadata": null}}, {"type": "human", "data": {"content": "Wat valt onder het takenpakket van een onderzoekshoofd?", "additional_kwargs": {}, "response_metadata": {}, "type": "human", "name": null, "id": null, "example": false}}, {"type": "ai", "data": {"content": "Het takenpakket van een onderzoekshoofd bestaat uit het uitstippelen van het onderzoeksbeleid van het expertisecentrum in samenwerking met het managementcomit\u00e9, het afstemmen van de verschillende deelgebieden en het leiden van het centrum en de onderzoekers. Het onderzoekshoofd is ook lid van de centrale stuurgroep onderzoek en wordt aangeduid door middel van een selectieprocedure waarbij een objectief samengestelde selectiecommissie de kandidaten toetst aan de gestelde voorwaarden. \n\nBRON:\n- Artikel 5 en 7 van het document \"pixie\"\n- Protocol nr. 37 - Mandaat onderzoekshoofd binnen Hogeschool PXL", "additional_kwargs": {}, "response_metadata": {}, "type": "ai", "name": null, "id": null, "example": false, "tool_calls": [], "invalid_tool_calls": [], "usage_metadata": null}}, {"type": "human", "data": {"content": " Wat zijn de diplomavereisten om die taak uit te mogen voeren?", "additional_kwargs": {}, "response_metadata": {}, "type": "human", "name": null, "id": null, "example": false}}, {"type": "ai", "data": {"content": "Om de taak uit te mogen voeren, moet de houder van een masterdiploma tijdelijk ingeschaald worden in het ambt van hoofdlector, de houder van een bachelorsdiploma tijdelijk ingeschaald worden in het ambt van hoofdpraktijklector en de houder van een doctoraatsdiploma tijdelijk ingeschaald worden als docent. BRON: [pixie(c72472c6-8ecd-490f-9e89-d9b039515c3e), pixie(22098376-8fb9-4e4f-b45b-4ba7a5b164c6)]", "additional_kwargs": {}, "response_metadata": {}, "type": "ai", "name": null, "id": null, "example": false, "tool_calls": [], "invalid_tool_calls": [], "usage_metadata": null}}, {"type": "human", "data": {"content": "Wat is een functionele loopbaan?", "additional_kwargs": {}, "response_metadata": {}, "type": "human", "name": null, "id": null, "example": false}}, {"type": "ai", "data": {"content": "Een functionele loopbaan is het toekennen van een hogere salarisschaal binnen eenzelfde graad op basis van graadanci\u00ebnniteit. Om in aanmerking te komen voor de functionele loopbaan moet een personeelslid een graadanci\u00ebnniteit van 10 jaar bereiken en moet er voldoende financi\u00eble middelen zijn om de functionele loopbaan toe te passen. Contractueel personeel komt in aanmerking voor de functionele loopbaan vanaf 1 februari 2017 en er wordt geen functionele loopbaan toegekend met terugwerkende kracht.\n\nBRON:\n- [e15e8bf4-8ab8-4b8c-952b-1cf372094410]\n- [ea5f244f-b66e-43ef-8b48-6c95a83d75de]\n- [515fbc3b-aee8-4764-9f66-339647f0efd9]", "additional_kwargs": {}, "response_metadata": {}, "type": "ai", "name": null, "id": null, "example": false, "tool_calls": [], "invalid_tool_calls": [], "usage_metadata": null}}, {"type": "human", "data": {"content": "Wat is een functionele loopbaan?", "additional_kwargs": {}, "response_metadata": {}, "type": "human", "name": null, "id": null, "example": false}}, {"type": "ai", "data": {"content": "Een functionele loopbaan is het toekennen van een hogere salarisschaal binnen eenzelfde graad op basis van graadanci\u00ebnniteit. Om in aanmerking te komen voor de functionele loopbaan moet een personeelslid een graadanci\u00ebnniteit van 10 jaar bereiken en moet er voldoende financi\u00eble middelen zijn om de functionele loopbaan toe te passen. Contractueel personeel komt in aanmerking voor de functionele loopbaan vanaf 1 februari 2017 en er wordt geen functionele loopbaan toegekend met terugwerkende kracht.\n\nBRON:\n- [e15e8bf4-8ab8-4b8c-952b-1cf372094410]\n- [ea5f244f-b66e-43ef-8b48-6c95a83d75de]\n- [515fbc3b-aee8-4764-9f66-339647f0efd9]", "additional_kwargs": {}, "response_metadata": {}, "type": "ai", "name": null, "id": null, "example": false, "tool_calls": [], "invalid_tool_calls": [], "usage_metadata": null}}, {"type": "human", "data": {"content": "En wie kan dat aanvragen?", "additional_kwargs": {}, "response_metadata": {}, "type": "human", "name": null, "id": null, "example": false}}, {"type": "ai", "data": {"content": "Ik heb niet genoeg informatie om de vraag te beantwoorden.", "additional_kwargs": {}, "response_metadata": {}, "type": "ai", "name": null, "id": null, "example": false, "tool_calls": [], "invalid_tool_calls": [], "usage_metadata": null}}, {"type": "human", "data": {"content": "Wat zijn enkele zaken waar ik als werknemer van PXL op moet letten?", "additional_kwargs": {}, "response_metadata": {}, "type": "human", "name": null, "id": null, "example": false}}, {"type": "ai", "data": {"content": "Als werknemer van Hogeschool PXL moet je ervoor zorgen dat je geen psychosociale risico's veroorzaakt, waaronder geweld, pesterijen of ongewenst seksueel gedrag op het werk. Als je opmerkingen hebt over arbeidsveiligheid, gezondheidsbescherming, ergonomie, arbeidshygi\u00ebne, psychosociale belasting, geweld, pesterijen, ongewenst seksueel gedrag of psychosociale risico's, kun je terecht bij de vertrouwenspersonen binnen Hogeschool PXL, de arbeidsgeneesheer, het Comit\u00e9 ter Preventie & Bescherming op het Werk, de preventieadviseur of de preventieadviseur Psychosociale Aspecten. [BRON: Bijlage Arbeidsreglement Hogeschool PXL, Artikel 32, 4.1.2 Formele psychosociale interventie, 8.2. Ziekte en ongeval]", "additional_kwargs": {}, "response_metadata": {}, "type": "ai", "name": null, "id": null, "example": false, "tool_calls": [], "invalid_tool_calls": [], "usage_metadata": null}}]
+[
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is een functionele loopbaan?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Een functionele loopbaan is de toekenning van een hogere salarisschaal binnen eenzelfde graad op basis van de graadanci\u00ebnniteit. Om aanspraak te maken op de functionele loopbaan moet een personeelslid een graadanci\u00ebnniteit van 10 jaar bereiken en moet er voldoende financi\u00ebble middelen zijn om de functionele loopbaan toe te passen. Het contractueel personeel komt in aanmerking voor de functionele loopbaan vanaf 1 februari 2017 en er wordt geen functionele loopbaan toegekend met terugwerkende kracht.\n\nBRON:\n- [e15e8bf4-8ab8-4b8c-952b-1cf372094410]\n- [ea5f244f-b66e-43ef-8b48-6c95a83d75de]\n- [515fbc3b-aee8-4764-9f66-339647f0efd9]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is een functionele loopbaan?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Een functionele loopbaan is de toekenning van een hogere salarisschaal binnen eenzelfde graad op basis van de graadanci\u00ebnniteit. Om aanspraak te maken op de functionele loopbaan moet een personeelslid een graadanci\u00ebnniteit van 10 jaar bereiken en moet er voldoende financi\u00eble middelen zijn om de functionele loopbaan toe te passen. Het contractueel personeel komt in aanmerking voor de functionele loopbaan vanaf 1 februari 2017 en er wordt geen functionele loopbaan toegekend met terugwerkende kracht.\n\nBRON:\n- [e15e8bf4-8ab8-4b8c-952b-1cf372094410]\n- [ea5f244f-b66e-43ef-8b48-6c95a83d75de]\n- [515fbc3b-aee8-4764-9f66-339647f0efd9]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is de taak van een onderzoekshoofd?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Een onderzoekshoofd is belast met de dagelijkse leiding van een expertisecentrum en is verantwoordelijk voor het uitstippelen van het onderzoeksbeleid van het centrum, het afstemmen van de verschillende deelgebieden en het ontwikkelen van een speerpuntenbeleid. Het onderzoekshoofd wordt om de twee jaar ge\u00ebvalueerd op basis van zijn/haar managementcapaciteiten en de output van het expertisecentrum. [Protocol nr. 37 - Mandaat onderzoekshoofd binnen Hogeschool PXL, Artikel 5, Artikel 7, \u00a72, Artikel 6, \u00a716] \n\nBRON:\n- Protocol nr. 37 - Mandaat onderzoekshoofd binnen Hogeschool PXL\n- Artikel 5\n- Artikel 6\n- Artikel 7, \u00a72\n- \u00a716",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "En wie is daar de baas over?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Het onderzoekshoofd staat aan het hoofd van een expertisecentrum en is belast met de dagelijkse leiding van het centrum en is de leidinggevende van de onderzoekers en het OP met een onderzoeksopdracht voor het taakgedeelte onderzoek en dienstverlening. [Protocol nr. 37 - Mandaat onderzoekshoofd binnen Hogeschool PXL]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat valt onder het takenpakket van een onderzoekshoofd?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Het takenpakket van een onderzoekshoofd bestaat uit het uitstippelen van het onderzoeksbeleid van het expertisecentrum in samenwerking met het managementcomit\u00e9, het afstemmen van de verschillende deelgebieden en het leiden van het centrum en de onderzoekers. Het onderzoekshoofd is ook lid van de centrale stuurgroep onderzoek en wordt aangeduid door middel van een selectieprocedure waarbij een objectief samengestelde selectiecommissie de kandidaten toetst aan de gestelde voorwaarden. \n\nBRON:\n- Artikel 5 en 7 van het document \"pixie\"\n- Protocol nr. 37 - Mandaat onderzoekshoofd binnen Hogeschool PXL",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": " Wat zijn de diplomavereisten om die taak uit te mogen voeren?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Om de taak uit te mogen voeren, moet de houder van een masterdiploma tijdelijk ingeschaald worden in het ambt van hoofdlector, de houder van een bachelorsdiploma tijdelijk ingeschaald worden in het ambt van hoofdpraktijklector en de houder van een doctoraatsdiploma tijdelijk ingeschaald worden als docent. BRON: [pixie(c72472c6-8ecd-490f-9e89-d9b039515c3e), pixie(22098376-8fb9-4e4f-b45b-4ba7a5b164c6)]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is een functionele loopbaan?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Een functionele loopbaan is het toekennen van een hogere salarisschaal binnen eenzelfde graad op basis van graadanci\u00ebnniteit. Om in aanmerking te komen voor de functionele loopbaan moet een personeelslid een graadanci\u00ebnniteit van 10 jaar bereiken en moet er voldoende financi\u00eble middelen zijn om de functionele loopbaan toe te passen. Contractueel personeel komt in aanmerking voor de functionele loopbaan vanaf 1 februari 2017 en er wordt geen functionele loopbaan toegekend met terugwerkende kracht.\n\nBRON:\n- [e15e8bf4-8ab8-4b8c-952b-1cf372094410]\n- [ea5f244f-b66e-43ef-8b48-6c95a83d75de]\n- [515fbc3b-aee8-4764-9f66-339647f0efd9]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is een functionele loopbaan?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Een functionele loopbaan is het toekennen van een hogere salarisschaal binnen eenzelfde graad op basis van graadanci\u00ebnniteit. Om in aanmerking te komen voor de functionele loopbaan moet een personeelslid een graadanci\u00ebnniteit van 10 jaar bereiken en moet er voldoende financi\u00eble middelen zijn om de functionele loopbaan toe te passen. Contractueel personeel komt in aanmerking voor de functionele loopbaan vanaf 1 februari 2017 en er wordt geen functionele loopbaan toegekend met terugwerkende kracht.\n\nBRON:\n- [e15e8bf4-8ab8-4b8c-952b-1cf372094410]\n- [ea5f244f-b66e-43ef-8b48-6c95a83d75de]\n- [515fbc3b-aee8-4764-9f66-339647f0efd9]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "En wie kan dat aanvragen?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Ik heb niet genoeg informatie om de vraag te beantwoorden.",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat zijn enkele zaken waar ik als werknemer van PXL op moet letten?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Als werknemer van Hogeschool PXL moet je ervoor zorgen dat je geen psychosociale risico's veroorzaakt, waaronder geweld, pesterijen of ongewenst seksueel gedrag op het werk. Als je opmerkingen hebt over arbeidsveiligheid, gezondheidsbescherming, ergonomie, arbeidshygi\u00ebne, psychosociale belasting, geweld, pesterijen, ongewenst seksueel gedrag of psychosociale risico's, kun je terecht bij de vertrouwenspersonen binnen Hogeschool PXL, de arbeidsgeneesheer, het Comit\u00e9 ter Preventie & Bescherming op het Werk, de preventieadviseur of de preventieadviseur Psychosociale Aspecten. [BRON: Bijlage Arbeidsreglement Hogeschool PXL, Artikel 32, 4.1.2 Formele psychosociale interventie, 8.2. Ziekte en ongeval]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is een focusproject?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Een focusproject is een project dat tot doel heeft het praktijkgericht wetenschappelijk onderzoek binnen een opleiding uit te bouwen en te richten op voor het werkveld relevante onderzoeksthema's. Ingediende focusprojecten worden ge\u00ebvalueerd door een projectcommissie, bestaande uit de directeur onderzoek (voorzitter), de directeur onderwijs, de PWO-adviseur (secretaris), adviseurs extern gefinancierd onderzoek en dienstverlening en stafmedewerker(s) PXL-research. De commissie kan zich laten adviseren door interne en/of externe deskundigen. [BRON: RG_5.05-03_Focusprojecten.docx]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "En wat is het verschil met een speerpuntproject?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Het speerpuntproject is een project dat wordt ingediend door het onderzoekshoofd/co\u00f6rdinator en goedgekeurd moet worden door de departementshoofden van de betrokken opleidingen/departementen. Het doel van het speerpuntproject is het uitbouwen van praktijkgericht wetenschappelijk onderzoek binnen de hogeschool via het speerpuntenbeleid en innovatie binnen de sectoren waartoe de PBA-opleidingen aan Hogeschool PXL opleiden, door het oplossen van een probleem of de implementatie van nieuwe kennis en inzichten en/of nieuwe. Een project loopt minimum 1 jaar en maximum 3 jaar. \n\nBRON:\n- Document: reglement_en_procedure_Speerpuntprojecten.docx (pagina 1)\n- Document: reglement_en_procedure_Speerpuntprojecten.docx (pagina 2)\n- Document: reglement_en_procedure_Speerpuntprojecten.docx (pagina 1)",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wie is Ben Lambrechts?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Ik heb niet genoeg informatie om de vraag te beantwoorden. \n\nBRON: N/A",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is het doel van een speerpuntproject?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Het doel van een speerpuntproject is het uitbouwen van het praktijkgericht wetenschappelijk onderzoek binnen de hogeschool via het speerpuntenbeleid en innovatie binnen de sectoren waartoe de PBA-opleidingen aan Hogeschool PXL opleiden, door het oplossen van een probleem (optimaliseren van processen, diensten of producten) of de implementatie van nieuwe kennis en inzichten en/of nieuwe begroting. [reglement_en_procedure_Speerpuntprojecten.docx]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "please write a haiku about school",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Een plek om te leren, \nKennis en vaardigheden opdoen, \nSchool is een avontuur. \n\nBRON:\nIk heb niet genoeg informatie om de vraag te beantwoorden.",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Hi",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Ik heb niet genoeg informatie om de vraag te beantwoorden.\n\nBRON: N/A",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Hallo, kun je mij een tekst over computers schrijven?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Ik heb niet genoeg informatie om de vraag te beantwoorden.\n\nBRON: N/A",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Hallo",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Ik heb niet genoeg informatie om de vraag te beantwoorden.\n\nBRON: N/A",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Kun je mij een tekst over de lucht schrijven?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Ik heb niet genoeg informatie om de vraag te beantwoorden.",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Hoeveel uren mag ik werken per dag?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Je mag maximaal 9 uur per dag werken, waarvan maximaal 7 uur lesgeven. Als je lesactiviteiten hebt die eindigen na 20u00, hoef je de volgende dag pas om 10u00 aanwezig te zijn, tenzij anders overeengekomen. De normale arbeidstijd situeert zich tussen 8u00 en 18u30. [bron: Protocol arbeidstijden van het onderwijzend personeel van Hogeschool PXL]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is een focusproject?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Een focusproject is een project dat tot doel heeft het praktijkgericht wetenschappelijk onderzoek binnen een opleiding uit te bouwen en te richten op voor het werkveld relevante onderzoeksthema's. Ingediende focusprojecten worden ge\u00ebvalueerd door een projectcommissie, bestaande uit de directeur onderzoek (voorzitter), de directeur onderwijs, de PWO-adviseur (secretaris), adviseurs extern gefinancierd onderzoek en dienstverlening en stafmedewerker(s) PXL-research. De commissie kan zich laten adviseren door interne en/of externe deskundigen. [BRON: RG_5.05-03_Focusprojecten.docx]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is een focusproject?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Een focusproject is een project dat tot doel heeft het praktijkgericht wetenschappelijk onderzoek binnen een opleiding uit te bouwen en te richten op voor het werkveld relevante onderzoeksthema's. Ingediende focusprojecten worden ge\u00ebvalueerd door een projectcommissie, bestaande uit de directeur onderzoek (voorzitter), de directeur onderwijs, de PWO-adviseur (secretaris), adviseurs extern gefinancierd onderzoek en dienstverlening en stafmedewerker(s) PXL-research. De commissie kan zich laten adviseren door interne en/of externe deskundigen. [BRON: RG_5.05-03_Focusprojecten.docx]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is een focusproject?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Een focusproject is een initiatief dat gericht is op het uitbouwen van praktijkgericht wetenschappelijk onderzoek binnen een opleiding, met relevante onderzoeksthema's voor het werkveld. Deze projecten worden ontwikkeld in het kader van strategische speerpunten en worden ge\u00ebvalueerd door een projectcommissie. Het doel is om de samenwerking tussen opleidingen en de samenleving te versterken door middel van projecten en bachelorproeven.\n\nBRON: [RG_5.05-03_Focusprojecten.docx], [RG_5.05-03_Focusprojecten.docx], [RG_5.05-03_Focusprojecten.docx]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is een focusproject?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Een focusproject is een initiatief dat gericht is op het uitbouwen van praktijkgericht wetenschappelijk onderzoek binnen een opleiding, met relevante onderzoeksthema's voor het werkveld. Deze projecten worden ontwikkeld in het kader van strategische speerpunten en worden ge\u00ebvalueerd door een projectcommissie. Het doel is om de samenwerking tussen opleidingen en de samenleving te versterken door middel van projecten en bachelorproeven.\n\nBRON: [RG_5.05-03_Focusprojecten.docx]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is een focusproject?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Een focusproject is een initiatief dat gericht is op het uitbouwen van praktijkgericht wetenschappelijk onderzoek binnen een opleiding, met relevante onderzoeksthema's voor het werkveld. Deze projecten worden ontwikkeld in het kader van strategische speerpunten en worden ge\u00ebvalueerd door een projectcommissie. Het doel is om de samenwerking tussen opleidingen en de samenleving te versterken door middel van projecten en bachelorproeven.\n\nBRON: [RG_5.05-03_Focusprojecten.docx], [RG_5.05-03_Focusprojecten.docx], [RG_5.05-03_Focusprojecten.docx]",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "En hoe verschilt het van een speerpuntproject?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Ik heb niet genoeg informatie om de vraag te beantwoorden. \n\nBRON: reglement_en_procedure_Speerpuntprojecten.docx",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Wat is het verschil tussen een focusproject en een speerpuntproject?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Ik heb niet genoeg informatie om de vraag te beantwoorden. \n\nBRON: Geen bronnen gebruikt.",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Tot welke documenten heb je toegang?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Je hebt toegang tot het administratief dossier dat door de dienst HRM wordt bewaard, inclusief personeelsdocumenten en relevante administratieve, sociale en fiscale gegevens. Daarnaast kan je, indien gewenst, het dossier ter plaatse raadplegen en kopie\u00ebn verkrijgen, mits je dit vooraf aanvraagt bij de dienst HRM en in aanwezigheid van een dossierbeheerder. \n\nBRON: 36_-_Bijlage_Arbeidsreglement_Hogeschool_PXL.pdf",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  }
+]

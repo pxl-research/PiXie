@@ -1,3 +1,5 @@
-.env
+*.env
 embeddings
 uploads
+qdrant_storage/
+__pycache__

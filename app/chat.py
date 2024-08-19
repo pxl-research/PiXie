@@ -1,20 +1,19 @@
 import gradio as gr
-import sys
+import os
 from pathlib import Path
-
-# Add the project root to the Python path
-sys.path.append(str(Path(__file__).parent.parent))
-
 from blocks_llm_chat_with_rag import append_user, append_ai, clear_log
 
-css = """
+# Constants
+CSS_STYLES = """
 .danger {background: red;} 
 """
+SEND_ICON_PATH = os.path.join("..", "assets", "icons", "send.png")
+DISPOSAL_ICON_PATH = os.path.join("..", "assets", "icons", "disposal.png")
 
-# https://www.gradio.app/guides/creating-a-custom-chatbot-with-blocks
-with gr.Blocks(fill_height=True, title="PiXie", css=css) as llm_client_ui:
+# Gradio UI Setup
+with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui:
 
-    # live client UI
+    # Live client UI
     cb_live = gr.Chatbot(label="Chat", scale=1)
     with gr.Group() as gr_live:
         with gr.Row():
@@ -22,13 +21,13 @@ with gr.Blocks(fill_height=True, title="PiXie", css=css) as llm_client_ui:
                 show_label=False, placeholder="Enter prompt here...", scale=10
             )
             btn_send = gr.Button(
-                "", scale=0, min_width=64, icon="../assets/icons/send.png"
+                "", scale=0, min_width=64, icon=SEND_ICON_PATH
             )
             btn_remove = gr.Button(
-                "", scale=0, min_width=64, icon="../assets/icons/disposal.png"
+                "", scale=0, min_width=64, icon=DISPOSAL_ICON_PATH
             )
 
-        # event handlers
+        # Event handlers
         tb_user.submit(append_user, [tb_user, cb_live], [cb_live]).then(
             append_ai,
             [tb_user, cb_live],
@@ -41,5 +40,5 @@ with gr.Blocks(fill_height=True, title="PiXie", css=css) as llm_client_ui:
         )
         btn_remove.click(clear_log, None, [tb_user, cb_live])
 
-# To create a public link, set `share=True` in `launch()`.
-llm_client_ui.queue().launch(server_name="0.0.0.0")
+# Launch the Gradio app
+llm_client_ui.queue().launch(server_name="0.0.0.0", server_port=7862)
