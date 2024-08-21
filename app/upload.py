@@ -1,6 +1,7 @@
-import gradio as gr
 import logging
-from pathlib import Path
+
+import gradio as gr
+
 from blocks_rag_upload import on_file_uploaded, on_file_deleted
 from services.document_manager import list_documents
 
@@ -13,7 +14,8 @@ EXPLAINER_TEXT = (
 )
 
 CSS_STYLES = """
-.danger {background: red;} 
+    .red_bg {background: red}
+    footer {display:none !important}
 """
 
 
@@ -38,7 +40,7 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
         interactive=False,
         visible=True,
     )
-    btn_delete = gr.Button("Delete", interactive=False, visible=True)
+    btn_delete = gr.Button("Delete", interactive=False, visible=True, elem_classes='red_bg')
 
     # Set up the interactions
     file_upload.upload(on_file_uploaded, [file_upload], [file_upload, df_files])
