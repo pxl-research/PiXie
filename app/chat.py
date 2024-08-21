@@ -20,12 +20,8 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
             tb_user = gr.Textbox(
                 show_label=False, placeholder="Enter prompt here...", scale=10
             )
-            btn_send = gr.Button(
-                "", scale=0, min_width=64, icon=SEND_ICON_PATH
-            )
-            btn_remove = gr.Button(
-                "", scale=0, min_width=64, icon=DISPOSAL_ICON_PATH
-            )
+            btn_send = gr.Button("", scale=0, min_width=64, icon=SEND_ICON_PATH)
+            btn_remove = gr.Button("", scale=0, min_width=64, icon=DISPOSAL_ICON_PATH)
 
         # Event handlers
         tb_user.submit(append_user, [tb_user, cb_live], [cb_live]).then(
@@ -41,4 +37,4 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
         btn_remove.click(clear_log, None, [tb_user, cb_live])
 
 # Launch the Gradio app
-llm_client_ui.queue().launch(server_name="0.0.0.0", server_port=7862)
+llm_client_ui.queue().launch(server_name="0.0.0.0", server_port=7863)

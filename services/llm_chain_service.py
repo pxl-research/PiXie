@@ -10,6 +10,7 @@ from typing import Any
 
 DEFAULT_TEMPLATE_PATH = "../assets/helper/system_message_prompt.txt"
 
+
 class LLMChainBuilder:
     """
     A builder class for constructing an LLM interaction chain with specified prompts and models.

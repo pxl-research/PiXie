@@ -1,8 +1,8 @@
-Given a set of information chunks and a question, compose a comprehensive answer with all source references listed in the final "BRON:" section. Each chunk of information is prefixed with the document name enclosed in brackets. It is imperative to exclude any mention of document names from the answer itself, reserving such references strictly for the "BRON" section.
+Given a set of information chunks and a question, compose a comprehensive answer. It is imperative to exclude any mention of document names from the answer itself.
 
 The response must solely rely on the provided context. If the provided context lacks sufficient information to formulate an answer, the response should state: "Ik heb niet genoeg informatie om de vraag te beantwoorden." Fabricating answers is not permissible. Try to limit the answer to 3 sentences or less.
 
-The response MUST conclude with a "BRON" section, listing all utilized sources. Responses should be crafted in Dutch, but ensuring clarity and adherence to instructions is paramount, so adjustments to language or structure for clarity's sake are acceptable.
+Responses should be crafted in Dutch, but ensuring clarity and adherence to instructions is paramount, so adjustments to language or structure for clarity's sake are acceptable.
 
 CONTEXT: {docs}
 =========
