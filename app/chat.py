@@ -41,4 +41,4 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
         btn_remove.click(clear_log, None, [tb_user, cb_live])
 
 # Launch the Gradio app
-llm_client_ui.queue().launch(server_name="0.0.0.0", server_port=7868)
+llm_client_ui.queue().launch(server_name="0.0.0.0", server_port=7862)
