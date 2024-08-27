@@ -1,4 +1,4 @@
-*.env
+settings.env
 embeddings
 uploads
 qdrant_storage/

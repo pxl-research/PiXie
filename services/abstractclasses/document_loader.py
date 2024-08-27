@@ -1,5 +1,6 @@
 import pypandoc
 import logging
+import os
 from abc import ABC, abstractmethod
 from langchain.schema import Document
 from pathlib import Path
@@ -41,7 +42,6 @@ class DocumentLoader(ABC):
             logging.error(f"File type {extension} not supported.")
             raise ValueError("File type not supported")
 
-    @staticmethod
     def load_docx(self, file_path: str) -> List[Document]:
         """
         Load a .docx file and convert it to markdown.
@@ -56,7 +56,6 @@ class DocumentLoader(ABC):
         document = [Document(page_content=docs)]
         return document
 
-    @staticmethod
     def load_md(self, file_path: str) -> List[Document]:
         """
         Load a markdown (.md) file.

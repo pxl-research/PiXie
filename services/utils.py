@@ -16,6 +16,7 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 HISTORY_PATH = "../assets/helper/chat_history.json"
 DOC_LIST_PATH = "../assets/helper/doc_list.csv"
 
+
 def compute_hash(file_path: str) -> str:
     """
     Compute the SHA-256 hash of a file.
@@ -87,7 +88,9 @@ def read_template(file_path: str) -> str:
         return file.read()
 
 
-def add_to_doc_list(doc_list_path: str, file_name: str, file_hash: str, delete: bool = False) -> None:
+def add_to_doc_list(
+    doc_list_path: str, file_name: str, file_hash: str, delete: bool = False
+) -> None:
     """
     Add a document to the document list or update the last updated timestamp.
 
@@ -107,13 +110,15 @@ def add_to_doc_list(doc_list_path: str, file_name: str, file_hash: str, delete: 
     doc_list = read_csv(doc_list_path)
     if delete:
         doc_list = doc_list[doc_list["file_name"] != file_name]
-    
-    new_row = DataFrame({
-        "file_name": [file_name],
-        "file_hash": [file_hash],
-        "last_updated": [Timestamp.now()],
-    })
-    
+
+    new_row = DataFrame(
+        {
+            "file_name": [file_name],
+            "file_hash": [file_hash],
+            "last_updated": [Timestamp.now()],
+        }
+    )
+
     doc_list = concat([doc_list, new_row], ignore_index=True)
     doc_list.to_csv(doc_list_path, index=False)
     logging.info(f"Document {file_name} added to the document list.")
@@ -152,7 +157,9 @@ def get_doc_list(doc_list_path: str) -> DataFrame:
     return read_csv(doc_list_path)
 
 
-def get_chat_history(history_path: str = HISTORY_PATH, limit: Optional[int] = None) -> ChatMessageHistory:
+def get_chat_history(
+    history_path: str = HISTORY_PATH, limit: Optional[int] = None
+) -> ChatMessageHistory:
     """
     Retrieve chat history from the given path. If a limit is provided, return only the most recent messages.
 
@@ -178,7 +185,9 @@ def get_chat_history(history_path: str = HISTORY_PATH, limit: Optional[int] = No
     return ChatMessageHistory(messages=messages)
 
 
-def save_chat_history(question: str, response: str, history_path: str = HISTORY_PATH) -> None:
+def save_chat_history(
+    question: str, response: str, history_path: str = HISTORY_PATH
+) -> None:
     """
     Append a new interaction to the chat history and save it to the specified JSON file.
 
