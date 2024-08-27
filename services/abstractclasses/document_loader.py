@@ -38,6 +38,8 @@ class DocumentLoader(ABC):
             return self.load_docx(file_path)
         elif extension == ".md":
             return self.load_md(file_path)
+        elif extension == ".pptx":
+            return self.load_pptx(file_path)
         else:
             logging.error(f"File type {extension} not supported.")
             raise ValueError("File type not supported")
@@ -81,6 +83,19 @@ class DocumentLoader(ABC):
 
         Args:
             file_path (str): The path to the PDF file.
+
+        Returns:
+            List[Document]: A list of Document objects.
+        """
+        pass
+
+    @abstractmethod
+    def load_pptx(self, file_path: str) -> List[Document]:
+        """
+        Abstract method to load a Powerpoint file.
+
+        Args:
+            file_path (str): The path to the Powerpoint file.
 
         Returns:
             List[Document]: A list of Document objects.

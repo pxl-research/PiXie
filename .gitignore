@@ -3,3 +3,5 @@ embeddings
 uploads
 qdrant_storage/
 __pycache__
+chat_history.json
+doc_list.csv
