@@ -52,3 +52,26 @@ class AzureDocumentLoader(DocumentLoader):
         docs = self.loader.load()
 
         return docs
+    
+    def load_pptx(self, file_path: str) -> List[Document]:
+        """
+        Loads a Powerpoint file using Azure AI Document Intelligence and returns the parsed content.
+
+        Args:
+            file_path (str): The path to the Powerpoint file.
+
+        Returns:
+            List[Document]: A list of Document objects containing the parsed content.
+        """
+
+        self.loader = AzureAIDocumentIntelligenceLoader(
+            file_path=file_path,
+            api_key=self.api_key,
+            api_endpoint=self.api_endpoint,
+            api_version=self.api_version,
+            api_model=self.api_model,
+            mode="markdown",
+        )
+        docs = self.loader.load()
+
+        return docs
