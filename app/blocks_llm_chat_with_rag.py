@@ -118,9 +118,9 @@ def _add_sources_to_answer(answer: str, docs: List[dict]) -> str:
     unique_docs = {doc.metadata["file_name"] for doc in docs}
 
     if unique_docs:
-        sources = "BRON: " + ", ".join(
+        sources = "**Bronnen**:\n" + "\n".join(
             [
-                f"[{doc_name}]({blob_service.generate_blob_url(doc_name)})"
+                f" - [{doc_name}]({blob_service.generate_blob_url(doc_name)})"
                 for doc_name in unique_docs
             ]
         )
