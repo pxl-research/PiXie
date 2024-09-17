@@ -1,7 +1,13 @@
-settings.env
+.env*
+!env.example
+
+docker-compose.dev.yml
+.env.dev
+settings.dev
+
 embeddings
 uploads
 qdrant_storage/
 __pycache__
 chat_history.json
-doc_list.csv
+assets/helper/doc_list.csv
