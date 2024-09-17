@@ -6,6 +6,10 @@ on:
     branches:
       - main  # De workflow wordt geactiveerd bij een push naar de 'main' branch
 
+permissions:
+  contents: read
+  packages: write
+
 # 2. Definieer de jobs
 jobs:
   build-and-push:
@@ -30,6 +34,3 @@ jobs:
           context: .  # Context is de root van de repository
           push: true  # Image wordt gepusht naar de registry
           tags: ghcr.io/philippehaldermans/pixie_pxl:latest  # Vervang door je eigen gegevens
-
-      # Optioneel: Als je environment variables of secrets nodig hebt tijdens het builden
-      # voeg deze dan toe onder 'with' in de build stap
