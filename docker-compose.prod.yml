@@ -2,8 +2,8 @@ services:
   app:
     image: ghcr.io/philippehaldermans/pixie_pxl:latest
     ports:
-      - "7861:7861"
-      - "7863:7863"
+      - "7861:24026"
+      - "7862:24027"
       - "8080:8080"
     environment:
       - ENV=production

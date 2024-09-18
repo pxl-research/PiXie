@@ -13,8 +13,8 @@ from langchain_core.messages import (
 from langchain_community.chat_message_histories import ChatMessageHistory
 
 # Constants
-HISTORY_PATH = "../assets/helper/chat_history.json"
-DOC_LIST_PATH = "../assets/helper/doc_list.csv"
+HISTORY_PATH = "src/assets/helper/chat_history.json"
+DOC_LIST_PATH = "src/assets/helper/doc_list.csv"
 
 
 def compute_hash(file_path: str) -> str:

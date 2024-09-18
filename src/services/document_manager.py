@@ -7,7 +7,7 @@ from typing import List, Tuple
 from app import document_loader, splitter, vector_store, reranker
 
 UPLOAD_FOLDER = "./uploads"
-DOC_LIST_PATH = "../assets/helper/doc_list.csv"
+DOC_LIST_PATH = "src/assets/helper/doc_list.csv"
 
 
 def retrieve_and_rerank_chunks(message, top_k=15, final_k=5):

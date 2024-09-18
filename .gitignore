@@ -4,10 +4,11 @@
 docker-compose.dev.yml
 .env.dev
 settings.dev
+.venv
 
 embeddings
 uploads
 qdrant_storage/
 __pycache__
 chat_history.json
-assets/helper/doc_list.csv
+doc_list.csv
