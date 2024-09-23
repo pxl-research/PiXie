@@ -30,7 +30,8 @@ dependencies = [
   "qdrant_client==1.10.1",
   "Werkzeug==3.0.3",
   "torch==2.2.0",
-  "peft"
+  "peft",
+  "sentencepiece"
 ]
 
 [build-system]

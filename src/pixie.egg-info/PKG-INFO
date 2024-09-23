@@ -24,6 +24,7 @@ Requires-Dist: qdrant_client==1.10.1
 Requires-Dist: Werkzeug==3.0.3
 Requires-Dist: torch==2.2.0
 Requires-Dist: peft
+Requires-Dist: sentencepiece
 
 # PiXie - Retrieval-Augmented Generation (RAG) Project
 

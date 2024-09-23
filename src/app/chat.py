@@ -10,8 +10,8 @@ CSS_STYLES = """
     .green_bg {background: green}
     footer {display:none !important}
 """
-SEND_ICON_PATH = os.path.join("..", "assets", "icons", "send.png")
-DISPOSAL_ICON_PATH = os.path.join("..", "assets", "icons", "disposal.png")
+SEND_ICON_PATH = os.path.join("src", "assets", "icons", "send.png")
+DISPOSAL_ICON_PATH = os.path.join("src", "assets", "icons", "disposal.png")
 
 # Gradio UI Setup
 with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui:

@@ -2,11 +2,12 @@ services:
   app:
     image: ghcr.io/philippehaldermans/pixie_pxl:latest
     ports:
-      - "7861:24026"
-      - "7862:24027"
+      - "24026:7861"
+      - "24027:7862"
       - "8080:8080"
     environment:
       - ENV=production
+    command: sh -c "uv run python src/app/upload.py & uv run python src/app/chat.py"
     restart: always
     env_file:
       - .env.prod

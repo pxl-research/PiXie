@@ -8,7 +8,7 @@ from langchain_core.prompts import (
 )
 from typing import Any
 
-DEFAULT_TEMPLATE_PATH = "../assets/helper/system_message_prompt.txt"
+DEFAULT_TEMPLATE_PATH = "src/assets/helper/system_message_prompt.txt"
 
 
 class LLMChainBuilder:
