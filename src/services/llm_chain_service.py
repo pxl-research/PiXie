@@ -7,6 +7,10 @@ from langchain_core.prompts import (
     SystemMessagePromptTemplate,
 )
 from typing import Any
+from langchain.schema import SystemMessage, AIMessage, HumanMessage
+from langchain.chains import LLMChain
+
+from typing import List, Dict
 
 DEFAULT_TEMPLATE_PATH = "src/assets/helper/system_message_prompt.txt"
 
@@ -24,9 +28,13 @@ class LLMChainBuilder:
         self.selected_llm = selected_llm
         self.template_path = template_path
 
-    def build_llm_chain(self) -> Any:
+    def build_llm_chain(self, chat_history: str, docs: str, question: str) -> Any:
         """
-        Build and return the LLM interaction chain.
+        Build and return the LLM interaction chain with chat history.
+
+        Parameters:
+        - chat_history: List[Dict[str, str]]
+            The chat history formatted as a list of messages with 'role' and 'content'.
 
         Returns:
         - The constructed LLM chain that combines the prompt templates with the language model.
@@ -34,20 +42,12 @@ class LLMChainBuilder:
         logging.info(f"Loading template from {self.template_path}")
         template_content = utils.read_template(self.template_path)
 
-        # Build the system and human prompts
-        system_prompt = SystemMessagePromptTemplate(
-            prompt=PromptTemplate(input_variables=["docs"], template=template_content)
-        )
-        human_prompt = HumanMessagePromptTemplate(
-            prompt=PromptTemplate(input_variables=["question"], template="{question}")
+        prompt_template = PromptTemplate(
+            input_variables=["chat_history", "docs", "question"],
+            template=template_content,
         )
 
-        # Combine the prompts into a ChatPromptTemplate
-        prompt_template = ChatPromptTemplate(
-            input_variables=["docs", "question"], messages=[system_prompt, human_prompt]
-        )
-
-        # Return the final LLM chain
-        chain = prompt_template | self.selected_llm.model
-        logging.info("LLM chain successfully built")
+        # Build the LLM chain
+        chain = LLMChain(llm=self.selected_llm.model, prompt=prompt_template)
+        logging.info("LLM chain successfully built with chat history")
         return chain
