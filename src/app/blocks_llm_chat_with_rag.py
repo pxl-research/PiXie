@@ -3,74 +3,127 @@ from services import document_manager, utils, blob_service
 from langchain_community.chat_message_histories import ChatMessageHistory
 from typing import List, Tuple, Generator
 import uuid
+import json
+import os
 
-# Dictionary om sessie ID's en hun chatgeschiedenis op te slaan
+# Directory where we store the chat history
+HISTORY_DIR = "chat_histories"
+
+if not os.path.exists(HISTORY_DIR):
+    os.makedirs(HISTORY_DIR)
+
+# Dictionary to store session IDs and their chat histories (Note: may be unused)
 session_chains = {}
 
 
 def generate_session_id():
-    """Genereer een unieke sessie-ID."""
-    return str(uuid.uuid4())
+    """Generate a unique session ID."""
+    session_id = str(uuid.uuid4())
+    print(f"Generated session ID: {session_id}")  # Added for debugging
+    return session_id
 
 
-def get_chat_history(session_id):
-    """Haal de chatgeschiedenis op voor een gegeven sessie-ID."""
-    return session_chains.get(session_id, [])
+def save_chat_history(session_id: str, history: List[Tuple[str, str]]):
+    """Save the chat history for a given session ID."""
+    history_file = os.path.join(HISTORY_DIR, f"{session_id}.json")
+    with open(history_file, "w") as f:
+        json.dump(history, f)
+
+
+def load_chat_history(session_id: str) -> List[Tuple[str, str]]:
+    """Load the chat history for a given session ID."""
+    history_file = os.path.join(HISTORY_DIR, f"{session_id}.json")
+    if os.path.exists(history_file):
+        with open(history_file, "r") as f:
+            return json.load(f)
+    return []
+
+
+def delete_chat_history(session):
+    """
+    Delete the chat history when the session ends.
+
+    Parameters:
+    - session: dict
+        The session state containing the session ID.
+    """
+    # Access the session state
+    if "session_id" in session:
+        session_id = session["session_id"]
+        history_file = os.path.join(HISTORY_DIR, f"{session_id}.json")
+        if os.path.exists(history_file):
+            os.remove(history_file)
+            print(f"Chat history for session {session_id} has been deleted.")
+
+
+def get_chat_history(session_id: str) -> List[Tuple[str, str]]:
+    """
+    Retrieve the chat history for a given session ID.
+
+    Parameters:
+    - session_id: str
+        The unique session ID for the user.
+
+    Returns:
+    - List[Tuple[str, str]]:
+        The chat history as a list of tuples (user_message, ai_response).
+    """
+    return load_chat_history(session_id)
 
 
 def append_user(message: str, session_id: str) -> List[Tuple[str, str]]:
     """
-    Append a user message to the chat history.
+    Append a user's message to the chat history and save it.
 
     Parameters:
     - message: str
         The user's message to append.
-    - chat_history: List[Tuple[str, str]]
-        The current chat history where each entry is a tuple (message, response).
+    - session_id: str
+        The unique session ID for the user.
 
     Returns:
-    - List[Tuple[str, str]]
+    - List[Tuple[str, str]]:
         The updated chat history with the user's message added.
     """
-
-    if session_id not in session_chains:
-        session_chains[session_id] = []
-    session_chains[session_id].append((message, None))
-    return session_chains[session_id]
+    chat_history = load_chat_history(session_id)
+    chat_history.append((message, None))
+    save_chat_history(session_id, chat_history)
+    return chat_history
 
 
 def append_ai(
     message: str, session_id: str
 ) -> Generator[Tuple[str, List[Tuple[str, str]]], None, None]:
     """
-    Generate an AI response to the user's message and update the chat history.
+    Generate an AI response to the user's message, update the chat history, and save it.
 
     Parameters:
     - message: str
         The user's message to respond to.
-    - chat_history: List[Tuple[str, str]]
-        The current chat history where each entry is a tuple (message, response).
+    - session_id: str
+        The unique session ID for the user.
 
     Yields:
-    - Tuple[str, List[Tuple[str, str]]]
-        The updated chat history as the AI response is generated in chunks.
+    - Tuple[str, List[Tuple[str, str]]]:
+        A tuple containing an empty string and the updated chat history as the AI response is generated in chunks.
     """
     # Build the final chain using the pre-configured chain builder
     final_chain = chain_builder.build_llm_chain()
 
-    # Retrieve the recent chat history and relevant documents
-    thread_history = session_chains.get(session_id, [])
+    # Load the chat history for the session
+    chat_history = load_chat_history(session_id)
+    print(chat_history)
 
     final_docs = document_manager.retrieve_and_rerank_chunks(message)
 
     # Prepare the inputs for the chain
-    inputs = {"chat_history": thread_history, "docs": final_docs, "question": message}
+    inputs = {"chat_history": chat_history, "docs": final_docs, "question": message}
 
     # Stream and collect the AI's response
     full_answer = ""
     for chunk, full_answer in _stream_full_answer(final_chain, inputs):
-        session_chains[session_id][-1] = (message, full_answer)
-        yield "", session_chains[session_id]
+        chat_history[-1] = (chat_history[-1][0], full_answer)
+        yield "", chat_history
 
     if (
         full_answer.strip()
@@ -78,19 +131,27 @@ def append_ai(
     ):
         full_answer = _add_sources_to_answer(full_answer, final_docs)
 
-    session_chains[session_id][-1] = (message, full_answer)
-    yield "", session_chains[session_id]
+    chat_history[-1] = (chat_history[-1][0], full_answer)
+    save_chat_history(session_id, chat_history)
+    yield "", chat_history
 
 
 def clear_log(session_id: str) -> List[str]:
     """
-    Clear the chat history log.
+    Clear the chat history and delete the associated file for the given session ID.
+
+    Parameters:
+    - session_id: str
+        The unique session ID for the user.
 
     Returns:
-    - List[str]
-        An empty chat history.
+    - List[str]:
+        A list containing two empty strings, used to reset the chat interface.
     """
-    session_chains[session_id] = []
+    history_file = os.path.join(HISTORY_DIR, f"{session_id}.json")
+    if os.path.exists(history_file):
+        os.remove(history_file)
+
     return ["", ""]
 
 
@@ -105,7 +166,7 @@ def _stream_full_answer(chain, inputs: dict) -> Generator[Tuple[str, str], None,
         The inputs to the chain, including chat history, documents, and the user's question.
 
     Yields:
-    - Tuple[str, str]
+    - Tuple[str, str]:
         A chunk of the AI response and the full answer built up to that point.
     """
     full_answer = ""
@@ -117,7 +178,7 @@ def _stream_full_answer(chain, inputs: dict) -> Generator[Tuple[str, str], None,
 
 def _add_sources_to_answer(answer: str, docs: List[dict]) -> str:
     """
-    Append a source reference at the end of the response with hyperlinks to the PDF files in Azure Blob Storage.
+    Append source references at the end of the response with hyperlinks to the PDF files in Azure Blob Storage.
 
     Parameters:
     - answer: str
@@ -126,13 +187,13 @@ def _add_sources_to_answer(answer: str, docs: List[dict]) -> str:
         The list of Document objects used in generating the response.
 
     Returns:
-    - str: The answer with the source references appended.
+    - str:
+        The answer with the source references appended.
     """
-
     unique_docs = {doc.metadata["file_name"] for doc in docs}
 
     if unique_docs:
-        sources = "**Bronnen**:\n" + "\n".join(
+        sources = "**Sources**:\n" + "\n".join(
             [
                 f" - [{doc_name}]({blob_service.generate_blob_url(doc_name)})"
                 for doc_name in unique_docs

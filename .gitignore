@@ -12,3 +12,4 @@ __pycache__
 chat_history.json
 doc_list.csv
 uv.lock
+chat_histories/

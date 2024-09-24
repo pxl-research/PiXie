@@ -20,9 +20,8 @@ DISPOSAL_ICON_PATH = os.path.join("src", "assets", "icons", "disposal.png")
 
 # Gradio UI Setup
 with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui:
-    session_id = gr.State(
-        value=generate_session_id()
-    )  # Sla de sessie-ID op in gr.State
+    session_id = gr.State(value=generate_session_id)
+
     gr.Markdown("# <center>Vraag het aan PiXie</center>")
     cb_live = gr.Chatbot(label="Geschiedenis", scale=1)
     with gr.Group() as gr_live:
