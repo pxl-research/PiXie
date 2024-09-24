@@ -2,11 +2,23 @@ from app import llm, chain_builder
 from services import document_manager, utils, blob_service
 from langchain_community.chat_message_histories import ChatMessageHistory
 from typing import List, Tuple, Generator
+import uuid
+
+# Dictionary om sessie ID's en hun chatgeschiedenis op te slaan
+session_chains = {}
 
 
-def append_user(
-    message: str, chat_history: List[Tuple[str, str]]
-) -> List[Tuple[str, str]]:
+def generate_session_id():
+    """Genereer een unieke sessie-ID."""
+    return str(uuid.uuid4())
+
+
+def get_chat_history(session_id):
+    """Haal de chatgeschiedenis op voor een gegeven sessie-ID."""
+    return session_chains.get(session_id, [])
+
+
+def append_user(message: str, session_id: str) -> List[Tuple[str, str]]:
     """
     Append a user message to the chat history.
 
@@ -20,12 +32,15 @@ def append_user(
     - List[Tuple[str, str]]
         The updated chat history with the user's message added.
     """
-    chat_history.append((message, None))
-    return chat_history
+
+    if session_id not in session_chains:
+        session_chains[session_id] = []
+    session_chains[session_id].append((message, None))
+    return session_chains[session_id]
 
 
 def append_ai(
-    message: str, chat_history: List[Tuple[str, str]]
+    message: str, session_id: str
 ) -> Generator[Tuple[str, List[Tuple[str, str]]], None, None]:
     """
     Generate an AI response to the user's message and update the chat history.
@@ -44,7 +59,8 @@ def append_ai(
     final_chain = chain_builder.build_llm_chain()
 
     # Retrieve the recent chat history and relevant documents
-    thread_history = utils.get_chat_history()
+    thread_history = session_chains.get(session_id, [])
+
     final_docs = document_manager.retrieve_and_rerank_chunks(message)
 
     # Prepare the inputs for the chain
@@ -53,8 +69,8 @@ def append_ai(
     # Stream and collect the AI's response
     full_answer = ""
     for chunk, full_answer in _stream_full_answer(final_chain, inputs):
-        chat_history[-1] = (message, full_answer)
-        yield "", chat_history
+        session_chains[session_id][-1] = (message, full_answer)
+        yield "", session_chains[session_id]
 
     if (
         full_answer.strip()
@@ -62,14 +78,11 @@ def append_ai(
     ):
         full_answer = _add_sources_to_answer(full_answer, final_docs)
 
-    chat_history[-1] = (message, full_answer)
-    yield "", chat_history
-
-    # Save the updated chat history
-    utils.save_chat_history(message, full_answer)
+    session_chains[session_id][-1] = (message, full_answer)
+    yield "", session_chains[session_id]
 
 
-def clear_log() -> List[str]:
+def clear_log(session_id: str) -> List[str]:
     """
     Clear the chat history log.
 
@@ -77,6 +90,7 @@ def clear_log() -> List[str]:
     - List[str]
         An empty chat history.
     """
+    session_chains[session_id] = []
     return ["", ""]
 
 
