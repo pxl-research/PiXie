@@ -1,7 +1,6 @@
 .env*
 !env.example
 
-docker-compose.dev.yml
 .env.dev
 settings.dev
 .venv
