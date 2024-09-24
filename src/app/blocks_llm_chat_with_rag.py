@@ -76,12 +76,11 @@ def format_chat_history(chat_history: List[Dict[str, str]]) -> str:
 
     Returns:
     - str:
-        The formatted chat history as a string, with roles ('Gebruiker' for user and 'Assistent' for assistant) and messages.
+        The formatted chat history as a string, with roles and messages.
     """
     formatted_history = ""
     for msg in chat_history:
-        role = "Gebruiker" if msg["role"] == "user" else "Assistent"
-        formatted_history += f"{role}: {msg['content']}\n"
+        formatted_history += f"{msg["role"]}: {msg['content']}\n"
     return formatted_history.strip()
 
 
