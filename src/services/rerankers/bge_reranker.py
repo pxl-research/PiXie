@@ -10,7 +10,10 @@ class BGEReranker(Reranker):
     """
 
     def __init__(
-        self, model_name: str = "BAAI/bge-reranker-v2-m3", use_fp16: bool = True
+        self,
+        model_name: str = "BAAI/bge-reranker-v2-m3",
+        use_fp16: bool = True,
+        cache_dir: str = "/app/reranker_cache",
     ):
         """
         Initialize the BGEReranker with a specific model.
@@ -19,7 +22,7 @@ class BGEReranker(Reranker):
             model_name (str): The name of the model to use for reranking.
             use_fp16 (bool): Whether to use FP16 precision for faster computation.
         """
-        self.reranker = FlagReranker(model_name, use_fp16=use_fp16)
+        self.reranker = FlagReranker(model_name, use_fp16=use_fp16, cache_dir=cache_dir)
 
     def rerank(self, question: str, docs: List[Document], top_k: int) -> List[Document]:
         """

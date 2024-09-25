@@ -23,9 +23,8 @@ model_kwargs = {"device": "cpu"}
 embeddings = HuggingFaceEmbeddings(
     model_name=os.getenv("EMBEDDINGS_MODEL_NAME"),
     model_kwargs=model_kwargs,
-    cache_folder="embeddings",
+    cache_folder="embeddings_cache",
 )
-
 
 vector_store = QDrantVectorStore(
     collection_name=os.getenv("QDRANT_COLLECTION_NAME"),

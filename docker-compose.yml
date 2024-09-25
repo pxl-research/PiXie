@@ -3,6 +3,9 @@ services:
     build: .
     depends_on:
       - vectorstore
+    volumes:
+      - embeddings_cache:/app/embeddings_cache
+      - reranker_cache:/app/reranker_cache
     networks:
       - app-network
 
@@ -15,6 +18,8 @@ services:
 
 volumes:
   qdrant_storage:
+  embeddings_cache:
+  reranker_cache:
 
 networks:
   app-network:
