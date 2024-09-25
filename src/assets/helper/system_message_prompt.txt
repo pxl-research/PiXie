@@ -4,8 +4,18 @@ The response must solely rely on the provided context. If the provided context l
 
 Responses should be crafted in Dutch, but ensuring clarity and adherence to instructions is paramount, so adjustments to language or structure for clarity's sake are acceptable.
 
-CONTEXT: {docs}
+CHAT HISTORY: 
+
+{chat_history}
 =========
-QUESTION: {question}
+
+CONTEXT: 
+
+{docs}
+=========
+
+QUESTION: 
+
+{question}
 =========
 FINAL ANSWER IN DUTCH:

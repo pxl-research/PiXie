@@ -40,7 +40,9 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
         interactive=False,
         visible=True,
     )
-    btn_delete = gr.Button("Delete", interactive=False, visible=True, elem_classes='red_bg')
+    btn_delete = gr.Button(
+        "Delete", interactive=False, visible=True, elem_classes="red_bg"
+    )
 
     # Set up the interactions
     file_upload.upload(on_file_uploaded, [file_upload], [file_upload, df_files])
