@@ -5,7 +5,8 @@
 settings.dev
 .venv
 
-embeddings
+embeddings_cache
+reranker_cache
 uploads
 qdrant_storage/
 __pycache__
