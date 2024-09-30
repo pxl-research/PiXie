@@ -73,7 +73,7 @@ def add_document(file_path: str) -> str:
         # Add page numbers to chunks metadata (only if page numbers exist)
         for chunk, page_numbers in zip(chunks, page_numbers_list):
             if page_numbers is not None:
-                chunk.metadata['page_numbers'] = page_numbers
+                chunk.metadata["page_numbers"] = page_numbers
 
         vector_store.add_document(secure_file_name, chunks)
 

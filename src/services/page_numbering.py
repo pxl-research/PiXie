@@ -3,6 +3,7 @@ from fuzzywuzzy import fuzz
 import os
 import logging
 
+
 def text_chunks_to_page_numbers(file_path: str, text_chunks: list[str]) -> list:
     """
     Maps text chunks to page numbers based on the file type.
@@ -22,10 +23,12 @@ def text_chunks_to_page_numbers(file_path: str, text_chunks: list[str]) -> list:
     # Determine the file extension
     file_extension = os.path.splitext(file_path)[1].lower()
 
-    if file_extension == '.pdf':
+    if file_extension == ".pdf":
         return _get_pdf_chunk_page_numbers(file_path, text_chunks)
     else:
-        logging.warning(f"File type {file_extension} is not yet supported for page number extraction.")
+        logging.warning(
+            f"File type {file_extension} is not yet supported for page number extraction."
+        )
         return [None for _ in text_chunks]
 
 
@@ -46,7 +49,7 @@ def _get_pdf_chunk_page_numbers(file_path: str, text_chunks: list[str]) -> list[
     pages_grouped_per_2_range = lambda n: (
         (i, i + 1) if i < n - 1 else (i, None) for i in range(n)
     )
-    
+
     doc = fitz.open(file_path)
     num_pages = doc.page_count
 
@@ -70,8 +73,12 @@ def _get_pdf_chunk_page_numbers(file_path: str, text_chunks: list[str]) -> list[
             combined_score = fuzz.partial_ratio(text_chunk, combined_text)
             if combined_score <= highest_score:
                 continue
-            score_page1, score_page2 = scores[0][0], scores[1][0] if len(scores) > 1 else 0
-            page_number_page1, page_number_page2 = scores[0][1], scores[1][1] if len(scores) > 1 else None
+            score_page1, score_page2 = scores[0][0], (
+                scores[1][0] if len(scores) > 1 else 0
+            )
+            page_number_page1, page_number_page2 = scores[0][1], (
+                scores[1][1] if len(scores) > 1 else None
+            )
 
             if score_page1 > score_page2 and score_page1 >= combined_score:
                 best_pages = [page_number_page1]
@@ -80,9 +87,7 @@ def _get_pdf_chunk_page_numbers(file_path: str, text_chunks: list[str]) -> list[
                 best_pages = [page_number_page2]
                 highest_score = score_page2
             else:
-                best_pages = [
-                    p + 1 for p in page_pair if p is not None
-                ]
+                best_pages = [p + 1 for p in page_pair if p is not None]
                 highest_score = combined_score
 
         # Append the first page of the best_pages to results
