@@ -31,7 +31,8 @@ dependencies = [
   "Werkzeug==3.0.3",
   "torch==2.2.0",
   "peft",
-  "sentencepiece"
+  "sentencepiece",
+  "pymupdf"
 ]
 
 [build-system]
