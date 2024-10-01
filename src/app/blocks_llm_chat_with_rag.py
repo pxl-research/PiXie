@@ -245,10 +245,10 @@ def _stream_full_answer(
         full_answer += chunk
         yield chunk, full_answer
 
-
 def _add_sources_to_answer(answer: str, docs: List[any]) -> str:
     """
-    Append source references at the end of the response with hyperlinks to the PDF files in Azure Blob Storage.
+    Append source references at the end of the response with hyperlinks to the PDF files in Azure Blob Storage,
+    and include the page numbers where the document chunks were found.
 
     Parameters:
     - answer: str
@@ -258,15 +258,16 @@ def _add_sources_to_answer(answer: str, docs: List[any]) -> str:
 
     Returns:
     - str:
-        The answer with the source references appended.
+        The answer with the source references appended, including the page numbers.
     """
-    unique_docs = {doc.metadata["file_name"] for doc in docs}
+    # Extract unique documents with page numbers
+    unique_docs = {doc.metadata["file_name"]: doc.metadata.get("page_numbers", "unknown") for doc in docs}
 
     if unique_docs:
         sources = "**Sources**:\n" + "\n".join(
             [
-                f" - [{doc_name}]({blob_service.generate_blob_url(doc_name)})"
-                for doc_name in unique_docs
+                f" - [{doc_name}, pagina {page_number}]({blob_service.generate_blob_url(doc_name)}{'#page=' + str(page_number) if page_number != "unknown" else ''})"
+                for doc_name, page_number in unique_docs.items()
             ]
         )
         answer += "\n\n" + sources

@@ -22,6 +22,7 @@ src/services/abstractclasses/reranker.py
 src/services/abstractclasses/splitter.py
 src/services/abstractclasses/vectorstore.py
 src/services/document_loaders/azure_document_loader.py
+src/services/guardrailing/topicscanner.py
 src/services/llms/azure_openai_llm.py
 src/services/rerankers/bge_reranker.py
 src/services/splitters/custom_markdown_splitter.py

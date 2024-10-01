@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 from services import utils, blob_service
 from typing import List, Tuple
 from app import document_loader, splitter, vector_store, reranker
+from page_numbering import text_chunks_to_page_numbers
 
 UPLOAD_FOLDER = "./uploads"
 DOC_LIST_PATH = "src/assets/helper/doc_list.csv"
@@ -62,6 +63,18 @@ def add_document(file_path: str) -> str:
         # Load, split, and add the document to the vector store
         document = document_loader.load_document(temp_file_path)
         chunks = splitter.split(document)
+
+        # Extract text from chunks
+        text_chunks = [chunk.page_content for chunk in chunks]
+
+        # Map text chunks to page numbers
+        page_numbers_list = text_chunks_to_page_numbers(temp_file_path, text_chunks)
+
+        # Add page numbers to chunks metadata (only if page numbers exist)
+        for chunk, page_numbers in zip(chunks, page_numbers_list):
+            if page_numbers is not None:
+                chunk.metadata["page_numbers"] = page_numbers
+
         vector_store.add_document(secure_file_name, chunks)
 
         # Update the document list

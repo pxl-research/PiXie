@@ -9,7 +9,13 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
 # Install Pandoc
-RUN apt-get update && apt-get install -y pandoc && apt-get clean
+RUN apt-get update && apt-get install -y \
+    gcc \
+    python3-dev \
+    build-essential \
+    pandoc && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install the project's dependencies using the lockfile and settings
 RUN --mount=type=cache,target=/root/.cache/uv \
