@@ -17,11 +17,15 @@ src/services/llm_chain_service.py
 src/services/page_numbering.py
 src/services/utils.py
 src/services/abstractclasses/document_loader.py
+src/services/abstractclasses/embedding_model.py
 src/services/abstractclasses/llm.py
 src/services/abstractclasses/reranker.py
 src/services/abstractclasses/splitter.py
 src/services/abstractclasses/vectorstore.py
 src/services/document_loaders/azure_document_loader.py
+src/services/embedding_models/huggingface_embedding_model.py
+src/services/embedding_models/lc_azure_openai_embedding_model.py
+src/services/embedding_models/lc_huggingface_embedding_model.py
 src/services/guardrailing/topicscanner.py
 src/services/llms/azure_openai_llm.py
 src/services/rerankers/bge_reranker.py

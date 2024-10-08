@@ -1,6 +1,8 @@
 from services.document_loaders.azure_document_loader import AzureDocumentLoader
 from services.splitters.custom_markdown_splitter import CustomMarkdownSplitter
-from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+from services.embedding_models.lc_huggingface_embedding_model import (
+    LangChainHuggingFaceEmbeddingModel,
+)
 from services.vectorstores.qdrant_vectorstore import QDrantVectorStore
 from services.rerankers.bge_reranker import BGEReranker
 from services.llms.azure_openai_llm import AzureOpenAILLM
@@ -20,7 +22,7 @@ document_loader = AzureDocumentLoader(
 splitter = CustomMarkdownSplitter(header_depth=3, chunk_size=512, chunk_overlap=128)
 
 model_kwargs = {"device": "cpu"}
-embeddings = HuggingFaceEmbeddings(
+embeddings_model = LangChainHuggingFaceEmbeddingModel(
     model_name=os.getenv("EMBEDDINGS_MODEL_NAME"),
     model_kwargs=model_kwargs,
     cache_folder="embeddings_cache",
@@ -28,7 +30,7 @@ embeddings = HuggingFaceEmbeddings(
 
 vector_store = QDrantVectorStore(
     collection_name=os.getenv("QDRANT_COLLECTION_NAME"),
-    embeddings=embeddings,
+    embeddings=embeddings_model.get_embeddings(),
     host=os.getenv("QDRANT_HOST"),
     port=os.getenv("QDRANT_PORT"),
 )
