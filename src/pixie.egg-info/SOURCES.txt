@@ -24,6 +24,7 @@ src/services/abstractclasses/llm.py
 src/services/abstractclasses/reranker.py
 src/services/abstractclasses/splitter.py
 src/services/abstractclasses/vectorstore.py
+src/services/authentication/authentication_manager.py
 src/services/document_loaders/azure_document_loader.py
 src/services/embedding_models/huggingface_embedding_model.py
 src/services/embedding_models/lc_azure_openai_embedding_model.py

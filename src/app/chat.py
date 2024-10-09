@@ -9,6 +9,8 @@ from blocks_llm_chat_with_rag import (
     generate_session_id,
 )
 
+from services.authentication.authentication_manager import custom_auth, add_user
+
 # Constants
 CSS_STYLES = """
     .red_bg {background: red}
@@ -54,4 +56,4 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
         btn_remove.click(clear_log, [session_id], [tb_user, cb_live])
 
 # Launch the Gradio app
-llm_client_ui.queue().launch(server_name="0.0.0.0", server_port=7862)
+llm_client_ui.queue().launch(server_name="0.0.0.0", server_port=7862, auth=custom_auth)

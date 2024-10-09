@@ -13,23 +13,15 @@ EXPLAINER_TEXT = (
     "Do not interrupt the processing step. There is no undo."
 )
 
-CSS_STYLES = """
-    .red_bg {background: red}
-    footer {display:none !important}
-"""
-
-
 def on_select(evt: gr.SelectData):  # SelectData is a subclass of EventData
     logging.info(f"User selected {evt.value} at {evt.index} from {evt.target}")
     return gr.Button(interactive=True), evt.value
 
+def file_upload_interface():
+    selected = gr.State()  # State die uniek is voor elke gebruiker
 
-# Gradio UI
-with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui:
-    selected = gr.State()  # State that is unique to each user
-
-    # File upload UI
-    lbl_explainer = gr.HTML(EXPLAINER_TEXT, visible=True)
+    # Voeg componenten direct toe aan de parent Column (file_upload_section)
+    gr.HTML(EXPLAINER_TEXT, visible=True)
     file_upload = gr.File(
         label="Click to Upload (a) File(s)", file_count="multiple", visible=True
     )
@@ -39,18 +31,13 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
         col_count=1,
         interactive=False,
         visible=True,
+        value=list_documents()  # Zorg ervoor dat list_documents een compatibele lijst retourneert
     )
     btn_delete = gr.Button(
         "Delete", interactive=False, visible=True, elem_classes="red_bg"
     )
 
-    # Set up the interactions
+    # Stel de interacties in
     file_upload.upload(on_file_uploaded, [file_upload], [file_upload, df_files])
     df_files.select(on_select, None, [btn_delete, selected])
     btn_delete.click(on_file_deleted, [df_files, selected], [df_files])
-
-    # Load event to initialize the document list
-    llm_client_ui.load(list_documents, [], [df_files])
-
-# Launch the Gradio app
-llm_client_ui.queue().launch(server_name="0.0.0.0", server_port=7861)

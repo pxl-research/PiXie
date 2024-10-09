@@ -7,6 +7,8 @@ from services import (
 from typing import List, Dict, Tuple, Generator
 import uuid
 import os
+import base64
+import hashlib
 
 # Directory where we store the chat history
 HISTORY_DIR = "chat_histories"
@@ -187,3 +189,13 @@ def _stream_full_answer(
 
     # Yield the final answer (None indicates completion)
     yield None, final_answer
+
+# Functie voor authenticatie
+def custom_auth(username, password):
+    # Base64-encode de ingevoerde gebruikersnaam voor vergelijking
+    encoded_username = base64.b64encode(username.encode()).decode()
+    # Hash het ingevoerde wachtwoord voor vergelijking
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    # Vergelijk met de opgeslagen waarden
+    return encoded_username == stored_username and password_hash == stored_password_hash
