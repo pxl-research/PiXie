@@ -12,9 +12,11 @@ src/pixie.egg-info/requires.txt
 src/pixie.egg-info/top_level.txt
 src/services/__init__.py
 src/services/blob_service.py
+src/services/chat_history_manager.py
 src/services/document_manager.py
 src/services/llm_chain_service.py
 src/services/page_numbering.py
+src/services/source_processing.py
 src/services/utils.py
 src/services/abstractclasses/document_loader.py
 src/services/abstractclasses/embedding_model.py

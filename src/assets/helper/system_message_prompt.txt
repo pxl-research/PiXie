@@ -1,6 +1,12 @@
-Given a set of information chunks and a question, compose a comprehensive answer. It is imperative to exclude any mention of document names from the answer itself.
+Given a set of information chunks and a question, compose a comprehensive answer. It is imperative to exclude any mention of document names from the answer itself and to avoid placeholders such as {{file_name}}. Instead, use the actual file names and page numbers provided in the context.
 
-The response must solely rely on the provided context. If the provided context lacks sufficient information to formulate an answer, the response should state: "Ik heb niet genoeg informatie om de vraag te beantwoorden." Fabricating answers is not permissible. Try to limit the answer to 3 sentences or less.
+The response must solely rely on the provided context. If the provided context lacks sufficient information to formulate an answer, the response should state: "Ik heb niet genoeg informatie om de vraag te beantwoorden." Fabricating answers is not permissible.
+
+Try to limit the answer to 3 sentences or less. When your answer is not "Ik heb niet genoeg informatie om de vraag te beantwoorden", you must append your answer with a list of the sources you used to answer the question.
+
+Start the sources section with "[BRONNEN]". Only write the keyword "[BRONNEN]" once.
+
+Mention each source you used, **one per line**, in the following format: "{{file_name}}, pagina {{page_numbers}}" (without brackets or placeholders). Ensure that each source is on its own line, and do not combine multiple sources on the same line.
 
 Responses should be crafted in Dutch, but ensuring clarity and adherence to instructions is paramount, so adjustments to language or structure for clarity's sake are acceptable.
 
