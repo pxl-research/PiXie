@@ -25,6 +25,7 @@ dependencies = [
   "langchain_openai==0.1.12",
   "langchain_qdrant==0.1.3",
   "langchain_text_splitters==0.2.1",
+  "Levenshtein==0.26.0",
   "numpy==1.26.4",
   "pandas==2.2.2",
   "pypandoc==1.13",
