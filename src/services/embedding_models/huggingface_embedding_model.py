@@ -50,10 +50,11 @@ class HuggingFaceEmbeddingModel(EmbeddingModel):
                     embedding_vectors, p=2, dim=1
                 )
             result = embedding_vectors.numpy()
+            result = result.flatten() if result.shape[0] == 1 or result.shape[1] == 1 else result
             if to_list:
                 return result.tolist()
 
-        return result.flatten() if result.shape[0] == 1 else result
+        return result
 
     def embed_query(
         self, text: str, normalize: bool = False, to_list: bool = True
