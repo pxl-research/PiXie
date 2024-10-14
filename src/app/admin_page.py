@@ -1,6 +1,7 @@
 import gradio as gr
 from upload import file_upload_interface
 from user_management import user_management_interface
+from services.authentication.authentication_manager import admin_auth
 
 CSS_STYLES = """
     .red_bg {background: red}
@@ -22,7 +23,6 @@ with gr.Blocks(css=CSS_STYLES, title="PiXie") as llm_client_ui:
     with file_upload_section:
         upload_section = file_upload_interface()
 
-    # User Management Section (Placeholder)
     with user_management_section:
         user_management = user_management_interface()
 
@@ -37,13 +37,13 @@ with gr.Blocks(css=CSS_STYLES, title="PiXie") as llm_client_ui:
     btn_manage_users.click(
         fn=show_user_management,
         inputs=None,
-        outputs=[user_management_section, file_upload_section]
+        outputs=[user_management_section, file_upload_section],
     )
 
     btn_upload_files.click(
         fn=show_file_upload,
         inputs=None,
-        outputs=[user_management_section, file_upload_section]
+        outputs=[user_management_section, file_upload_section],
     )
 
-llm_client_ui.launch(server_name="0.0.0.0", server_port=7861)
+llm_client_ui.launch(server_name="0.0.0.0", server_port=7861, auth=admin_auth)

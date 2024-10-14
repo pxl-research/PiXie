@@ -13,9 +13,11 @@ EXPLAINER_TEXT = (
     "Do not interrupt the processing step. There is no undo."
 )
 
+
 def on_select(evt: gr.SelectData):  # SelectData is a subclass of EventData
     logging.info(f"User selected {evt.value} at {evt.index} from {evt.target}")
     return gr.Button(interactive=True), evt.value
+
 
 def file_upload_interface():
     selected = gr.State()  # State die uniek is voor elke gebruiker
@@ -31,7 +33,7 @@ def file_upload_interface():
         col_count=1,
         interactive=False,
         visible=True,
-        value=list_documents()  # Zorg ervoor dat list_documents een compatibele lijst retourneert
+        value=list_documents(),  # Zorg ervoor dat list_documents een compatibele lijst retourneert
     )
     btn_delete = gr.Button(
         "Delete", interactive=False, visible=True, elem_classes="red_bg"

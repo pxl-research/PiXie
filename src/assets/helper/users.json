@@ -1,5 +1,14 @@
 {
-    "philippe": "$2b$12$IpMWh09YcV65iO9I9VfXo.sfo5eQeKfSy3F6CHEPPN6LvWtOO51r.",
-    "tom": "$2b$12$wZ2ChiKbEebOkjTDFOrfAu0L8OAf5iPcQAAFOhQdnDTqFoZemGdjq",
-    "servaas": "$2b$12$9jeOBCtofS2Y3z9553VTE.DMIVstpZYnz9FCZsZ2M7XbBDRtPWwme"
+    "philippe": {
+        "password": "$2b$12$IpMWh09YcV65iO9I9VfXo.sfo5eQeKfSy3F6CHEPPN6LvWtOO51r.",
+        "role": "admin"
+    },
+    "tom": {
+        "password": "$2b$12$EYYE3HDcwZbUgu0zQhAFXeJ6hgLgM.GmjfwZc1mgUcY1QLggGvZKm",
+        "role": "user"
+    },
+    "servaas": {
+        "password": "$2b$12$h19pY0eW5Koc87ohP9ag2e5tO79T5wWeZdE4y1pTqWXsudRVGC.dG",
+        "role": "user"
+    }
 }
