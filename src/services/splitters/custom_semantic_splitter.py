@@ -77,17 +77,24 @@ class SemanticTextSplitter(Splitter):
         ]
 
         # Full semantic chunking pipeline
-        text = "".join([doc.page_content for doc in docs])
-        single_sentences_list = self._split_into_sentences(text)
-        combined_sentences = self._combine_into_windowed_sentences(
-            single_sentences_list
-        )
-        embeddings = self._texts_to_embeddings(combined_sentences)
-        similarities = cosine_similarities_successive_embeddings(embeddings)
-        chunks = self._merge(
-            single_sentences_list,
-            similarities,
-            breakpoint_percentile_threshold=self.breakpoint_percentile_threshold,
-        )
+        doc_chunks = []
+        for doc in docs:
+            text = doc.page_content
+            metadata = doc.metadata
 
-        return chunks
+            single_sentences_list = self._split_into_sentences(text)
+            combined_sentences = self._combine_into_windowed_sentences(
+                single_sentences_list
+            )
+            embeddings = self._texts_to_embeddings(combined_sentences)
+            similarities = cosine_similarities_successive_embeddings(embeddings)
+            chunks = self._merge(
+                single_sentences_list,
+                similarities,
+                breakpoint_percentile_threshold=self.breakpoint_percentile_threshold,
+            )
+            doc_chunks += [
+                Document(page_content=chunk, metadata=metadata) for chunk in chunks
+            ]
+
+        return doc_chunks
