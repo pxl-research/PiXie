@@ -1,5 +1,5 @@
 import gradio as gr
-from upload import file_upload_interface
+from file_management import file_upload_interface
 from user_management import user_management_interface
 from services.authentication.authentication_manager import admin_auth
 
@@ -21,10 +21,17 @@ with gr.Blocks(css=CSS_STYLES, title="PiXie") as llm_client_ui:
 
     # File Upload Section
     with file_upload_section:
-        upload_section = file_upload_interface()
+        (files_list, file_upload, delete_file_button, feedback, load_files_list) = (
+            file_upload_interface()
+        )
 
     with user_management_section:
-        user_management = user_management_interface()
+        (users_list, add_user_button, delete_user_button, feedback, load_users_list) = (
+            user_management_interface()
+        )
+
+    llm_client_ui.load(fn=load_files_list, inputs=None, outputs=files_list)
+    llm_client_ui.load(fn=load_users_list, inputs=None, outputs=users_list)
 
     # Functions to show/hide sections
     def show_user_management():

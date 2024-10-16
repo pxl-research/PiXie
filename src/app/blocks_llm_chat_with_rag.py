@@ -1,7 +1,6 @@
 from app import chain_builder
 from services import (
     document_manager,
-    chat_history_manager,
     source_processing,
 )
 from typing import List, Dict, Tuple, Generator
@@ -9,6 +8,8 @@ import uuid
 import os
 import base64
 import hashlib
+
+from services.chat_history import chat_history_manager
 
 # Directory where we store the chat history
 HISTORY_DIR = "chat_histories"

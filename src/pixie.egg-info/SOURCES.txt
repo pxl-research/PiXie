@@ -1,10 +1,11 @@
 README.md
 pyproject.toml
 src/app/__init__.py
+src/app/admin_page.py
 src/app/blocks_llm_chat_with_rag.py
-src/app/blocks_rag_upload.py
 src/app/chat.py
-src/app/upload.py
+src/app/file_management.py
+src/app/user_management.py
 src/pixie.egg-info/PKG-INFO
 src/pixie.egg-info/SOURCES.txt
 src/pixie.egg-info/dependency_links.txt
@@ -12,7 +13,6 @@ src/pixie.egg-info/requires.txt
 src/pixie.egg-info/top_level.txt
 src/services/__init__.py
 src/services/blob_service.py
-src/services/chat_history_manager.py
 src/services/document_manager.py
 src/services/llm_chain_service.py
 src/services/page_numbering.py
@@ -25,6 +25,10 @@ src/services/abstractclasses/reranker.py
 src/services/abstractclasses/splitter.py
 src/services/abstractclasses/vectorstore.py
 src/services/authentication/authentication_manager.py
+src/services/chat_history/chat_history_manager.py
+src/services/database/database.py
+src/services/database/document_db_operations.py
+src/services/database/user_db_operations.py
 src/services/document_loaders/azure_document_loader.py
 src/services/embedding_models/huggingface_embedding_model.py
 src/services/embedding_models/lc_azure_openai_embedding_model.py

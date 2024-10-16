@@ -16,10 +16,20 @@ services:
     networks:
       - app-network
 
+  db:
+    image: postgres:latest
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql 
+    networks:
+      - app-network
+
 volumes:
   qdrant_storage:
   embeddings_cache:
   reranker_cache:
+  postgres_data:
 
 networks:
   app-network:
