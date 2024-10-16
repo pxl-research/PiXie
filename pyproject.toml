@@ -29,6 +29,7 @@ dependencies = [
   "pandas==2.2.2",
   "pypandoc==1.13",
   "python-Levenshtein==0.26.0",
+  "scikit-learn==1.2.2",
   "qdrant_client==1.10.1",
   "Werkzeug==3.0.3",
   "torch==2.2.0",
