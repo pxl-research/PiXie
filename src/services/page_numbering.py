@@ -1,56 +1,34 @@
+from typing import Optional, Callable
+import subprocess
+import os
+import shutil
+import logging
 import fitz  # For PDF handling (PyMuPDF)
 from fuzzywuzzy import fuzz
-import os
-import logging
 
+import io
+import re
+from tempfile import NamedTemporaryFile
 
-def text_chunks_to_page_numbers(file_path: str, text_chunks: list[str]) -> list:
-    """
-    Maps text chunks to page numbers based on the file type.
-    For PDF files, returns the first page number where the chunk starts.
-    For unsupported file types, returns None.
-
-    Parameters:
-    - file_path: str
-        The path to the document file.
-    - text_chunks: list[str]
-        The list of text chunks to map to pages.
-
-    Returns:
-    - list[int or None]: A list where each element is the first page number
-      corresponding to the respective text chunk, or None if not applicable.
-    """
-    # Determine the file extension
-    file_extension = os.path.splitext(file_path)[1].lower()
-
-    if file_extension == ".pdf":
-        return _get_pdf_chunk_page_numbers(file_path, text_chunks)
-    else:
-        logging.warning(
-            f"File type {file_extension} is not yet supported for page number extraction."
-        )
-        return [None for _ in text_chunks]
-
-
-def _get_pdf_chunk_page_numbers(file_path: str, text_chunks: list[str]) -> list[int]:
+def _match_chunks_and_page_numbers(doc: fitz.pymupdf.Document, text_chunks: list[str]) -> list[Optional[int]]:
     """
     Maps text chunks to the first page number based on fuzzy matching in a PDF file.
 
     Parameters:
-    - file_path: str
-        The path to the PDF document.
+    - doc: fitz.pymupdf.Document
+        The PDF document.
     - text_chunks: list[str]
         The list of text chunks to map to pages.
 
     Returns:
-    - list[int]: A list where each element is the first page number corresponding
-      to the respective text chunk.
+    - list[Optional[int]]: A list where each element is the first page number corresponding
+      to the respective text chunk, or None if not applicable.
     """
     pages_grouped_per_2_range = lambda n: (
         (i, i + 1) if i < n - 1 else (i, None) for i in range(n)
     )
 
-    doc = fitz.open(file_path)
+    # doc: fitz.pymupdf.Document = fitz.open(file_path)
     num_pages = doc.page_count
 
     results = []
@@ -94,4 +72,113 @@ def _get_pdf_chunk_page_numbers(file_path: str, text_chunks: list[str]) -> list[
         if best_pages:
             results.append(best_pages[0])
 
+    return results if len(results) > 0 else [None for _ in text_chunks]
+
+
+def _pdf_matching(file_path: str, text_chunks: list[str]) -> list[Optional[int]]:
+    """
+    Maps text chunks to the first page number based on fuzzy matching in a PDF file.
+
+    Parameters:
+    - file_path: str
+        The path to the PDF document.
+    - text_chunks: list[str]
+        The list of text chunks to map to pages.
+
+    Returns:
+    - list[Optional[int]]: A list where each element is the first page number corresponding
+      to the respective text chunk, or None if not applicable.
+    """
+    try:
+        doc: fitz.pymupdf.Document = fitz.open(file_path)
+        results = _match_chunks_and_page_numbers(doc, text_chunks)
+    except Exception as e:
+        return [None for _ in text_chunks]
+    finally:
+        doc.close()
     return results
+
+
+def _docx_or_pptx_matching(file_path: str, text_chunks: list[str]) -> list[Optional[int]]:
+    """
+    Maps text chunks to the first page number based on fuzzy matching in a docx or pptx file.
+
+    Parameters:
+    - file_path: str
+        The path to the docx document or pptx presentation.
+    - text_chunks: list[str]
+        The list of text chunks to map to pages.
+
+    Returns:
+    - list[Optional[int]]: A list where each element is the first page number corresponding
+      to the respective text chunk, or None if not applicable.
+    """
+    docx_or_pptx_file_path = file_path
+    file_extension = os.path.splitext(file_path)[1].lower()
+    
+    # Create a temporary file to store the PDF output
+    with NamedTemporaryFile(suffix=".pdf") as temp_pdf:
+        temp_pdf.flush()
+        temp_pdf.seek(0) # start at beginning
+                
+        output_dir = os.path.dirname(temp_pdf.name)
+        temp_output_pdf = os.path.join(output_dir, 
+            os.path.basename(docx_or_pptx_file_path).replace(file_extension, '.pdf')
+        )
+        try:
+            subprocess.run([
+                    'libreoffice', '--headless', '--convert-to', 
+                    'pdf', docx_or_pptx_file_path, 
+                    '--outdir', output_dir
+                ], 
+                check=True, 
+                stdout=open(os.devnull, 'wb')
+            )
+        except subprocess.CalledProcessError as e:
+            return [None for _ in text_chunks]
+    
+        # Rename the output file to the desired name (temporary pdf)
+        try:
+            shutil.move(temp_output_pdf, temp_pdf.name)
+        except Exception as e:
+            return [None for _ in text_chunks]
+        
+        # Text chunk matching for on temporary pdf
+        try:
+            pdf_document: fitz.pymupdf.Document = fitz.open(temp_pdf.name, filetype="pdf")
+            results = _match_chunks_and_page_numbers(pdf_document, text_chunks)        
+        except Exception as e:
+            return [None for _ in text_chunks]
+        finally:
+            pdf_document.close()
+        return results
+    
+
+def text_chunks_to_page_numbers(file_path: str, text_chunks: list[str]) -> list[Optional[int]]:
+    """
+    Maps text chunks to page numbers based on the file type.
+    For PDF files, returns the first page number where the chunk starts.
+    For unsupported file types, returns None.
+
+    Parameters:
+    - file_path: str
+        The path to the document file.
+    - text_chunks: list[str]
+        The list of text chunks to map to pages.
+
+    Returns:
+    - list[Optional[int]]: A list where each element is the first page number
+      corresponding to the respective text chunk, or None if not applicable.
+    """
+    # Determine the file extension
+    file_extension = os.path.splitext(file_path)[1].lower()
+    
+    if file_extension == ".pdf":
+        return _pdf_matching(file_path, text_chunks) 
+    elif file_extension in (".docx", ".pptx"):
+        return _docx_or_pptx_matching(file_path, text_chunks)
+    else:
+        logging.warning(
+            f"File type {file_extension} is not yet supported for page number extraction."
+        )
+        return [None for _ in text_chunks]
