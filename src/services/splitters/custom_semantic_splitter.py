@@ -1,11 +1,14 @@
 from typing import List
 import re
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
 from langchain_core.documents import Document
 
 from services.abstractclasses.splitter import Splitter
 from services.abstractclasses.embedding_model import EmbeddingModel
+
+
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 
 class SemanticTextSplitter(Splitter):
@@ -72,7 +75,7 @@ class SemanticTextSplitter(Splitter):
     def split(self, docs: List[Document]) -> List[Document]:
         # Cosine similarities of successive embeddings
         cosine_similarities_successive_embeddings = lambda embeddings: [
-            cosine_similarity([embeddings[i]], [embeddings[i + 1]])[0][0]
+            cosine_similarity([embeddings[i]], [embeddings[i + 1]])
             for i in range(len(embeddings) - 1)
         ]
 
