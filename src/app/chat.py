@@ -55,6 +55,11 @@ def login(username: str, password: str, user_state: Optional[Dict[str, Any]] = N
         return gr.update(visible=True), gr.update(visible=False), None
 
 
+def logout(user_info):
+    user_info.clear()
+    return gr.update(visible=True), gr.update(visible=False), None, None
+
+
 # Gradio UI Setup
 with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui:
     user_info = gr.State(value=None)
@@ -105,6 +110,12 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
                 [tb_user, cb_live],
             )
             btn_remove.click(clear_log, [user_info], [tb_user, cb_live])
+
+            logout_btn.click(
+                logout,
+                inputs=[user_info],
+                outputs=[login_row, chat_row, cb_live, user_info],
+            )
 
     login_btn.click(
         login,
