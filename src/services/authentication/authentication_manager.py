@@ -7,9 +7,10 @@ from services.database.user_db_operations import (
     delete_user_from_db,
     user_exists,
     get_user,
+    get_user_by_username,
 )
 import pandas as pd
-from typing import List
+from typing import List, Optional, Dict, Any
 
 
 def add_user(username, password, role="user"):
@@ -79,8 +80,6 @@ def delete_user(selected_user: str):
     # Haal de bijgewerkte gebruikerslijst op
     users = [[user] for user in get_all_users()]
     users_df = pd.DataFrame(users, columns=["Gebruikersnaam"])
-    print("Updated user list:")
-    print(users_df)
     return feedback_text, users_df
 
 
@@ -97,14 +96,41 @@ def list_users() -> List[List[str]]:
     return user_names
 
 
-# Aangepaste authenticatiefunctie
-def custom_auth(username, password):
-    user = get_user(username)
-    if user:
-        hashed_pw = user.get("password")
-        return bcrypt.checkpw(password.encode("utf-8"), hashed_pw.encode("utf-8"))
+def custom_auth(username: str, password: str) -> Optional[Dict[str, Any]]:
+    """
+    Authenticeer een gebruiker met de gegeven gebruikersnaam en wachtwoord.
+
+    Parameters:
+        username (str): De gebruikersnaam van de gebruiker.
+        password (str): Het wachtwoord van de gebruiker.
+
+    Returns:
+        Optional[Dict[str, Any]]: Gebruikersinformatie als authenticatie succesvol is, anders None.
+    """
+    user = get_user_by_username(username)
+    if user and verify_password(password, user['password']):
+        logging.info(f"User '{username}' authenticated successfully.")
+        return {
+            "id": user['id'],
+            "username": user['username'],
+            "role": user['role']
+        }
     else:
-        return False
+        logging.warning(f"Authentication failed for user '{username}'.")
+        return None
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Verifieer een plain text wachtwoord tegen het gehashte wachtwoord.
+
+    Parameters:
+        plain_password (str): Het plain text wachtwoord.
+        hashed_password (str): Het gehashte wachtwoord uit de database.
+
+    Returns:
+        bool: True als het wachtwoord overeenkomt, anders False.
+    """
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 
 def admin_auth(username, password):

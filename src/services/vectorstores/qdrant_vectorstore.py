@@ -82,7 +82,6 @@ class QDrantVectorStore(VectorStore):
                     )
                 ),
             )
-            print(response.status)
             if response.status == "completed":
                 logging.info(f"Document {doc_title} deleted from the vector store.")
             else:

@@ -4,6 +4,7 @@ src/app/__init__.py
 src/app/admin_page.py
 src/app/blocks_llm_chat_with_rag.py
 src/app/chat.py
+src/app/chat_tmp.py
 src/app/file_management.py
 src/app/user_management.py
 src/pixie.egg-info/PKG-INFO
@@ -25,6 +26,7 @@ src/services/abstractclasses/reranker.py
 src/services/abstractclasses/splitter.py
 src/services/abstractclasses/vectorstore.py
 src/services/authentication/authentication_manager.py
+src/services/chat_history/chat_history_manager copy.py
 src/services/chat_history/chat_history_manager.py
 src/services/database/database.py
 src/services/database/document_db_operations.py

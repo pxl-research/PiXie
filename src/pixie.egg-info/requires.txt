@@ -3,7 +3,7 @@ azure-storage-blob==12.22.0
 bcrypt==4.2.0
 FlagEmbedding==1.2.11
 fuzzywuzzy==0.18.0
-gradio==4.44.0
+gradio==5.1.0
 langchain==0.2.5
 langchain_community==0.2.5
 langchain_core==0.2.7
@@ -20,6 +20,6 @@ qdrant_client==1.10.1
 Werkzeug==3.0.3
 torch==2.2.0
 peft==0.12.0
-sentencepiece
+sentencepiece==0.2.0
 tiktoken==0.8.0
 transformers==4.44.2
