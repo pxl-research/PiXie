@@ -1,12 +1,16 @@
 from app import chain_builder
 from services import (
     document_manager,
-    chat_history_manager,
     source_processing,
 )
-from typing import List, Dict, Tuple, Generator
+from typing import List, Dict, Tuple, Generator, Optional, Any
 import uuid
 import os
+import base64
+import hashlib
+
+from services.chat_history import chat_history_manager
+from langchain.schema import AIMessage, HumanMessage
 
 # Directory where we store the chat history
 HISTORY_DIR = "chat_histories"
@@ -15,40 +19,34 @@ HISTORY_DIR = "chat_histories"
 os.makedirs(HISTORY_DIR, exist_ok=True)
 
 
-def generate_session_id() -> str:
-    """
-    Generate a unique session ID.
-
-    Returns:
-    - str: A unique session ID in the form of a UUID string.
-    """
-    session_id = str(uuid.uuid4())
-    print(f"Generated session ID: {session_id}")
-    return session_id
-
-
-def append_user(message: str, session_id: str) -> List[Tuple[str, str]]:
+def append_user(
+    message: str, user_info: Optional[Dict[str, Any]]
+) -> List[Tuple[str, str]]:
     """
     Append a user's message to the chat history and save it.
 
     Parameters:
     - message: str
         The message from the user to append to the chat history.
-    - session_id: str
-        The unique session ID associated with the user's chat history.
+    - user_info: Optional[Dict[str, Any]]
+        A dictionary containing user information, including the user ID.
 
     Returns:
-    - List[Tuple[str, str]]: The updated chat history list of tuples, where each tuple contains the user message
+    - List[Tuple[str, str]]: The updated chat history list of tuples, where each tuple contains the user's message
       and the AI response (or None if no response yet).
     """
-    chat_history = chat_history_manager.load_chat_history(session_id)
-    chat_history.append((message, None))
-    chat_history_manager.save_chat_history(session_id, chat_history)
+    user_id = user_info["id"] if user_info else None
+
+    chat_history = chat_history_manager.get_chat_history(user_id)
+    chat_history_manager.save_chat_history(user_id, message, None)
+    chat_history = chat_history_manager.add_message_to_chat_history(
+        chat_history, "user", message
+    )
     return chat_history
 
 
 def append_ai(
-    message: str, session_id: str
+    message: str, user_info: Optional[Dict[str, Any]]
 ) -> Generator[Tuple[str, List[Tuple[str, str]]], None, None]:
     """
     Generate an AI response to the user's message, update the chat history, and save it.
@@ -56,24 +54,28 @@ def append_ai(
     Parameters:
     - message: str
         The user's message to which the AI should respond.
-    - session_id: str
-        The unique session ID for the user, used to load and save chat history.
+    - user_info: Optional[Dict[str, Any]]
+        A dictionary containing user information, including the user ID.
 
     Yields:
     - Tuple[str, List[Tuple[str, str]]]:
-        The current chat history in each step of response generation. Once the final response is generated,
-        the entire chat history including the final answer is yielded for display.
+        At each step of response generation, it yields the current chat history. Once the final response
+        is generated, it yields the entire chat history including the final answer for display.
     """
-    chat_history = chat_history_manager.load_chat_history(session_id)
+    user_id = user_info["id"] if user_info else None
+
+    chat_history = chat_history_manager.get_chat_history(user_id)
+
     formatted_history = chat_history_manager.format_chat_history_for_llm(
         chat_history, message
     )
 
     final_docs = document_manager.retrieve_and_rerank_chunks(message)
+
     docs = format_documents(final_docs)
 
     inputs = {
-        "chat_history": chat_history_manager.format_chat_history(formatted_history),
+        "chat_history": formatted_history,
         "docs": docs,
         "question": message,
     }
@@ -84,19 +86,24 @@ def append_ai(
         question=inputs["question"],
     )
 
-    # Stream the response generation
+    full_response = ""
+
     for chunk, response in _stream_full_answer(chain, inputs):
         if chunk is not None:
+            chat_history = chat_history_manager.replace_last_message_in_chat_history(
+                chat_history, "assistant", response
+            )
             yield "", chat_history
         else:
-            final_answer = response  # Capture the final answer
+            full_response = response
 
-    # Update the chat history with the final answer and save it
-    chat_history[-1] = (chat_history[-1][0], final_answer)
-    chat_history_manager.save_chat_history(session_id, chat_history)
+    chat_history = chat_history_manager.add_message_to_chat_history(
+        chat_history, "assistant", full_response
+    )
 
+    chat_history_manager.save_chat_history(user_id, None, full_response)
     # Return the complete chat history for display
-    yield "", [(user_msg, ai_msg) for user_msg, ai_msg in chat_history]
+    yield "", chat_history
 
 
 def format_documents(final_docs):
@@ -105,7 +112,7 @@ def format_documents(final_docs):
 
     Parameters:
     - final_docs: list
-        A list of document objects retrieved and ranked based on relevance to the user query.
+        A list of document objects, where each document contains metadata and page content.
 
     Returns:
     - str: A formatted string of document references with file names and page numbers, each separated by new lines.
@@ -118,18 +125,19 @@ def format_documents(final_docs):
     )
 
 
-def clear_log(session_id: str) -> List[str]:
+def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
     """
-    Clear the chat history and delete the associated file for the given session ID.
+    Clear the chat history and delete the associated file for the given user.
 
     Parameters:
-    - session_id: str
-        The unique session ID for the user whose chat history should be cleared.
+    - user_info: Optional[Dict[str, Any]]
+        A dictionary containing user information, including the user ID.
 
     Returns:
     - List[str]: An empty list containing two empty strings, used to reset the chat interface.
     """
-    chat_history_manager.delete_chat_history(session_id)
+    user_id = user_info["id"] if user_info else None
+    chat_history_manager.delete_chat_history(user_id)
     return ["", ""]
 
 
@@ -137,14 +145,14 @@ def _stream_full_answer(
     chain: any, inputs: dict
 ) -> Generator[Tuple[str, str], None, None]:
     """
-    Stream the full answer generated by the chain.
+    Stream the full answer generated by the LLM chain.
 
     This function yields each chunk of the AI's response as it is generated. Once the entire answer is
     completed, it processes and enriches the sources before yielding the final response.
 
     Parameters:
     - chain: any
-        The LLM chain object used to generate the response.
+        The LLM chain object used to generate the response. It must support streaming of responses.
     - inputs: dict
         A dictionary containing the inputs for the chain, including chat history, documents, and the question.
 

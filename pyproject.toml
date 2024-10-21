@@ -9,15 +9,16 @@ authors = [
     { name = "Robin Schrijvers", email = "robin.schrijvers@pxl.be" }
 ]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 
 dependencies = [
   "azure-ai-documentintelligence==1.0.0b3",
   "azure-storage-blob==12.22.0",
+  "bcrypt==4.2.0",
   "FlagEmbedding==1.2.11",
   "fuzzywuzzy==0.18.0",
-  "gradio==4.44.0",
+  "gradio==5.1.0",
   "langchain==0.2.5",
   "langchain_community==0.2.5",
   "langchain_core==0.2.7",
@@ -27,17 +28,18 @@ dependencies = [
   "langchain_text_splitters==0.2.1",
   "numpy==1.26.4",
   "pandas==2.2.2",
+  "psycopg2-binary==2.9.9",
+  "pymupdf==1.24.10",
   "pypandoc==1.13",
   "python-Levenshtein==0.26.0",
   "scikit-learn==1.2.2",
   "qdrant_client==1.10.1",
   "Werkzeug==3.0.3",
   "torch==2.2.0",
-  "peft",
-  "sentencepiece",
+  "peft==0.12.0",
+  "sentencepiece==0.2.0",
   "tiktoken==0.8.0",
-  "transformers==4.44.2",
-  "pymupdf"
+  "transformers==4.44.2"
 ]
 
 [build-system]

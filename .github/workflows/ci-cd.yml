@@ -17,11 +17,11 @@ jobs:
     steps:
       # 2.1 Checkout de repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # 2.2 Log in op de container registry
       - name: Log in to Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io  # Of je eigen registry, zoals 'docker.io' voor Docker Hub
           username: ${{ github.actor }}  # Gebruiker die de actie uitvoert
@@ -29,7 +29,7 @@ jobs:
 
       # 2.3 Build en Push de Docker Image
       - name: Build and Push Docker Image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           context: .  # Context is de root van de repository
           push: true  # Image wordt gepusht naar de registry

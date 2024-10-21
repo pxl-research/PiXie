@@ -24,3 +24,9 @@ services:
       - qdrant_storage:/qdrant/storage
     networks:
       - app-network
+  
+  db:
+    env_file:
+      - .env.prod
+    ports:
+      - "5432:5432"

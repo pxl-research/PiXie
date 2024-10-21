@@ -12,6 +12,7 @@ ENV UV_LINK_MODE=copy
 RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
+    libpq-dev \
     build-essential \
     libreoffice \
     pandoc && \
