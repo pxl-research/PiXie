@@ -29,7 +29,6 @@ embeddings_model = LangChainHuggingFaceEmbeddingModel(
 )
 
 vector_store = QDrantVectorStore(
-    collection_name=os.getenv("QDRANT_COLLECTION_NAME"),
     embeddings=embeddings_model.get_embeddings(),
     host=os.getenv("QDRANT_HOST"),
     port=os.getenv("QDRANT_PORT"),

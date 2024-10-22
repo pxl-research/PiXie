@@ -19,7 +19,9 @@ import gradio as gr
 UPLOAD_FOLDER = "./uploads"
 
 
-def retrieve_and_rerank_chunks(message: str, top_k: int = 15, final_k: int = 5) -> List:
+def retrieve_and_rerank_chunks(
+    collection_name: str, message: str, top_k: int = 15, final_k: int = 5
+) -> List:
     """
     Retrieve and optionally rerank document chunks based on the input message.
 
@@ -28,6 +30,7 @@ def retrieve_and_rerank_chunks(message: str, top_k: int = 15, final_k: int = 5) 
     it simply returns the first `final_k` chunks from the retrieved list.
 
     Parameters:
+        collection_name (str): The name of the collection to retrieve document chunks from.
         message (str): The input message used to retrieve relevant document chunks.
         top_k (int, optional): The number of top chunks to retrieve initially. Defaults to 15.
         final_k (int, optional): The number of chunks to return after reranking. Defaults to 5.
@@ -35,7 +38,7 @@ def retrieve_and_rerank_chunks(message: str, top_k: int = 15, final_k: int = 5) 
     Returns:
         List: A list of the final selected document chunks.
     """
-    top_chunks = vector_store.retrieve_top_chunks(message, top_k)
+    top_chunks = vector_store.retrieve_top_chunks(collection_name, message, top_k)
 
     if reranker is not None:
         final_chunks = reranker.rerank(message, top_chunks, final_k)
@@ -49,7 +52,7 @@ def retrieve_and_rerank_chunks(message: str, top_k: int = 15, final_k: int = 5) 
     return final_chunks
 
 
-def add_document(file_path: str) -> Optional[str]:
+def add_document(collection_name: str, file_path: str) -> Optional[str]:
     """
     Handle the process of uploading, securing the file name, loading, splitting,
     and adding a document to the vector store.
@@ -60,6 +63,7 @@ def add_document(file_path: str) -> Optional[str]:
     the document list accordingly.
 
     Parameters:
+        collection_name (str): The name of the collection to add the document to.
         file_path (str): The path of the file to handle.
 
     Returns:
@@ -101,7 +105,7 @@ def add_document(file_path: str) -> Optional[str]:
             if page_numbers is not None:
                 chunk.metadata["page_numbers"] = page_numbers
 
-        vector_store.add_document(secure_file_name, chunks)
+        vector_store.add_document(collection_name, secure_file_name, chunks)
 
         # Update the document list
         add_to_doc_list(secure_file_name, file_hash, delete)
@@ -125,7 +129,9 @@ def add_document(file_path: str) -> Optional[str]:
             logging.debug(f"Temporary file {temp_file_path} has been removed.")
 
 
-def add_documents(file_paths: List[str]) -> List[List[str]]:
+def add_documents(
+    file_paths: List[str], collection_name: str = "pixie"
+) -> List[List[str]]:
     """
     Add multiple documents to the system and retrieve the updated document list.
 
@@ -141,14 +147,16 @@ def add_documents(file_paths: List[str]) -> List[List[str]]:
         information about a single document.
     """
     for file_path in file_paths:
-        add_document(file_path)
+        add_document(collection_name, file_path)
 
     # Get the updated list of document collections
     df_files = list_documents()
     return df_files
 
 
-def remove_document(selected_file: str) -> Tuple[str, List[List[str]]]:
+def remove_document(
+    selected_file: str, collection_name: str = "pixie"
+) -> Tuple[str, List[List[str]]]:
     """
     Remove a document from the vector store, the collection list, and Azure Blob Storage.
 
@@ -168,7 +176,7 @@ def remove_document(selected_file: str) -> Tuple[str, List[List[str]]]:
     if selected_file:
         try:
             logging.info(f"Removing document: {selected_file}")
-            vector_store.delete_document(selected_file)
+            vector_store.delete_document(collection_name, selected_file)
             success = remove_from_doc_list(selected_file)
             blob_service.delete_blob(selected_file)
             if success:

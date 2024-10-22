@@ -90,7 +90,10 @@ def file_upload_interface():
     )
 
     delete_file_button.click(
-        remove_document, [selected_file], [feedback, files_list], queue=False
+        remove_document,
+        [selected_file],
+        [feedback, files_list],
+        queue=False,
     )
 
     file_upload.upload(add_documents, [file_upload], [files_list])
