@@ -21,7 +21,7 @@ document_loader = AzureDocumentLoader(
 )
 splitter = CustomMarkdownSplitter(header_depth=3, chunk_size=512, chunk_overlap=128)
 
-model_kwargs = {"device": "cpu"}
+model_kwargs = {"device": os.getenv("DEVICE_TYPE", "cpu")}
 embeddings_model = LangChainHuggingFaceEmbeddingModel(
     model_name=os.getenv("EMBEDDINGS_MODEL_NAME"),
     model_kwargs=model_kwargs,
