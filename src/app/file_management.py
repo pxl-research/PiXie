@@ -2,7 +2,13 @@ import logging
 import pandas as pd
 import gradio as gr
 
-from services.document_manager import list_documents, remove_document, add_documents
+from services.document_manager import (
+    list_documents,
+    remove_document,
+    add_documents,
+    list_collections,
+    add_collection,
+)
 
 # Constants
 EXPLAINER_TEXT = (
@@ -14,21 +20,6 @@ EXPLAINER_TEXT = (
 
 
 def on_select_file(evt: gr.SelectData):
-    """
-    Handles the file selection event from the DataFrame.
-
-    This function is triggered when a user selects a row in the `files_list` DataFrame.
-    It retrieves the selected filename and logs the selection event. It also updates
-    the 'Delete' button to be interactive, allowing the user to delete the selected file.
-
-    Parameters:
-        evt (gr.SelectData): The selection event data containing information about the selected row.
-
-    Returns:
-        tuple:
-            - gr.update(interactive=True): An update instruction to make the 'Delete' button interactive.
-            - str: The name of the selected file.
-    """
     if isinstance(evt.value, list):
         selected_filename = evt.value[0]
     else:
@@ -37,65 +28,109 @@ def on_select_file(evt: gr.SelectData):
     return gr.update(interactive=True), selected_filename
 
 
-def load_files_list():
+def load_files_list(collection):
     """
-    Loads and returns the updated list of available files.
-
-    This internal function retrieves the current list of documents and converts it into a Pandas DataFrame.
-
-    Returns:
-        pd.DataFrame: A DataFrame containing the names of the files under the column "Naam".
+    Load files based on the selected collection.
     """
-    df = list_documents()
+    df = list_documents(
+        collection
+    )  # Assuming list_documents can take collection as an argument
     return df
 
 
+def add_new_collection(new_collection, collections_state):
+    if new_collection and new_collection not in collections_state:
+        add_collection(new_collection)
+        collections_state.append(new_collection)
+        return (
+            gr.update(choices=collections_state, value=new_collection),
+            None,
+        )  # Reset TextInput
+    return (
+        gr.update(choices=collections_state, value=new_collection),
+        None,
+    )
+
+
 def file_upload_interface():
-    """
-    Creates and returns the Gradio interface for file management, including uploading and deleting files.
-
-    This function initializes the components of the interface, such as the file upload button, the DataFrame
-    displaying the list of files, the delete button, and a feedback section. It also defines the interactions
-    between these components, such as selecting a file and deleting it.
-
-    Returns:
-        tuple:
-            - gr.Dataframe: The DataFrame component that displays the list of files.
-            - gr.File: The file upload component allowing users to upload multiple files.
-            - gr.Button: The delete button used to remove the selected file.
-            - gr.Markdown: The Markdown component for displaying feedback to the user.
-            - function: A function to load and refresh the list of files.
-    """
     selected_file = gr.State()
     gr.HTML(EXPLAINER_TEXT, visible=True)
 
-    file_upload = gr.File(
-        label="Click to Upload (a) File(s)", file_count="multiple", visible=True
-    )
+    with gr.Blocks() as interface:
+        gr.Markdown("### Kies een collectie of maak een nieuwe aan")
 
-    feedback = gr.Markdown("")
+        collections_state = gr.State(value=list_collections)
 
-    files_list = gr.Dataframe(
-        headers=["Naam"],
-        datatype=["str"],
-        value=list_documents(),
-        interactive=False,
-    )
+        # Voeg een lege optie toe als placeholder
+        collection_choices = list_collections()
 
-    delete_file_button = gr.Button("Delete", interactive=False, elem_classes="red_bg")
+        # Dropdown voor bestaande collecties, met de eerste waarde als standaard
+        collection_dropdown = gr.Dropdown(
+            choices=collection_choices,
+            label="Kies een collectie",
+            value=collection_choices[0],  # Eerste collectie standaard geselecteerd
+            interactive=True,
+        )
 
-    # Define interactions
-    files_list.select(
-        fn=on_select_file, inputs=None, outputs=[delete_file_button, selected_file]
-    )
+        # TextInput voor nieuwe collectie
+        new_collection_input = gr.Textbox(
+            placeholder="Voer een nieuwe collectie naam in",
+            label="Nieuwe collectie aanmaken",
+        )
 
-    delete_file_button.click(
-        remove_document,
-        [selected_file],
-        [feedback, files_list],
-        queue=False,
-    )
+        # Knop om nieuwe collectie toe te voegen
+        add_button = gr.Button("Toevoegen")
 
-    file_upload.upload(add_documents, [file_upload], [files_list])
+        # Event voor het toevoegen van een nieuwe collectie
+        add_button.click(
+            add_new_collection,
+            inputs=[new_collection_input, collections_state],
+            outputs=[collection_dropdown, new_collection_input],
+        )
 
-    return (files_list, file_upload, delete_file_button, feedback, load_files_list)
+        # Sectie voor het uploaden van documenten (standaard zichtbaar voor de eerste collectie)
+        document_upload = gr.Group(visible=True)
+        with document_upload:
+            file_upload = gr.File(
+                label="Click to Upload (a) File(s)", file_count="multiple", visible=True
+            )
+
+            files_list = gr.Dataframe(
+                headers=["Naam"],
+                datatype=["str"],
+                value=load_files_list(
+                    collection_choices[0]
+                ),  # Laad documenten voor de eerste collectie
+                interactive=False,
+            )
+
+            delete_file_button = gr.Button(
+                "Delete", interactive=False, elem_classes="red_bg"
+            )
+
+            # Define interactions
+            files_list.select(
+                fn=on_select_file,
+                inputs=None,
+                outputs=[delete_file_button, selected_file],
+            )
+
+            delete_file_button.click(
+                remove_document, [selected_file], [files_list], queue=False
+            )
+
+            file_upload.upload(
+                add_documents, [file_upload, collection_dropdown], [files_list]
+            )
+
+        # Update documents based on collection selection
+        collection_dropdown.change(
+            fn=lambda collection: load_files_list(collection),
+            inputs=[collection_dropdown],
+            outputs=[files_list],  # Update de lijst met documenten
+        )
+
+    return (files_list, file_upload, delete_file_button, load_files_list)
+
+
+file_upload_interface()

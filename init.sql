@@ -7,9 +7,11 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS documents (
     id SERIAL PRIMARY KEY,
-    file_name VARCHAR(255) UNIQUE NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
     file_hash VARCHAR(64) NOT NULL,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    collection VARCHAR(255) NOT NULL
+    CONSTRAINT unique_file_collection UNIQUE (file_name, collection)
 );
 
 -- New chat_messages table

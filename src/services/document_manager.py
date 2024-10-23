@@ -84,11 +84,11 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
         file_hash = utils.compute_hash(temp_file_path)
 
         # Check if the document is already up-to-date
-        if is_doc_up_to_date_in_list(file_hash):
+        if is_doc_up_to_date_in_list(file_hash, collection_name):
             logging.info(f"File {secure_file_name} is already up-to-date.")
             return None
 
-        delete = is_doc_in_list(secure_file_name)
+        delete = is_doc_in_list(secure_file_name, collection_name)
 
         # Load, split, and add the document to the vector store
         document = document_loader.load_document(temp_file_path)
@@ -108,7 +108,7 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
         vector_store.add_document(collection_name, secure_file_name, chunks)
 
         # Update the document list
-        add_to_doc_list(secure_file_name, file_hash, delete)
+        add_to_doc_list(secure_file_name, file_hash, collection_name, delete)
 
         # Upload the file to Azure Blob Storage
         blob_service.upload_blob(temp_file_path, secure_file_name)
@@ -150,7 +150,7 @@ def add_documents(
         add_document(collection_name, file_path)
 
     # Get the updated list of document collections
-    df_files = list_documents()
+    df_files = list_documents(collection_name)
     return df_files
 
 
@@ -177,7 +177,7 @@ def remove_document(
         try:
             logging.info(f"Removing document: {selected_file}")
             vector_store.delete_document(collection_name, selected_file)
-            success = remove_from_doc_list(selected_file)
+            success = remove_from_doc_list(selected_file, collection_name)
             blob_service.delete_blob(selected_file)
             if success:
                 feedback_text = f"File '{selected_file}' has been successfully removed."
@@ -190,12 +190,12 @@ def remove_document(
         feedback_text = "No file selected."
 
     # Retrieve the updated list of files
-    files_df = list_documents()
+    files_df = list_documents(collection_name)
 
     return feedback_text, files_df
 
 
-def list_documents() -> List[List[str]]:
+def list_documents(collection_name: str) -> List[List[str]]:
     """
     Retrieve the list of document collections from the CSV file.
 
@@ -203,9 +203,10 @@ def list_documents() -> List[List[str]]:
     and formats them into a list of lists for display purposes.
 
     Returns:
-        List[List[str]]: A list of lists, each containing a single file name.
+        List[List[str]]: A list of lists containing the document names.
     """
-    file_list = get_doc_list()
+
+    file_list = get_doc_list(collection_name)
     file_names = [[filename] for filename in file_list]
     logging.info("Document list retrieved.")
     return file_names
@@ -224,3 +225,11 @@ def _prepare_upload_folder() -> None:
         logging.debug(f"Created upload folder at {UPLOAD_FOLDER}")
     else:
         logging.debug(f"Upload folder {UPLOAD_FOLDER} already exists.")
+
+
+def list_collections() -> List[str]:
+    return vector_store.list_collections()
+
+
+def add_collection(collection_name: str):
+    vector_store.add_collection(collection_name)
