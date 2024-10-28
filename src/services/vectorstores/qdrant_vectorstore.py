@@ -15,7 +15,6 @@ class QDrantVectorStore(VectorStore):
 
     def __init__(
         self,
-        collection_name: str,
         embeddings: Embeddings,
         client: Optional[QdrantClient] = None,
         host: Optional[str] = None,
@@ -31,15 +30,17 @@ class QDrantVectorStore(VectorStore):
             host (str, optional): The QDrant host.
             port (int, optional): The QDrant port.
         """
-        super().__init__(collection_name, embeddings)
+        super().__init__(embeddings)
         self.client = client or QdrantClient(host=host, port=port)
         self.host = host
         self.port = port
 
-        if not self._check_collection(self.collection_name):
-            self._create_collection(self.collection_name)
+        # if not self._check_collection(self.collection_name):
+        #    self._create_collection(self.collection_name)
 
-    def add_document(self, file_name: str, chunks: List[Document]) -> None:
+    def add_document(
+        self, collection_name: str, file_name: str, chunks: List[Document]
+    ) -> None:
         """
         Adds a document to the QDrant vector store.
 
@@ -55,13 +56,13 @@ class QDrantVectorStore(VectorStore):
                 chunks,
                 self.embeddings,
                 url=self._get_url(),
-                collection_name=self.collection_name,
+                collection_name=collection_name,
             )
-            logging.info(f"Document {file_name} added to the vector store.")
+            logging.info(f"Document {file_name} added to {collection_name}.")
         except Exception as e:
             logging.error(f"Failed to add document {file_name}: {str(e)}")
 
-    def delete_document(self, doc_title: str) -> None:
+    def delete_document(self, collection_name: str, file_name: str) -> None:
         """
         Deletes a document from the QDrant vector store.
 
@@ -70,28 +71,30 @@ class QDrantVectorStore(VectorStore):
         """
         try:
             response = self.client.delete(
-                collection_name=self.collection_name,
+                collection_name=collection_name,
                 points_selector=models.FilterSelector(
                     filter=models.Filter(
                         must=[
                             models.FieldCondition(
                                 key="metadata.doc_title",
-                                match=models.MatchValue(value=doc_title),
+                                match=models.MatchValue(value=file_name),
                             )
                         ]
                     )
                 ),
             )
             if response.status == "completed":
-                logging.info(f"Document {doc_title} deleted from the vector store.")
+                logging.info(f"Document {file_name} deleted from {collection_name}.")
             else:
                 logging.error(
-                    f"Failed to delete document {doc_title}. Response: {response}"
+                    f"Failed to delete document {file_name}. Response: {response}"
                 )
         except Exception as e:
-            logging.error(f"Failed to delete document {doc_title}: {str(e)}")
+            logging.error(f"Failed to delete document {file_name}: {str(e)}")
 
-    def retrieve_top_chunks(self, question: str, k: int) -> List[Document]:
+    def retrieve_top_chunks(
+        self, collection_name: str, question: str, k: int
+    ) -> List[Document]:
         """
         Retrieves the top K most similar document chunks to the given question.
 
@@ -105,7 +108,7 @@ class QDrantVectorStore(VectorStore):
         try:
             doc_store = Qdrant(
                 client=self.client,
-                collection_name=self.collection_name,
+                collection_name=collection_name,
                 embeddings=self.embeddings,
             )
             result = doc_store.similarity_search(query=question, k=k)
@@ -114,6 +117,30 @@ class QDrantVectorStore(VectorStore):
         except Exception as e:
             logging.error(f"Failed to retrieve top chunks: {str(e)}")
             return []
+
+    def list_collections(self) -> List[str]:
+        """
+        Lists all collections in the QDrant vector store.
+
+        Returns:
+            List[str]: A list of collection names.
+        """
+        response = self.client.get_collections()
+        existing_collections = [collection.name for collection in response.collections]
+        return existing_collections
+
+    def add_collection(self, collection_name: str) -> None:
+        """
+        Adds a collection to the QDrant vector store.
+
+        Args:
+            collection_name (str): The name of the collection to add.
+        """
+
+        if not self._check_collection(collection_name):
+            self._create_collection(collection_name)
+        else:
+            logging.info(f"Collection {collection_name} already exists.")
 
     def _check_collection(self, collection_name: str) -> bool:
         """
@@ -125,8 +152,7 @@ class QDrantVectorStore(VectorStore):
         Returns:
             bool: True if the collection exists, False otherwise.
         """
-        response = self.client.get_collections()
-        existing_collections = [collection.name for collection in response.collections]
+        existing_collections = self.list_collections()
         return collection_name in existing_collections
 
     def _create_collection(self, collection_name: str) -> None:

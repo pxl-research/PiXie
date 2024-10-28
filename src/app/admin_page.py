@@ -2,11 +2,18 @@ import gradio as gr
 from file_management import file_upload_interface
 from user_management import user_management_interface
 from services.authentication.authentication_manager import admin_auth
+from services.document_manager import (
+    list_collections,
+)  # Import function to get collections
 
 CSS_STYLES = """
     .red_bg {background: red}
     footer {display:none !important}
 """
+
+# Haal de eerste collectie op
+collection_choices = list_collections()
+default_collection = collection_choices[0]  # Eerste collectie standaard geselecteerd
 
 with gr.Blocks(css=CSS_STYLES, title="PiXie") as llm_client_ui:
     gr.Markdown("# Admin Dashboard")
@@ -21,7 +28,7 @@ with gr.Blocks(css=CSS_STYLES, title="PiXie") as llm_client_ui:
 
     # File Upload Section
     with file_upload_section:
-        (files_list, file_upload, delete_file_button, feedback, load_files_list) = (
+        (files_list, file_upload, delete_file_button, load_files_list) = (
             file_upload_interface()
         )
 
@@ -30,7 +37,14 @@ with gr.Blocks(css=CSS_STYLES, title="PiXie") as llm_client_ui:
             user_management_interface()
         )
 
-    llm_client_ui.load(fn=load_files_list, inputs=None, outputs=files_list)
+    # Zorg ervoor dat de juiste collectie wordt doorgegeven bij het laden
+    llm_client_ui.load(
+        fn=lambda: load_files_list(
+            default_collection
+        ),  # Geeft standaard de eerste collectie door
+        inputs=None,
+        outputs=files_list,
+    )
     llm_client_ui.load(fn=load_users_list, inputs=None, outputs=users_list)
 
     # Functions to show/hide sections

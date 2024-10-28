@@ -46,12 +46,14 @@ def append_user(
 
 
 def append_ai(
-    message: str, user_info: Optional[Dict[str, Any]]
+    collection_name: str, message: str, user_info: Optional[Dict[str, Any]]
 ) -> Generator[Tuple[str, List[Tuple[str, str]]], None, None]:
     """
     Generate an AI response to the user's message, update the chat history, and save it.
 
     Parameters:
+    - collection_name: str
+        The name of the collection to retrieve documents from.
     - message: str
         The user's message to which the AI should respond.
     - user_info: Optional[Dict[str, Any]]
@@ -70,7 +72,7 @@ def append_ai(
         chat_history, message
     )
 
-    final_docs = document_manager.retrieve_and_rerank_chunks(message)
+    final_docs = document_manager.retrieve_and_rerank_chunks(collection_name, message)
 
     docs = format_documents(final_docs)
 
