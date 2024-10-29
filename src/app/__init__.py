@@ -7,6 +7,7 @@ from services.vectorstores.qdrant_vectorstore import QDrantVectorStore
 from services.rerankers.bge_reranker import BGEReranker
 from services.llms.azure_openai_llm import AzureOpenAILLM
 from services.llm_chain_service import LLMChainBuilder
+from services.summarizer import Summarizer
 
 import os
 import logging
@@ -44,3 +45,5 @@ llm = AzureOpenAILLM(
 )
 
 chain_builder = LLMChainBuilder(llm)
+
+summarizer = Summarizer(llm)
