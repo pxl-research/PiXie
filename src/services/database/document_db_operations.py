@@ -148,3 +148,33 @@ def get_doc_list(collection: str) -> List[str]:
             return [[file_name[0]] for file_name in filenames]
     finally:
         conn.close()
+
+
+def get_summaries_by_collection(collection_name: str) -> List[str]:
+    """
+    Retrieve summaries for a specific collection from the database.
+
+    Args:
+        collection_name (str): The name of the collection.
+
+    Returns:
+        List[str]: A list of summaries from the specified collection.
+    """
+    # Connect to your PostgreSQL database
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cursor:
+            # Execute the query
+            cursor.execute(
+                "SELECT summary FROM documents WHERE collection = %s",
+                (collection_name,),
+            )
+
+            # Fetch all results and extract summaries
+            summaries = [row[0] for row in cursor.fetchall()]
+
+            return summaries
+    finally:
+        # Close the connection
+        conn.close()

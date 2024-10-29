@@ -1,4 +1,4 @@
-from app import chain_builder
+from app import chain_builder, llm
 from services import (
     document_manager,
     source_processing,
@@ -11,6 +11,9 @@ import hashlib
 
 from services.chat_history import chat_history_manager
 from langchain.schema import AIMessage, HumanMessage
+from langchain.agents import Tool
+from services.database.document_db_operations import get_summaries_by_collection
+
 
 # Directory where we store the chat history
 HISTORY_DIR = "chat_histories"
@@ -47,7 +50,7 @@ def append_user(
 
 def append_ai(
     collection_name: str, message: str, user_info: Optional[Dict[str, Any]]
-) -> Generator[Tuple[str, List[Tuple[str, str]]], None, None]:
+) -> Tuple[str, List[Tuple[str, str]]]:
     """
     Generate an AI response to the user's message, update the chat history, and save it.
 
@@ -59,53 +62,25 @@ def append_ai(
     - user_info: Optional[Dict[str, Any]]
         A dictionary containing user information, including the user ID.
 
-    Yields:
-    - Tuple[str, List[Tuple[str, str]]]:
-        At each step of response generation, it yields the current chat history. Once the final response
-        is generated, it yields the entire chat history including the final answer for display.
+    Returns:
+    - Tuple[str, List[Tuple[str, str]]]: The final response text for the textbox and the updated chat history for the chatbot.
     """
     user_id = user_info["id"] if user_info else None
 
     chat_history = chat_history_manager.get_chat_history(user_id)
+    formatted_history = chat_history_manager.format_chat_history_for_llm(chat_history)
+    summaries = get_summaries_by_collection(collection_name)
 
-    formatted_history = chat_history_manager.format_chat_history_for_llm(
-        chat_history, message
+    answer_generator = answer_question_with_tool_calling(
+        message, summaries, collection_name, formatted_history, user_info, llm.model
     )
 
-    final_docs = document_manager.retrieve_and_rerank_chunks(collection_name, message)
+    final_response = ""
+    for partial_response, updated_chat_history in answer_generator:
+        final_response = partial_response
+        chat_history = updated_chat_history
 
-    docs = format_documents(final_docs)
-
-    inputs = {
-        "chat_history": formatted_history,
-        "docs": docs,
-        "question": message,
-    }
-
-    chain = chain_builder.build_llm_chain(
-        chat_history=inputs["chat_history"],
-        docs=inputs["docs"],
-        question=inputs["question"],
-    )
-
-    full_response = ""
-
-    for chunk, response in _stream_full_answer(chain, inputs):
-        if chunk is not None:
-            chat_history = chat_history_manager.replace_last_message_in_chat_history(
-                chat_history, "assistant", response
-            )
-            yield "", chat_history
-        else:
-            full_response = response
-
-    chat_history = chat_history_manager.add_message_to_chat_history(
-        chat_history, "assistant", full_response
-    )
-
-    chat_history_manager.save_chat_history(user_id, None, full_response)
-    # Return the complete chat history for display
-    yield "", chat_history
+    return final_response, chat_history
 
 
 def format_documents(final_docs):
@@ -197,3 +172,167 @@ def _stream_full_answer(
 
     # Yield the final answer (None indicates completion)
     yield None, final_answer
+
+
+def retrieve_chunks(question: str, collection_name: str) -> List[str]:
+    """
+    Retrieve and format top-ranked chunks from the specified collection based on the question.
+
+    Args:
+        question (str): The question to retrieve relevant chunks for.
+        collection_name (str): The name of the collection to search within.
+
+    Returns:
+        List[str]: A list of formatted document chunks relevant to the question.
+    """
+    print("Retrieving chunks...")
+    final_docs = document_manager.retrieve_and_rerank_chunks(collection_name, question)
+    docs = format_documents(final_docs)
+    return docs
+
+
+def perform_web_search(question: str) -> str:
+    """
+    Perform a web search as a fallback for questions not answerable by the collection.
+
+    Args:
+        question (str): The question to search for answers to on the web.
+
+    Returns:
+        str: A simulated web search result.
+    """
+    print("Performing web search...")
+    return "In Hasselt gaat de zon schijnen en wordt het 20 graden."
+
+
+def generate_final_answer(
+    question: str,
+    chat_history: List[Dict[str, str]],
+    source_material: str,
+    user_id: int,
+) -> Generator[tuple, None, None]:
+    """
+    Generate a final answer to the question by combining it with chat history and source material.
+
+    Args:
+        question (str): The question asked by the user.
+        chat_history (List[Dict[str, str]]): The ongoing chat history with the assistant and user messages.
+        source_material (str): The document chunks or other source material to use for the answer.
+        user_id (int): The ID of the user for saving chat history.
+
+    Yields:
+        tuple: Updates to the chat history and the answer being streamed, returning the final response at the end.
+    """
+    print("Generating final answer...")
+    inputs = {
+        "chat_history": chat_history,
+        "docs": source_material,
+        "question": question,
+    }
+
+    # Initialize the LLM chain with the question, chat history, and source material
+    chain = chain_builder.build_llm_chain(
+        chat_history=inputs["chat_history"],
+        docs=inputs["docs"],
+        question=inputs["question"],
+    )
+
+    full_response = ""
+
+    for chunk, response in _stream_full_answer(chain, inputs):
+        if chunk is not None:
+            print("Response from _stream_full_answer")
+            print(response)
+            chat_history = chat_history_manager.replace_last_message_in_chat_history(
+                chat_history, "assistant", response
+            )
+            print("Chat history from _stream_full_answer")
+            print(chat_history)
+            yield "", chat_history
+        else:
+            full_response = response
+
+    # Finalize the chat history and save the response
+    chat_history = chat_history_manager.add_message_to_chat_history(
+        chat_history, "assistant", full_response
+    )
+
+    chat_history_manager.save_chat_history(user_id, None, full_response)
+    # Return the complete chat history for display
+    yield "", chat_history
+
+
+def create_tool_call_prompt(
+    question: str,
+    summaries: List[str],
+) -> str:
+    """
+    Create a prompt to ask the LLM whether the question can be answered using the document summaries
+    in the collection, or if a web search is required.
+
+    Args:
+        question (str): The user's question.
+        summaries (List[str]): Summaries of documents in the collection.
+
+    Returns:
+        str: A prompt string for the LLM to decide which tool to use.
+    """
+    summaries_text = "\n".join([f"- {summary}" for summary in summaries])
+    prompt = f"""Here is a question: "{question}".
+    Here are summaries of documents in the collection:
+    {summaries_text}
+    
+    Based on these summaries, decide whether to retrieve relevant chunks from the document collection 
+    or to perform a web search if the collection is unlikely to contain the answer.
+    Respond with either "retrieve_chunks" or "perform_web_search"."""
+    return prompt
+
+
+def answer_question_with_tool_calling(
+    question: str,
+    summaries: List[str],
+    collection_name: str,
+    chat_history: List[Dict[str, str]],
+    user_info: Optional[Dict[str, Any]],
+    llm,
+) -> Generator[Tuple[str, List[Tuple[str, str]]], None, None]:
+    """
+    Determines the appropriate tool to use based on the LLM's analysis of document summaries, then retrieves
+    the necessary information (either from the vector store or a web search) and generates a final answer.
+
+    Args:
+        question (str): The user's question.
+        summaries (List[str]): Summaries of documents in the collection.
+        collection_name (str): Name of the document collection.
+        chat_history (List[Dict[str, str]]): Chat history for context in generating the final answer.
+        user_info (Optional[Dict[str, Any]]): User information for saving chat history.
+        llm: The language model instance.
+
+    Yields:
+        Tuple[str, List[Tuple[str, str]]]: Streamed response and chat history as the final answer is generated.
+    """
+    # Step 1: Decide which tool to use based on summaries
+    prompt = create_tool_call_prompt(question, summaries)
+    llm_response = llm.invoke(prompt)
+
+    decision_response = llm_response.content.strip().lower()
+
+    # Step 2: Select tool based on decision and gather source material
+    if decision_response == "retrieve_chunks":
+        source_material = retrieve_chunks(question, collection_name)
+    elif decision_response == "perform_web_search":
+        source_material = perform_web_search(question)
+    else:
+        source_material = "Unable to determine the best action."
+
+    # Step 3: Generate the final answer using the selected source material
+    final_answer_generator = generate_final_answer(
+        question=question,
+        chat_history=chat_history,
+        source_material=source_material,
+        user_id=user_info.get("id") if user_info else None,
+    )
+
+    # Yield each step of the final answer generation for display
+    for response in final_answer_generator:
+        yield response
