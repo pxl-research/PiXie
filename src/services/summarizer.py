@@ -2,6 +2,7 @@ from typing import List, Any
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.llm import LLMChain
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.documents import Document
 
 
 class Summarizer:
@@ -22,21 +23,27 @@ class Summarizer:
         """
         self.llm = llm
 
-    def summarize(self, docs: List[str]) -> str:
+    def summarize(self, doc: Document) -> str:
         """
         Generates a summary of a list of documents.
 
         Args:
-            docs: A list of document strings to be summarized.
+            doc: A document to be summarized.
 
         Returns:
             A string containing the consolidated summary of the documents.
         """
         prompt = ChatPromptTemplate.from_messages(
-            [("system", "Write a concise summary of the following:\n\n{context}")]
+            [
+                (
+                    "system",
+                    "Write a concise summary of the following:\n\n{context}. Max 500 characters or 1 paragraph.",
+                )
+            ]
         )
 
         chain = create_stuff_documents_chain(self.llm.model, prompt)
-        result = chain.invoke({"context": docs})
+        print(type(doc))
+        result = chain.invoke({"context": [doc]})
 
         return result

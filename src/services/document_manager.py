@@ -5,7 +5,7 @@ import pandas as pd
 from werkzeug.utils import secure_filename
 from services import utils, blob_service
 from typing import List, Tuple, Optional
-from app import document_loader, splitter, vector_store, reranker
+from app import document_loader, splitter, vector_store, reranker, summarizer
 from database.document_db_operations import (
     is_doc_up_to_date_in_list,
     is_doc_in_list,
@@ -92,6 +92,7 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
 
         # Load, split, and add the document to the vector store
         document = document_loader.load_document(temp_file_path)
+        summary = summarizer.summarize(document[0])
         chunks = splitter.split(document)
 
         # Extract text from chunks
@@ -108,7 +109,7 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
         vector_store.add_document(collection_name, secure_file_name, chunks)
 
         # Update the document list
-        add_to_doc_list(secure_file_name, file_hash, collection_name, delete)
+        add_to_doc_list(secure_file_name, file_hash, collection_name, summary, delete)
 
         # Upload the file to Azure Blob Storage
         blob_service.upload_blob(temp_file_path, secure_file_name)
