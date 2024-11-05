@@ -43,7 +43,7 @@ class Summarizer:
         )
 
         chain = create_stuff_documents_chain(self.llm.model, prompt)
-        print(type(doc))
+
         result = chain.invoke({"context": [doc]})
 
         return result
