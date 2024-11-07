@@ -9,8 +9,9 @@ CREATE TABLE IF NOT EXISTS documents (
     id SERIAL PRIMARY KEY,
     file_name VARCHAR(255) NOT NULL,
     file_hash VARCHAR(64) NOT NULL,
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    collection VARCHAR(255) NOT NULL
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    collection VARCHAR(255) NOT NULL,
+    summary TEXT,
     CONSTRAINT unique_file_collection UNIQUE (file_name, collection)
 );
 

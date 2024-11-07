@@ -1,6 +1,6 @@
 from services.database.database import get_db_connection
 import logging
-from typing import List
+from typing import List, Optional, Tuple
 
 
 def is_doc_up_to_date_in_list(file_hash: str, collection: str) -> bool:
@@ -52,7 +52,11 @@ def is_doc_in_list(file_name: str, collection: str) -> bool:
 
 
 def add_to_doc_list(
-    file_name: str, file_hash: str, collection: str, delete: bool = False
+    file_name: str,
+    file_hash: str,
+    collection: str,
+    summary: Optional[str] = None,
+    delete: bool = False,
 ) -> None:
     """
     Add a document to the document list for a specific collection or update the last updated timestamp.
@@ -61,6 +65,7 @@ def add_to_doc_list(
         file_name (str): The name of the document to add or update.
         file_hash (str): The hash of the document.
         collection (str): The collection the document belongs to.
+        summary (str, optional): The summary of the document. Defaults to None.
         delete (bool, optional): If True, delete the old document entry before adding the new one. Defaults to False.
     """
     conn = get_db_connection()
@@ -73,13 +78,14 @@ def add_to_doc_list(
                 )
             cursor.execute(
                 """
-                INSERT INTO documents (file_name, file_hash, last_updated, collection)
-                VALUES (%s, %s, NOW(), %s)
+                INSERT INTO documents (file_name, file_hash, last_updated, collection, summary)
+                VALUES (%s, %s, NOW(), %s, %s)
                 ON CONFLICT (file_name, collection) DO UPDATE
                 SET file_hash = EXCLUDED.file_hash,
-                    last_updated = EXCLUDED.last_updated
+                    last_updated = EXCLUDED.last_updated,
+                    summary = EXCLUDED.summary
                 """,
-                (file_name, file_hash, collection),
+                (file_name, file_hash, collection, summary),
             )
         conn.commit()
         logging.info(
@@ -141,4 +147,34 @@ def get_doc_list(collection: str) -> List[str]:
             logging.info(f"Document list for collection '{collection}' retrieved.")
             return [[file_name[0]] for file_name in filenames]
     finally:
+        conn.close()
+
+
+def get_summaries_by_collection(collection_name: str) -> List[str]:
+    """
+    Retrieve summaries for a specific collection from the database.
+
+    Args:
+        collection_name (str): The name of the collection.
+
+    Returns:
+        List[str]: A list of summaries from the specified collection.
+    """
+    # Connect to your PostgreSQL database
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cursor:
+            # Execute the query
+            cursor.execute(
+                "SELECT summary FROM documents WHERE collection = %s",
+                (collection_name,),
+            )
+
+            # Fetch all results and extract summaries
+            summaries = [row[0] for row in cursor.fetchall()]
+
+            return summaries
+    finally:
+        # Close the connection
         conn.close()

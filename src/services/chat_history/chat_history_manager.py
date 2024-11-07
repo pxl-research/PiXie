@@ -111,7 +111,7 @@ def strip_sources(text: str) -> str:
     return text[:keyword_position] if keyword_position != -1 else text
 
 
-def format_chat_history_for_llm(chat_history, message):
+def format_chat_history_for_llm(chat_history):
     """
     Format the chat history for processing by a Language Learning Model (LLM).
 
@@ -122,22 +122,23 @@ def format_chat_history_for_llm(chat_history, message):
         A list of tuples, where each tuple contains:
           - str: The user's message
           - str or None: The AI's response, or None if there is no response yet.
-    - message: str
-        The latest message from the user to be appended to the formatted chat history.
 
     Returns:
     - list: A formatted list of dictionaries, where each dictionary contains:
           - 'role': str, specifying either 'user' or 'assistant'
           - 'content': str, containing the message content with sources removed for AI responses.
     """
-    formatted_history = []
-    for user_msg, ai_msg in chat_history:
-        formatted_history.append({"role": "user", "content": user_msg})
-        if ai_msg is not None:
-            formatted_history.append(
-                {"role": "assistant", "content": strip_sources(ai_msg)}
-            )
-    formatted_history.append({"role": "user", "content": message})
+    formatted_history = [
+        (
+            message
+            if message.get("role") == "user"
+            else {
+                "role": message.get("role"),
+                "content": strip_sources(message.get("content")),
+            }
+        )
+        for message in chat_history
+    ]
     return formatted_history
 
 

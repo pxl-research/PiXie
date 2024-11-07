@@ -63,12 +63,13 @@ def file_upload_interface():
 
         # Voeg een lege optie toe als placeholder
         collection_choices = list_collections()
+        default_collection = collection_choices[0] if collection_choices else None
 
         # Dropdown voor bestaande collecties, met de eerste waarde als standaard
         collection_dropdown = gr.Dropdown(
             choices=collection_choices,
             label="Kies een collectie",
-            value=collection_choices[0],  # Eerste collectie standaard geselecteerd
+            value=default_collection,  # Eerste collectie standaard geselecteerd
             interactive=True,
         )
 
@@ -95,12 +96,14 @@ def file_upload_interface():
                 label="Click to Upload (a) File(s)", file_count="multiple", visible=True
             )
 
+            default_files_list = (
+                load_files_list(collection_choices[0]) if collection_choices else None
+            )
+
             files_list = gr.Dataframe(
                 headers=["Naam"],
                 datatype=["str"],
-                value=load_files_list(
-                    collection_choices[0]
-                ),  # Laad documenten voor de eerste collectie
+                value=default_files_list,  # Laad documenten voor de eerste collectie
                 interactive=False,
             )
 

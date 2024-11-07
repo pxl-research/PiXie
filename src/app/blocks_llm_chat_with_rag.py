@@ -1,22 +1,9 @@
-from app import chain_builder
-from services import (
-    document_manager,
-    source_processing,
-)
-from typing import List, Dict, Tuple, Generator, Optional, Any
-import uuid
+from typing import List, Dict, Tuple, Optional, Any
 import os
-import base64
-import hashlib
 
 from services.chat_history import chat_history_manager
-from langchain.schema import AIMessage, HumanMessage
-
-# Directory where we store the chat history
-HISTORY_DIR = "chat_histories"
-
-# Create history directory if it does not exist
-os.makedirs(HISTORY_DIR, exist_ok=True)
+from services import source_processing
+from services.oracle.graph_runner import initialize_graph, compile_graph, execute_graph
 
 
 def append_user(
@@ -37,7 +24,7 @@ def append_user(
     """
     user_id = user_info["id"] if user_info else None
 
-    chat_history = chat_history_manager.get_chat_history(user_id)
+    chat_history = chat_history_manager.get_chat_history(user_id, limit=10)
     chat_history_manager.save_chat_history(user_id, message, None)
     chat_history = chat_history_manager.add_message_to_chat_history(
         chat_history, "user", message
@@ -47,7 +34,7 @@ def append_user(
 
 def append_ai(
     collection_name: str, message: str, user_info: Optional[Dict[str, Any]]
-) -> Generator[Tuple[str, List[Tuple[str, str]]], None, None]:
+) -> Tuple[str, List[Tuple[str, str]]]:
     """
     Generate an AI response to the user's message, update the chat history, and save it.
 
@@ -59,72 +46,43 @@ def append_ai(
     - user_info: Optional[Dict[str, Any]]
         A dictionary containing user information, including the user ID.
 
-    Yields:
-    - Tuple[str, List[Tuple[str, str]]]:
-        At each step of response generation, it yields the current chat history. Once the final response
-        is generated, it yields the entire chat history including the final answer for display.
+    Returns:
+    - Tuple[str, List[Tuple[str, str]]]: The final response text for the textbox and the updated chat history for the chatbot.
     """
     user_id = user_info["id"] if user_info else None
 
-    chat_history = chat_history_manager.get_chat_history(user_id)
-
+    chat_history = chat_history_manager.get_chat_history(user_id, limit=9)
+    chat_history_for_llm = chat_history_manager.get_chat_history(
+        user_id=user_id, limit=5
+    )
     formatted_history = chat_history_manager.format_chat_history_for_llm(
-        chat_history, message
+        chat_history_for_llm
     )
 
-    final_docs = document_manager.retrieve_and_rerank_chunks(collection_name, message)
+    graph = initialize_graph()
+    compiled_oracle_graph = compile_graph(graph)
 
-    docs = format_documents(final_docs)
-
-    inputs = {
-        "chat_history": formatted_history,
-        "docs": docs,
-        "question": message,
-    }
-
-    chain = chain_builder.build_llm_chain(
-        chat_history=inputs["chat_history"],
-        docs=inputs["docs"],
-        question=inputs["question"],
+    answer, sources = execute_graph(
+        compiled_oracle_graph,
+        {
+            "input": message,
+            "chat_history": formatted_history,
+            "collection_name": collection_name,
+        },
     )
 
-    full_response = ""
+    sources_list = source_processing.process_sources(sources.strip()) if sources else []
 
-    for chunk, response in _stream_full_answer(chain, inputs):
-        if chunk is not None:
-            chat_history = chat_history_manager.replace_last_message_in_chat_history(
-                chat_history, "assistant", response
-            )
-            yield "", chat_history
-        else:
-            full_response = response
-
+    # Format the final answer with enriched sources
+    final_answer = source_processing.format_final_answer(
+        answer.strip(), source_processing.enrich_sources(sources_list)
+    )
     chat_history = chat_history_manager.add_message_to_chat_history(
-        chat_history, "assistant", full_response
+        chat_history, "assistant", final_answer
     )
 
-    chat_history_manager.save_chat_history(user_id, None, full_response)
-    # Return the complete chat history for display
-    yield "", chat_history
-
-
-def format_documents(final_docs):
-    """
-    Format retrieved documents into a string for processing.
-
-    Parameters:
-    - final_docs: list
-        A list of document objects, where each document contains metadata and page content.
-
-    Returns:
-    - str: A formatted string of document references with file names and page numbers, each separated by new lines.
-    """
-    return "\n\n".join(
-        [
-            f"Bron: {doc.metadata.get('file_name', 'Onbekend bestand')} (pagina {doc.metadata.get('page_numbers', 'n.v.t.')})\n{doc.page_content}"
-            for doc in final_docs
-        ]
-    )
+    chat_history_manager.save_chat_history(user_id, None, final_answer)
+    return "", chat_history
 
 
 def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
@@ -141,59 +99,3 @@ def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
     user_id = user_info["id"] if user_info else None
     chat_history_manager.delete_chat_history(user_id)
     return ["", ""]
-
-
-def _stream_full_answer(
-    chain: any, inputs: dict
-) -> Generator[Tuple[str, str], None, None]:
-    """
-    Stream the full answer generated by the LLM chain.
-
-    This function yields each chunk of the AI's response as it is generated. Once the entire answer is
-    completed, it processes and enriches the sources before yielding the final response.
-
-    Parameters:
-    - chain: any
-        The LLM chain object used to generate the response. It must support streaming of responses.
-    - inputs: dict
-        A dictionary containing the inputs for the chain, including chat history, documents, and the question.
-
-    Yields:
-    - Tuple[str, str]: Each chunk of the response and the cumulative full answer so far.
-                       At the end, it yields (None, final_answer) to indicate completion.
-    """
-    full_answer = ""
-    answer_text = ""
-    sources_text = ""
-    sources_started = False
-
-    for response in chain.stream(inputs):
-        chunk = response.get("text", "")
-        full_answer += chunk
-
-        if not sources_started:
-            if "[BRONNEN]" in chunk:
-                parts = chunk.split("[BRONNEN]", 1)
-                answer_text += parts[0]
-                if len(parts) > 1:
-                    sources_text += parts[1]
-                sources_started = True
-            else:
-                answer_text += chunk
-        else:
-            sources_text += chunk
-
-        yield chunk, full_answer  # Yield the current chunk and cumulative answer
-
-    # Process sources after streaming completes
-    sources_list = (
-        source_processing.process_sources(sources_text.strip()) if sources_text else []
-    )
-
-    # Format the final answer with enriched sources
-    final_answer = source_processing.format_final_answer(
-        answer_text.strip(), source_processing.enrich_sources(sources_list)
-    )
-
-    # Yield the final answer (None indicates completion)
-    yield None, final_answer

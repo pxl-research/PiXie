@@ -13,7 +13,9 @@ CSS_STYLES = """
 
 # Haal de eerste collectie op
 collection_choices = list_collections()
-default_collection = collection_choices[0]  # Eerste collectie standaard geselecteerd
+default_collection = (
+    collection_choices[0] if collection_choices else None
+)  # Eerste collectie standaard geselecteerd
 
 with gr.Blocks(css=CSS_STYLES, title="PiXie") as llm_client_ui:
     gr.Markdown("# Admin Dashboard")
