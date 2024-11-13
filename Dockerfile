@@ -1,7 +1,18 @@
-# Use a Python image with uv pre-installed
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM nvcr.io/nvidia/pytorch:23.09-py3
 
+# Installeer curl en certificaten
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+
+# Download en voer de uv installer uit
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Voeg uv toe aan het pad
+ENV PATH="/root/.local/bin:$PATH"
+
+# Werkdirectory instellen
 WORKDIR /app
+
+
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
 
