@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS documents (
     file_hash VARCHAR(64) NOT NULL,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     collection VARCHAR(255) NOT NULL,
-    summary TEXT,
     CONSTRAINT unique_file_collection UNIQUE (file_name, collection)
 );
 
@@ -24,3 +23,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- Toevoegen van een standaardgebruiker aan de 'users' tabel
+INSERT INTO users (username, password, role)
+VALUES ('philippe', '$2b$12$IpMWh09YcV65iO9I9VfXo.sfo5eQeKfSy3F6CHEPPN6LvWtOO51r.', 'admin');

@@ -7,10 +7,18 @@ services:
     environment:
       - ENV=production
     command: sh -c "uv run python src/app/admin_page.py & uv run python src/app/chat.py"
-    restart: always
+    restart: on-failure
     env_file:
       - .env.prod
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
   
   db:
     env_file:
       - .env.prod
+    restart: unless-stopped
