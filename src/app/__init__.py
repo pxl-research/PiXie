@@ -1,4 +1,4 @@
-from services.document_loaders.azure_document_loader import AzureDocumentLoader
+from services.document_loaders.azure_document_loader import DoclingDocumentLoader
 from services.splitters.custom_markdown_splitter import CustomMarkdownSplitter
 from services.embedding_models.lc_huggingface_embedding_model import (
     LangChainHuggingFaceEmbeddingModel,
@@ -16,10 +16,13 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-document_loader = AzureDocumentLoader(
-    api_endpoint=os.getenv("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT"),
-    api_key=os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY"),
-)
+# document_loader = AzureDocumentLoader(
+#     api_endpoint=os.getenv("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT"),
+#     api_key=os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY"),
+# )
+
+document_loader = DoclingDocumentLoader()
+
 splitter = CustomMarkdownSplitter(header_depth=3, chunk_size=512, chunk_overlap=128)
 
 model_kwargs = {"device": os.getenv("DEVICE_TYPE", "cpu")}
