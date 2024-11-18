@@ -1,28 +1,13 @@
+# Gebruik de basis PyTorch image
 FROM nvcr.io/nvidia/pytorch:23.09-py3
 
-# Installeer curl en certificaten
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
-
-# Download en voer de uv installer uit
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Voeg uv toe aan het pad
-ENV PATH="/root/.local/bin:$PATH"
-
-# Werkdirectory instellen
-WORKDIR /app
-
-
-# Enable bytecode compilation
-ENV UV_COMPILE_BYTECODE=1
-
-# Copy from the cache instead of linking since it's a mounted volume
-ENV UV_LINK_MODE=copy
-
-# Install Pandoc
-RUN apt-get update && apt-get install -y \
+# Installeer vereiste pakketten, inclusief python3-venv en andere build tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
     gcc \
     python3-dev \
+    python3-venv \
     libpq-dev \
     build-essential \
     libreoffice \
@@ -30,22 +15,27 @@ RUN apt-get update && apt-get install -y \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install the project's dependencies using the lockfile and settings
-RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project --no-dev
+# Installeer uv en voeg het toe aan het PATH
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
 
-# Then, add the rest of the project source code and install it
-COPY  . /app
+# Enable bytecode compilation
+ENV UV_COMPILE_BYTECODE=1
 
+# Copy from the cache instead of linking since it's a mounted volume
+ENV UV_LINK_MODE=copy
+
+# Werkdirectory instellen en maak een virtuele omgeving aan
+WORKDIR /app
+RUN rm -rf /app/.venv && python3 -m venv /app/.venv
+ENV PATH="/app/.venv/bin:/root/.local/bin:$PATH"
+
+# Kopieer de volledige projectbestanden naar de container
+COPY . /app
+
+# Installeer de projectdependencies met uv zonder caching
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-# Place executables in the environment at the front of the path
-ENV PATH="/app/.venv/bin:$PATH"
-
-# Reset the entrypoint, don't invoke `uv`
-ENTRYPOINT []
-
+# Zet het pad voor Python scripts en services
 ENV PYTHONPATH="/app/src:/app/src/services"

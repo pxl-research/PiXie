@@ -35,8 +35,10 @@ class QDrantVectorStore(VectorStore):
         self.host = host
         self.port = port
 
-        # if not self._check_collection(self.collection_name):
-        #    self._create_collection(self.collection_name)
+        current_collections = self.list_collections()
+        if not current_collections:
+            default_collection_name = "pixie"
+            self._create_collection(default_collection_name)
 
     def add_document(
         self, collection_name: str, file_name: str, chunks: List[Document]

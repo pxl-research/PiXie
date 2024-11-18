@@ -17,6 +17,10 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
   
   db:
     env_file:
