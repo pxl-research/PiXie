@@ -197,7 +197,7 @@ def compile_graph(graph: StateGraph) -> Any:
 
 
 def execute_graph(
-    compiled_oracle_graph: Any, input_data: Dict[str, Any], recursion_limit: int = 20
+    compiled_oracle_graph: Any, input_data: Dict[str, Any], recursion_limit: int = 10
 ) -> Tuple[str, str]:
     """
     Execute the compiled oracle graph with specified input data and recursion limit.
@@ -205,7 +205,7 @@ def execute_graph(
     Args:
         compiled_oracle_graph (Any): The compiled oracle graph ready for execution.
         input_data (Dict[str, Any]): Dictionary with the initial input data, including question and chat history.
-        recursion_limit (int): Limit for recursion to prevent infinite loops (default is 20).
+        recursion_limit (int): Limit for recursion to prevent infinite loops (default is 10).
 
     Returns:
         Tuple[str, str]: A tuple containing the final answer and the sources used to generate the answer.

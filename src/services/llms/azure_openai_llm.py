@@ -14,7 +14,7 @@ class AzureOpenAILLM(LLM):
         api_endpoint: str,
         api_key: str,
         model_version: str,
-        temperature: float = 0.0,
+        temperature: float = 0.01,
     ):
         """
         Initialize the AzureOpenAILLM with the specified API parameters, model version, and temperature.

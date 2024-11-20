@@ -61,6 +61,11 @@ def web_search(question: str) -> str:
         include_answer=True,
         include_raw_content=True,
         include_images=False,
+        include_domains=[
+            "https://www.pxl.be/*",
+            "https://www.pxlexperts.be/*",
+            "https://www.pxl-research.be/*",
+        ],
     )
 
     try:
