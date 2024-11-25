@@ -16,6 +16,7 @@ dependencies = [
   "azure-ai-documentintelligence==1.0.0b3",
   "azure-storage-blob==12.22.0",
   "bcrypt==4.2.0",
+  "fastapi==0.115.5",
   "FlagEmbedding==1.2.11",
   "fuzzywuzzy==0.18.0",
   "gradio==5.5.0",
@@ -30,6 +31,7 @@ dependencies = [
   "numpy==1.26.4",
   "pandas==2.2.2",
   "psycopg2-binary==2.9.9",
+  "PyJWT==2.10.0",
   "pymupdf==1.24.10",
   "pypandoc==1.13",
   "python-Levenshtein==0.26.0",
@@ -39,7 +41,8 @@ dependencies = [
   "peft==0.12.0",
   "sentencepiece==0.2.0",
   "tiktoken==0.8.0",
-  "transformers==4.44.2"
+  "transformers==4.44.2",
+  "uvicorn[standard]==0.32.1"
 ]
 
 [build-system]
