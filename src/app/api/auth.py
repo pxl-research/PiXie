@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
-from sqlalchemy.orm import Session
 from services.authentication.authentication_manager import (
     create_access_token,
     decode_access_token,
@@ -15,7 +14,14 @@ from services.database.user_db_operations import (
     user_exists,
     get_db_connection,
 )
-import logging
+
+from pydantic import BaseModel
+
+# Maak een Pydantic-model voor de request body
+class RegisterUser(BaseModel):
+    username: str
+    password: str
+    role: str = "user"
 
 router = APIRouter()
 
@@ -51,11 +57,7 @@ def login(
 
 
 @router.post("/register")
-def register(
-    username: str,
-    password: str,
-    role: str = "user",
-):
+def register(user_data: RegisterUser):
     """
     Registreer een nieuwe gebruiker.
 
@@ -67,16 +69,15 @@ def register(
     Returns:
         dict: Succesbericht.
     """
-    if user_exists(username=username):
+    if user_exists(username=user_data.username):
         raise HTTPException(status_code=400, detail="User already exists")
-
-    hashed_password = hash_password(password)
-    success = add_user_to_db(username=username, hashed_password=hashed_password, role=role)
+    hashed_password = hash_password(user_data.password)
+    success = add_user_to_db(username=user_data.username, hashed_password=hashed_password, role=user_data.role)
 
     if not success:
         raise HTTPException(status_code=500, detail="Failed to register user")
 
-    return {"message": f"User '{username}' successfully registered"}
+    return {"message": f"User '{user_data.username}' successfully registered"}
 
 
 @router.get("/me")
@@ -92,6 +93,7 @@ def get_current_user(
     Returns:
         dict: Gebruikersinformatie uit het token.
     """
+    print("Echte get_current_user functie")
     payload = decode_access_token(token)
     username = payload.get("sub")
     if not username:

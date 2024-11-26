@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from .auth import get_current_user
+from app.api.auth import get_current_user
 from app.blocks_llm_chat_with_rag import append_user, append_ai
 import logging
 
@@ -24,12 +24,18 @@ def ask_question(input_data: UserInput, current_user: dict = Depends(get_current
         dict: Het antwoord van de AI en bijgewerkte chatgeschiedenis.
     """
     try:
+        print(current_user)
         logging.info(f"User '{current_user['username']}' asked a question: {input_data.user_question}")
         # Voeg de gebruikersvraag toe aan de chatgeschiedenis
-        _  = append_user(input_data.user_question, current_user)
-
+        tmp  = append_user(input_data.user_question, current_user)
+        print("User added")
+        print(tmp)
         # Genereer een AI-antwoord en voeg dit toe aan de chatgeschiedenis
         response, updated_chat_history = append_ai(input_data.collection, input_data.user_question, current_user)
+        print("Response:")
+        print(response)
+        print("Chat history:")
+        print(updated_chat_history)
 
         return {"response": response, "chat_history": updated_chat_history}
     except Exception as e:

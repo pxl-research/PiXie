@@ -19,7 +19,8 @@ dependencies = [
   "fastapi==0.115.5",
   "FlagEmbedding==1.2.11",
   "fuzzywuzzy==0.18.0",
-  "gradio==5.5.0",
+  "gradio==4.44.0",
+  "httpx==0.27.2",
   "langchain==0.3.5",
   "langchain_community==0.3.3",
   "langchain_core==0.3.13",
@@ -34,6 +35,7 @@ dependencies = [
   "PyJWT==2.10.0",
   "pymupdf==1.24.10",
   "pypandoc==1.13",
+  "pytest==8.3.3",
   "python-Levenshtein==0.26.0",
   "qdrant_client==1.10.1",
   "Werkzeug==3.0.6",
@@ -51,3 +53,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = "src"

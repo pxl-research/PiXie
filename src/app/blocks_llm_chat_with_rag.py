@@ -23,7 +23,7 @@ def append_user(
       and the AI response (or None if no response yet).
     """
     user_id = user_info["id"] if user_info else None
-
+    print("Echte append_user functie")
     chat_history = chat_history_manager.get_chat_history(user_id, limit=10)
     chat_history_manager.save_chat_history(user_id, message, None)
     chat_history = chat_history_manager.add_message_to_chat_history(
