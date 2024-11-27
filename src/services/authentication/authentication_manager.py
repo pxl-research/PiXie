@@ -1,4 +1,4 @@
-import gradio as gr
+import os
 import bcrypt
 import logging
 from services.database.user_db_operations import (
@@ -11,6 +11,20 @@ from services.database.user_db_operations import (
 )
 import pandas as pd
 from typing import List, Optional, Dict, Any
+import jwt
+from datetime import datetime, timedelta, timezone
+from fastapi import HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer
+
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode(
+        "utf-8"
+    )
 
 
 def add_user(username, password, role="user"):
@@ -143,3 +157,59 @@ def admin_auth(username, password):
         )
     else:
         return False
+    
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """
+    Genereert een JWT access token.
+
+    Args:
+        data (dict): De payload die in het token wordt opgenomen.
+        expires_delta (timedelta, optional): De tijd tot het token verloopt.
+
+    Returns:
+        str: Het JWT-token.
+    """
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_access_token(token: str) -> Dict[str, Any]:
+    """
+    Decodeert en verifieert een JWT-token.
+
+    Args:
+        token (str): Het JWT-token.
+
+    Returns:
+        Dict[str, Any]: De payload van het token als het geldig is.
+
+    Raises:
+        HTTPException: Als het token ongeldig is of is verlopen.
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        exp = payload.get("exp")
+        if exp and datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
+            raise HTTPException(status_code=401, detail="Token expired")
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
+    """
+    Verifieert het token en retourneert de gebruikersinformatie.
+
+    Args:
+        token (str): Het JWT-token, automatisch opgehaald via OAuth2PasswordBearer.
+
+    Returns:
+        Dict[str, Any]: Gebruikersinformatie uit het token.
+    """
+    payload = decode_access_token(token)
+    return payload
