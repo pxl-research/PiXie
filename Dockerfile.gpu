@@ -30,12 +30,14 @@ WORKDIR /app
 RUN rm -rf /app/.venv && python3 -m venv /app/.venv
 ENV PATH="/app/.venv/bin:/root/.local/bin:$PATH"
 
-# Kopieer de volledige projectbestanden naar de container
-COPY . /app
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
 
 # Installeer de projectdependencies met uv zonder caching
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
+
+COPY . /app
 
 # Zet het pad voor Python scripts en services
 ENV PYTHONPATH="/app/src:/app/src/services"

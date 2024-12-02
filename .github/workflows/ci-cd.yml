@@ -32,5 +32,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .  # Context is de root van de repository
+          file: Dockerfile.gpu  # Specificeer de GPU Dockerfile
           push: true  # Image wordt gepusht naar de registry
           tags: ghcr.io/philippehaldermans/pixie_pxl:latest  # Vervang door je eigen gegevens
