@@ -24,7 +24,7 @@ from page_numbering import text_chunks_to_page_numbers
 
 # TODO: uncomment later when actually used in app/__init__.py
 """
-from app import tabular_vector_store, tabular_summarizer_llm
+from app import tabular_pg_vectorstore, tabular_summarizer_llm, tabular_where_filter_generator_llm
 """
 
 UPLOAD_FOLDER = "./uploads"
