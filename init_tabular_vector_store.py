@@ -47,8 +47,8 @@ conn = psycopg2.connect(
     dbname=os.getenv("POSTGRES_DB"),
     user=os.getenv("POSTGRES_USER"),
     password=os.getenv("POSTGRES_PASSWORD"),
-    host="db", # "localhost"
-    port="5432"
+    host="db",  # "localhost"
+    port="5432",
 )
 conn.autocommit = True
 
@@ -63,15 +63,18 @@ with conn.cursor() as c:
         c.execute(f"CREATE SCHEMA {db_name}")
 
         c.execute(f"DROP TABLE IF EXISTS {db_name}.tabular_collections")
-        c.execute(f"""
+        c.execute(
+            f"""
             CREATE TABLE IF NOT EXISTS {db_name}.tabular_collections (
                 id BIGSERIAL PRIMARY KEY,
                 name TEXT NOT NULL UNIQUE
             );
-        """)
-        
+        """
+        )
+
         c.execute(f"DROP TABLE IF EXISTS {db_name}.tabular_documents")
-        c.execute(f"""
+        c.execute(
+            f"""
             CREATE TABLE IF NOT EXISTS {db_name}.tabular_documents (
                 id BIGSERIAL PRIMARY KEY,
                 file_name TEXT NOT NULL UNIQUE,
@@ -81,27 +84,32 @@ with conn.cursor() as c:
                 file_description_embedding vector(1024),
                 file_schema JSONB
             );
-        """)
-        
+        """
+        )
+
         c.execute(f"DROP TABLE IF EXISTS {db_name}.tabular_rows")
-        c.execute(f"""
+        c.execute(
+            f"""
             CREATE TABLE IF NOT EXISTS {db_name}.tabular_rows (
                 id BIGSERIAL PRIMARY KEY,
                 file_id BIGINT REFERENCES {db_name}.tabular_documents(id) ON DELETE CASCADE,
                 row_embedding vector(1024),
                 attributes JSONB
             );
-        """)
-        
+        """
+        )
+
         c.execute(f"DROP TABLE IF EXISTS {db_name}.tabular_documents_collections")
-        c.execute(f"""
+        c.execute(
+            f"""
             CREATE TABLE IF NOT EXISTS {db_name}.tabular_documents_collections (
                 collection_id BIGINT REFERENCES {db_name}.tabular_collections(id) ON DELETE CASCADE,
                 document_id BIGINT REFERENCES {db_name}.tabular_documents(id) ON DELETE CASCADE,
                 PRIMARY KEY (collection_id, document_id)
             );
-        """)
-        
+        """
+        )
+
         conn.commit()
     except psycopg2.DatabaseError as e:
         conn.rollback()
