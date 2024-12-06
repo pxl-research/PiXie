@@ -6,12 +6,38 @@ import pandas as pd
 import psycopg2
 from pgvector.psycopg2 import register_vector
 from psycopg2.extras import execute_values, RealDictCursor
+from langdetect import detect as langdetect_detect
 
 
 from services.abstractclasses import EmbeddingModel
 from services.llms.tabular_where_filter_generator_llm import (
     TabularWhereFilterGeneratorLLM,
 )
+
+def detect_language(text: str) -> str:
+    """
+    Detect the language of a given text and map it to one of the following:
+    "english", "dutch", "french", "german". Defaults to "english".
+    
+    Parameters:
+        text (str): The input text string.
+    
+    Returns:
+        str: One of "english", "dutch", "french", "german".
+    """
+    # Mapping of langdetect codes to target languages
+    language_mapping = {
+        "en": "english",
+        "nl": "dutch",
+        "fr": "french",
+        "de": "german"
+    }
+    try:
+        detected_lang = langdetect_detect(text)
+    except Exception:
+        return "english"
+    
+    return language_mapping.get(detected_lang, "english")
 
 
 def dict_pandas_to_postgres_dtype() -> dict[str, str]:
@@ -471,8 +497,7 @@ class TabularPGVectorStore:
         conn = self._get_db_connection()
         with conn.cursor() as c:
             try:
-                # TODO: language detection on question (support: english, dutch, french and german)
-                language = "english"
+                language = detect_language(text=question)
 
                 file_based_vector_query = f"""
                 SELECT
