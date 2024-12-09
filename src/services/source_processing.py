@@ -181,7 +181,12 @@ def enrich_sources(
                 seen.add(source)
             continue
 
-        file_name, first_page, last_page = source
+        # Skip invalid sources that don't have exactly 3 values
+        try:
+            file_name, first_page, last_page = source
+        except ValueError:
+            print(f"Skipping invalid source: {source}")
+            continue
 
         if first_page is None:
             source_entry = f"{file_name}"

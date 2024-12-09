@@ -1,8 +1,12 @@
 services:
   app:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
     ports:
       - "7861:7861"
       - "7862:7862"
+      - "8000:8000"
     volumes:
       - .:/app  # Mount de huidige directory voor live code wijzigingen
     command: tail -f /dev/null

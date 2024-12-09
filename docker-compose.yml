@@ -1,8 +1,11 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     depends_on:
       - vectorstore
+      - db
     volumes:
       - embeddings_cache:/app/embeddings_cache
       - reranker_cache:/app/reranker_cache

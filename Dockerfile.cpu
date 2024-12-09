@@ -1,0 +1,42 @@
+# Use a Python image with uv pre-installed
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+WORKDIR /app
+# Enable bytecode compilation
+ENV UV_COMPILE_BYTECODE=1
+
+# Copy from the cache instead of linking since it's a mounted volume
+ENV UV_LINK_MODE=copy
+
+# Install Pandoc
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends\
+    gcc \
+    python3-dev \
+    libpq-dev \
+    build-essential \
+    pandoc && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy required files for package installation
+COPY pyproject.toml uv.lock README.md ./
+COPY src/ ./src/
+
+# Install the project's dependencies using the lockfile and settings
+RUN --mount=type=cache,target=/home/appuser/.cache/uv \
+    uv sync --frozen --no-dev
+
+# Then, add the rest of the project source code and install it
+COPY  . /app
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
+
+# Place executables in the environment at the front of the path
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Reset the entrypoint, don't invoke `uv`
+ENTRYPOINT []
+
+ENV PYTHONPATH="/app/src:/app/src/services"
