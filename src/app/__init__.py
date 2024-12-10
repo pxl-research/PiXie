@@ -1,6 +1,3 @@
-from services.document_loaders.azure_document_loader import (
-    AzureDocumentLoader,
-)  # DoclingDocumentLoader
 from services.document_loaders.document_loader_manager import (
     ConfigurableDocumentProcessingManager,
 )
@@ -21,21 +18,13 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# document_loader = AzureDocumentLoader(
-#    api_endpoint=os.getenv("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT"),
-#    api_key=os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY"),
-# )
-
-# document_loader = DoclingDocumentLoader()
-
-# Configuratie laden vanuit .env
 file_to_strategy = {
     "docx": os.getenv("DOCX_STRATEGY"),
+    "doc": os.getenv("DOCX_STRATEGY"),
     "pdf": os.getenv("PDF_STRATEGY"),
     "pptx": os.getenv("PPTX_STRATEGY"),
 }
 
-# Manager initialiseren
 document_loader = ConfigurableDocumentProcessingManager(file_to_strategy)
 
 splitter = CustomMarkdownSplitter(header_depth=3, chunk_size=512, chunk_overlap=128)
