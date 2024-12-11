@@ -69,5 +69,3 @@ CREATE TABLE IF NOT EXISTS tabular_documents_db.tabular_documents_collections (
     document_id BIGINT REFERENCES tabular_documents_db.tabular_documents(id) ON DELETE CASCADE,
     PRIMARY KEY (collection_id, document_id)
 );
-        
-END $$;
