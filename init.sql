@@ -32,20 +32,15 @@ VALUES ('philippe', '$2b$12$IpMWh09YcV65iO9I9VfXo.sfo5eQeKfSy3F6CHEPPN6LvWtOO51r
 
 -- Tabular vectorstore
 CREATE EXTENSION IF NOT EXISTS vector;
-
-DROP DATABASE IF EXISTS tabular_documents_db;
-CREATE DATABASE tabular_documents_db;
-DROP SCHEMA IF EXISTS tabular_documents_db CASCADE;
-CREATE SCHEMA tabular_documents_db;
     
-DROP TABLE IF EXISTS tabular_documents_db.tabular_collections;
-CREATE TABLE IF NOT EXISTS tabular_documents_db.tabular_collections (
+DROP TABLE IF EXISTS tabular_collections;
+CREATE TABLE IF NOT EXISTS tabular_collections (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE
 );
 
-DROP TABLE IF EXISTS tabular_documents_db.tabular_documents;
-CREATE TABLE IF NOT EXISTS tabular_documents_db.tabular_documents (
+DROP TABLE IF EXISTS tabular_documents;
+CREATE TABLE IF NOT EXISTS tabular_documents (
     id BIGSERIAL PRIMARY KEY,
     file_name TEXT NOT NULL UNIQUE,
     file_hash VARCHAR(64) NOT NULL,
@@ -55,17 +50,17 @@ CREATE TABLE IF NOT EXISTS tabular_documents_db.tabular_documents (
     file_schema JSONB
 );
 
-DROP TABLE IF EXISTS tabular_documents_db.tabular_rows;
-CREATE TABLE IF NOT EXISTS tabular_documents_db.tabular_rows (
+DROP TABLE IF EXISTS tabular_rows;
+CREATE TABLE IF NOT EXISTS tabular_rows (
     id BIGSERIAL PRIMARY KEY,
-    file_id BIGINT REFERENCES tabular_documents_db.tabular_documents(id) ON DELETE CASCADE,
+    file_id BIGINT REFERENCES tabular_documents(id) ON DELETE CASCADE,
     row_embedding vector(1024),
     attributes JSONB
 );
         
-DROP TABLE IF EXISTS tabular_documents_db.tabular_documents_collections;
-CREATE TABLE IF NOT EXISTS tabular_documents_db.tabular_documents_collections (
-    collection_id BIGINT REFERENCES tabular_documents_db.tabular_collections(id) ON DELETE CASCADE,
-    document_id BIGINT REFERENCES tabular_documents_db.tabular_documents(id) ON DELETE CASCADE,
+DROP TABLE IF EXISTS tabular_documents_collections;
+CREATE TABLE IF NOT EXISTS tabular_documents_collections (
+    collection_id BIGINT REFERENCES tabular_collections(id) ON DELETE CASCADE,
+    document_id BIGINT REFERENCES tabular_documents(id) ON DELETE CASCADE,
     PRIMARY KEY (collection_id, document_id)
 );
