@@ -28,3 +28,39 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 -- Toevoegen van een standaardgebruiker aan de 'users' tabel
 INSERT INTO users (username, password, role)
 VALUES ('philippe', '$2b$12$IpMWh09YcV65iO9I9VfXo.sfo5eQeKfSy3F6CHEPPN6LvWtOO51r.', 'admin');
+
+
+-- Tabular vectorstore
+CREATE EXTENSION IF NOT EXISTS vector;
+    
+DROP TABLE IF EXISTS tabular_collections;
+CREATE TABLE IF NOT EXISTS tabular_collections (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+
+DROP TABLE IF EXISTS tabular_documents;
+CREATE TABLE IF NOT EXISTS tabular_documents (
+    id BIGSERIAL PRIMARY KEY,
+    file_name TEXT NOT NULL UNIQUE,
+    file_hash VARCHAR(64) NOT NULL,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    file_description TEXT,
+    file_description_embedding vector(1024),
+    file_schema JSONB
+);
+
+DROP TABLE IF EXISTS tabular_rows;
+CREATE TABLE IF NOT EXISTS tabular_rows (
+    id BIGSERIAL PRIMARY KEY,
+    file_id BIGINT REFERENCES tabular_documents(id) ON DELETE CASCADE,
+    row_embedding vector(1024),
+    attributes JSONB
+);
+        
+DROP TABLE IF EXISTS tabular_documents_collections;
+CREATE TABLE IF NOT EXISTS tabular_documents_collections (
+    collection_id BIGINT REFERENCES tabular_collections(id) ON DELETE CASCADE,
+    document_id BIGINT REFERENCES tabular_documents(id) ON DELETE CASCADE,
+    PRIMARY KEY (collection_id, document_id)
+);
