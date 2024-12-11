@@ -1,6 +1,6 @@
 import os
 import gradio as gr
-from blocks_llm_chat_with_rag import (
+from app.ui.chat.blocks_llm_chat_with_rag import (
     append_user,
     append_ai,
     clear_log,

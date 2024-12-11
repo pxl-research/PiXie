@@ -1,6 +1,6 @@
 import gradio as gr
-from file_management import file_upload_interface
-from user_management import user_management_interface
+from app.ui.admin.file_management import file_upload_interface
+from app.ui.admin.user_management import user_management_interface
 from services.authentication.authentication_manager import admin_auth
 from services.document_manager import (
     list_collections,
