@@ -1,6 +1,9 @@
 services:
   app:
     image: ghcr.io/philippehaldermans/pixie_pxl:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
     ports:
       - "24026:7861"
       - "24027:7862"

@@ -30,14 +30,24 @@ WORKDIR /app
 RUN rm -rf /app/.venv && python3 -m venv /app/.venv
 ENV PATH="/app/.venv/bin:/root/.local/bin:$PATH"
 
-# Copy dependency files
-COPY pyproject.toml uv.lock ./
+# Copy required files for package installation
+COPY pyproject.toml uv.lock README.md ./
+COPY src/ ./src/
 
-# Installeer de projectdependencies met uv zonder caching
+# Install the project's dependencies using the lockfile and settings
+RUN --mount=type=cache,target=/home/appuser/.cache/uv \
+    uv sync --frozen --no-dev
+
+# Then, add the rest of the project source code and install it
+COPY  . /app
+
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-COPY . /app
+# Place executables in the environment at the front of the path
+ENV PATH="/app/.venv/bin:$PATH"
 
-# Zet het pad voor Python scripts en services
+# Reset the entrypoint, don't invoke `uv`
+ENTRYPOINT []
+
 ENV PYTHONPATH="/app/src:/app/src/services"
