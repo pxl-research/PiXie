@@ -21,18 +21,16 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy required files for package installation
-COPY pyproject.toml uv.lock README.md ./
+COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-# Install the project's dependencies using the lockfile and settings
+# Generate lockfile and install dependencies
 RUN --mount=type=cache,target=/home/appuser/.cache/uv \
-    uv sync --frozen --no-dev
+    uv lock && \
+    uv sync --no-dev
 
 # Then, add the rest of the project source code and install it
 COPY  . /app
-
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
