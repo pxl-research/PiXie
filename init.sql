@@ -35,47 +35,39 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 DROP DATABASE IF EXISTS tabular_documents_db;
 CREATE DATABASE tabular_documents_db;
-DO $$
-DECLARE
-    db_name TEXT := 'tabular_documents_db';
-BEGIN
-    EXECUTE format('DROP SCHEMA IF EXISTS %I CASCADE', db_name);
-    EXECUTE format('CREATE SCHEMA %I', db_name);
+DROP SCHEMA IF EXISTS tabular_documents_db CASCADE;
+CREATE SCHEMA tabular_documents_db;
     
-    EXECUTE format('DROP TABLE IF EXISTS %I.tabular_collections', db_name);
-    EXECUTE format('
-        CREATE TABLE IF NOT EXISTS %I.tabular_collections (
-            id BIGSERIAL PRIMARY KEY,
-            name TEXT NOT NULL UNIQUE
-        )', db_name);
-        
-    EXECUTE format('DROP TABLE IF EXISTS %I.tabular_documents', db_name);
-    EXECUTE format('
-        CREATE TABLE IF NOT EXISTS %I.tabular_documents (
-            id BIGSERIAL PRIMARY KEY,
-            file_name TEXT NOT NULL UNIQUE,
-            file_hash VARCHAR(64) NOT NULL,
-            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            file_description TEXT,
-            file_description_embedding vector(1024),
-            file_schema JSONB
-        )', db_name)
+DROP TABLE IF EXISTS tabular_documents_db.tabular_collections;
+CREATE TABLE IF NOT EXISTS tabular_documents_db.tabular_collections (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
 
-    EXECUTE format('DROP TABLE IF EXISTS %I.tabular_rows', db_name);
-    EXECUTE format('
-        CREATE TABLE IF NOT EXISTS %I.tabular_rows (
-            id BIGSERIAL PRIMARY KEY,
-            file_id BIGINT REFERENCES %I.tabular_documents(id) ON DELETE CASCADE,
-            row_embedding vector(1024),
-            attributes JSONB
-        )', db_name, db_name);
+DROP TABLE IF EXISTS tabular_documents_db.tabular_documents;
+CREATE TABLE IF NOT EXISTS tabular_documents_db.tabular_documents (
+    id BIGSERIAL PRIMARY KEY,
+    file_name TEXT NOT NULL UNIQUE,
+    file_hash VARCHAR(64) NOT NULL,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    file_description TEXT,
+    file_description_embedding vector(1024),
+    file_schema JSONB
+);
+
+DROP TABLE IF EXISTS tabular_documents_db.tabular_rows;
+CREATE TABLE IF NOT EXISTS tabular_documents_db.tabular_rows (
+    id BIGSERIAL PRIMARY KEY,
+    file_id BIGINT REFERENCES tabular_documents_db.tabular_documents(id) ON DELETE CASCADE,
+    row_embedding vector(1024),
+    attributes JSONB
+);
         
-    EXECUTE format('DROP TABLE IF EXISTS %I.tabular_documents_collections', db_name);
-    EXECUTE format('
-        CREATE TABLE IF NOT EXISTS %I.tabular_documents_collections (
-            collection_id BIGINT REFERENCES %I.tabular_collections(id) ON DELETE CASCADE,
-            document_id BIGINT REFERENCES %I.tabular_documents(id) ON DELETE CASCADE,
-            PRIMARY KEY (collection_id, document_id)
-        )', db_name, db_name, db_name);
+DROP TABLE IF EXISTS tabular_documents_db.tabular_documents_collections;
+CREATE TABLE IF NOT EXISTS tabular_documents_db.tabular_documents_collections (
+    collection_id BIGINT REFERENCES tabular_documents_db.tabular_collections(id) ON DELETE CASCADE,
+    document_id BIGINT REFERENCES tabular_documents_db.tabular_documents(id) ON DELETE CASCADE,
+    PRIMARY KEY (collection_id, document_id)
+);
         
 END $$;
