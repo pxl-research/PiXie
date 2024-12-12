@@ -14,29 +14,25 @@ from services.llms.tabular_where_filter_generator_llm import (
     TabularWhereFilterGeneratorLLM,
 )
 
+
 def detect_language(text: str) -> str:
     """
     Detect the language of a given text and map it to one of the following:
     "english", "dutch", "french", "german". Defaults to "english".
-    
+
     Parameters:
         text (str): The input text string.
-    
+
     Returns:
         str: One of "english", "dutch", "french", "german".
     """
     # Mapping of langdetect codes to target languages
-    language_mapping = {
-        "en": "english",
-        "nl": "dutch",
-        "fr": "french",
-        "de": "german"
-    }
+    language_mapping = {"en": "english", "nl": "dutch", "fr": "french", "de": "german"}
     try:
         detected_lang = langdetect_detect(text)
     except Exception:
         return "english"
-    
+
     return language_mapping.get(detected_lang, "english")
 
 
@@ -108,11 +104,9 @@ class TabularPGVectorStore:
         self,
         embedding_model: EmbeddingModel,
         tabular_where_filter_generator_llm: TabularWhereFilterGeneratorLLM,
-        db_name: str = "tabular_documents_db",
     ):
         self.embedding_model = embedding_model
         self.tabular_where_filter_generator_llm = tabular_where_filter_generator_llm
-        self.db_name = db_name
 
     def _get_db_connection(self) -> psycopg2.extensions.connection:
         """
@@ -127,7 +121,7 @@ class TabularPGVectorStore:
             dbname=os.getenv("POSTGRES_DB"),
             user=os.getenv("POSTGRES_USER"),
             password=os.getenv("POSTGRES_PASSWORD"),
-            host="db",  # "localhost"
+            host="db",
             port="5432",
         )
         with conn.cursor() as c:
@@ -185,7 +179,6 @@ class TabularPGVectorStore:
             df (pd.DataFrame): A DataFrame containing the tabular data to be added.
         """
 
-        db_name = self.db_name
         conn = self._get_db_connection()
         embedding_model = self.embedding_model
 
@@ -201,7 +194,7 @@ class TabularPGVectorStore:
                 c.execute(
                     f"""
                     SELECT id 
-                    FROM {db_name}.tabular_collections 
+                    FROM tabular_collections 
                     WHERE name = %s
                     LIMIT 1
                     """,
@@ -212,7 +205,7 @@ class TabularPGVectorStore:
                 # Insert document data into tabular_documents
                 c.execute(
                     f"""
-                    INSERT INTO {db_name}.tabular_documents (
+                    INSERT INTO tabular_documents (
                         file_name, file_hash, last_updated, 
                         file_description, file_description_embedding, file_schema
                     )
@@ -250,7 +243,7 @@ class TabularPGVectorStore:
                     # and insert the fresh onces again later.
                     c.execute(
                         f"""
-                        DELETE FROM {db_name}.tabular_rows
+                        DELETE FROM tabular_rows
                         WHERE file_id = %s
                         """,
                         (file_id,),
@@ -260,7 +253,7 @@ class TabularPGVectorStore:
                     # Associate the document with the collection
                     c.execute(
                         f"""
-                        INSERT INTO {db_name}.tabular_documents_collections (
+                        INSERT INTO tabular_documents_collections (
                         collection_id, document_id)
                         VALUES (%s, %s)
                         """,
@@ -287,7 +280,7 @@ class TabularPGVectorStore:
                 execute_values(
                     c,
                     f"""
-                        INSERT INTO {db_name}.tabular_rows (file_id, row_embedding, attributes)
+                        INSERT INTO tabular_rows (file_id, row_embedding, attributes)
                         VALUES %s
                     """,
                     rows_to_insert,
@@ -315,7 +308,6 @@ class TabularPGVectorStore:
             bool: True if at least one document was deleted, False otherwise.
         """
 
-        db_name = self.db_name
         conn = self._get_db_connection()
         success = False
 
@@ -325,7 +317,7 @@ class TabularPGVectorStore:
                 c.execute(
                     f"""
                     SELECT id 
-                    FROM {db_name}.tabular_collections 
+                    FROM tabular_collections 
                     WHERE name = %s
                     LIMIT 1
                     """,
@@ -343,7 +335,7 @@ class TabularPGVectorStore:
                 c.execute(
                     f"""
                     SELECT id
-                    FROM {db_name}.tabular_documents
+                    FROM tabular_documents
                     WHERE file_name = %s OR file_name LIKE %s
                     """,
                     (
@@ -362,7 +354,7 @@ class TabularPGVectorStore:
                 # Delete associations between the collection and the documents
                 c.execute(
                     f"""
-                    DELETE FROM {db_name}.tabular_documents_collections
+                    DELETE FROM tabular_documents_collections
                     WHERE collection_id = %s AND document_id = ANY(%s)
                     """,
                     (collection_id, document_ids),
@@ -371,7 +363,7 @@ class TabularPGVectorStore:
                 # Delete the documents themselves
                 c.execute(
                     f"""
-                    DELETE FROM {db_name}.tabular_documents
+                    DELETE FROM tabular_documents
                     WHERE id = ANY(%s)
                     """,
                     (document_ids,),
@@ -410,7 +402,6 @@ class TabularPGVectorStore:
         Returns:
             list[dict[str, str]]: A list of unique schemas as dictionaries.
         """
-        db_name = self.db_name
         conn = self._get_db_connection()
 
         list_unique_schemas: list[dict[str, str]] = []
@@ -421,10 +412,10 @@ class TabularPGVectorStore:
                 SELECT DISTINCT d.file_schema
                 FROM (
                     SELECT d.file_schema
-                    FROM {db_name}.tabular_documents AS d
-                    JOIN {db_name}.tabular_documents_collections AS dc
+                    FROM tabular_documents AS d
+                    JOIN tabular_documents_collections AS dc
                     ON d.id = dc.document_id
-                    JOIN {db_name}.tabular_collections AS c
+                    JOIN tabular_collections AS c
                     ON dc.collection_id = c.id
                     WHERE c.name = %(collection_name)s
                     ORDER BY (d.file_description_embedding <=> %(question_embedding)s::vector) ASC
@@ -493,7 +484,6 @@ class TabularPGVectorStore:
                 ]
             )
 
-        db_name = self.db_name
         conn = self._get_db_connection()
         with conn.cursor() as c:
             try:
@@ -501,99 +491,99 @@ class TabularPGVectorStore:
 
                 file_based_vector_query = f"""
                 SELECT
-                    {db_name}.tabular_rows.id AS id,
+                    tabular_rows.id AS id,
                     RANK () OVER (
-                        ORDER BY {db_name}.tabular_documents.file_description_embedding 
+                        ORDER BY tabular_documents.file_description_embedding 
                             <=> %(question_embedding)s::vector ASC
                     ) as rank
-                FROM {db_name}.tabular_documents
-                JOIN {db_name}.tabular_rows
-                ON {db_name}.tabular_documents.id = {db_name}.tabular_rows.file_id
+                FROM tabular_documents
+                JOIN tabular_rows
+                ON tabular_documents.id = tabular_rows.file_id
 
                 -- Collection filtering
-                JOIN {db_name}.tabular_documents_collections
-                ON {db_name}.tabular_documents.id = {db_name}.tabular_documents_collections.document_id
-                JOIN {db_name}.tabular_collections
-                ON {db_name}.tabular_documents_collections.collection_id = {db_name}.tabular_collections.id
-                WHERE {db_name}.tabular_collections.name = %(collection_name)s
+                JOIN tabular_documents_collections
+                ON tabular_documents.id = tabular_documents_collections.document_id
+                JOIN tabular_collections
+                ON tabular_documents_collections.collection_id = tabular_collections.id
+                WHERE tabular_collections.name = %(collection_name)s
                 
-                ORDER BY {db_name}.tabular_documents.file_description_embedding 
+                ORDER BY tabular_documents.file_description_embedding 
                 <=> %(question_embedding)s::vector ASC
                 """
 
                 file_based_keyword_query = f"""
                 SELECT
-                    {db_name}.tabular_rows.id AS id,
+                    tabular_rows.id AS id,
                     RANK() OVER (
                         ORDER BY ts_rank_cd(
-                            to_tsvector('{language}', {db_name}.tabular_documents.file_description),
+                            to_tsvector('{language}', tabular_documents.file_description),
                             plainto_tsquery('{language}', %(question)s)
                         ) DESC
                     ) AS rank
-                FROM {db_name}.tabular_documents
-                JOIN {db_name}.tabular_rows
-                ON {db_name}.tabular_documents.id = {db_name}.tabular_rows.file_id
+                FROM tabular_documents
+                JOIN tabular_rows
+                ON tabular_documents.id = tabular_rows.file_id
 
                 -- Collection filtering
-                JOIN {db_name}.tabular_documents_collections
-                ON {db_name}.tabular_documents.id = {db_name}.tabular_documents_collections.document_id
-                JOIN {db_name}.tabular_collections
-                ON {db_name}.tabular_documents_collections.collection_id = {db_name}.tabular_collections.id
-                WHERE {db_name}.tabular_collections.name = %(collection_name)s
+                JOIN tabular_documents_collections
+                ON tabular_documents.id = tabular_documents_collections.document_id
+                JOIN tabular_collections
+                ON tabular_documents_collections.collection_id = tabular_collections.id
+                WHERE tabular_collections.name = %(collection_name)s
                 
-                AND to_tsvector('{language}', {db_name}.tabular_documents.file_description) @@ plainto_tsquery('{language}', %(question)s)
+                AND to_tsvector('{language}', tabular_documents.file_description) @@ plainto_tsquery('{language}', %(question)s)
                 ORDER BY ts_rank_cd(
-                    to_tsvector('{language}', {db_name}.tabular_documents.file_description), 
+                    to_tsvector('{language}', tabular_documents.file_description), 
                     plainto_tsquery('{language}', %(question)s)
                 ) DESC
                 """
 
                 row_based_vector_query = f"""            
                 SELECT
-                    {db_name}.tabular_rows.id AS id,
+                    tabular_rows.id AS id,
                     RANK () OVER (
-                        ORDER BY {db_name}.tabular_rows.row_embedding 
+                        ORDER BY tabular_rows.row_embedding 
                             <=> %(question_embedding)s::vector ASC
                     ) as rank
-                FROM {db_name}.tabular_documents
-                JOIN {db_name}.tabular_rows
-                ON {db_name}.tabular_documents.id = {db_name}.tabular_rows.file_id
+                FROM tabular_documents
+                JOIN tabular_rows
+                ON tabular_documents.id = tabular_rows.file_id
 
                 -- Collection filtering
-                JOIN {db_name}.tabular_documents_collections
-                ON {db_name}.tabular_documents.id = {db_name}.tabular_documents_collections.document_id
-                JOIN {db_name}.tabular_collections
-                ON {db_name}.tabular_documents_collections.collection_id = {db_name}.tabular_collections.id
-                WHERE {db_name}.tabular_collections.name = %(collection_name)s
+                JOIN tabular_documents_collections
+                ON tabular_documents.id = tabular_documents_collections.document_id
+                JOIN tabular_collections
+                ON tabular_documents_collections.collection_id = tabular_collections.id
+                WHERE tabular_collections.name = %(collection_name)s
                 
-                ORDER BY {db_name}.tabular_rows.row_embedding 
+                ORDER BY tabular_rows.row_embedding 
                     <=> %(question_embedding)s::vector ASC
                 """
 
                 row_based_keyword_query = f"""            
                 SELECT
-                    {db_name}.tabular_rows.id AS id,
+                    tabular_rows.id AS id,
                     RANK () OVER (
                         ORDER BY ts_rank_cd(
-                            to_tsvector('{language}', ({db_name}.tabular_rows.attributes)::text), 
+                            to_tsvector('{language}', (tabular_rows.attributes)::text), 
                             plainto_tsquery('{language}', %(question)s)
                         ) DESC
                     ) AS rank
-                FROM {db_name}.tabular_documents
-                JOIN {db_name}.tabular_rows 
-                ON {db_name}.tabular_documents.id = {db_name}.tabular_rows.file_id
+                FROM tabular_documents
+                JOIN tabular_rows 
+                ON tabular_documents.id = tabular_rows.file_id
 
                 -- Collection filtering
-                JOIN {db_name}.tabular_documents_collections
-                ON {db_name}.tabular_documents.id = {db_name}.tabular_documents_collections.document_id
-                JOIN {db_name}.tabular_collections
-                ON {db_name}.tabular_documents_collections.collection_id = {db_name}.tabular_collections.id
-                WHERE {db_name}.tabular_collections.name = %(collection_name)s
+                JOIN tabular_documents_collections
+                ON tabular_documents.id = tabular_documents_collections.document_id
+                JOIN tabular_collections
+                ON tabular_documents_collections.collection_id = tabular_collections.id
+                WHERE tabular_collections.name = %(collection_name)s
   
-                AND to_tsvector('{language}', ({db_name}.tabular_rows.attributes)::text) 
+                AND to_tsvector('{language}', (tabular_rows.attributes)::text) 
                     @@ plainto_tsquery('{language}', %(question)s)            
                 ORDER BY ts_rank_cd(
-                    to_tsvector('{language}', ({db_name}.tabular_rows.attributes)::text), 
+                    to_tsvector('{language}', (tabular_rows.attributes)::text), 
                     plainto_tsquery('{language}', %(question)s)
                 ) DESC
                 """
@@ -633,7 +623,7 @@ class TabularPGVectorStore:
                     {hybrid_query}
                 )
                 SELECT r.attributes AS attributes -- DEBUG: , hybrid_search.score::real AS score
-                FROM {db_name}.tabular_rows r
+                FROM tabular_rows r
                 RIGHT JOIN hybrid_search
                 ON r.id = hybrid_search.id
                 WHERE {disjunction_filter_condition}
@@ -677,7 +667,6 @@ class TabularPGVectorStore:
             list[str]: A list of document file names in the collection.
         """
 
-        db_name = self.db_name
         conn = self._get_db_connection()
 
         document_list: list[str] = []
@@ -687,10 +676,10 @@ class TabularPGVectorStore:
                 c.execute(
                     f"""
                     SELECT td.file_name 
-                    FROM {db_name}.tabular_documents td
-                    JOIN {db_name}.tabular_documents_collections tdc
+                    FROM tabular_documents td
+                    JOIN tabular_documents_collections tdc
                     ON td.id = tdc.document_id
-                    JOIN {db_name}.tabular_collections tc
+                    JOIN tabular_collections tc
                     ON tdc.collection_id = tc.id
                     WHERE tc.name = %s
                     """,
@@ -719,7 +708,6 @@ class TabularPGVectorStore:
         Returns:
             bool: True if the document is up-to-date, False otherwise.
         """
-        db_name = self.db_name
         conn = self._get_db_connection()
 
         is_up_to_date = False
@@ -728,10 +716,10 @@ class TabularPGVectorStore:
                 cursor.execute(
                     f"""
                     SELECT td.file_hash 
-                    FROM {db_name}.tabular_documents td
-                    JOIN {db_name}.tabular_documents_collections tdc
+                    FROM tabular_documents td
+                    JOIN tabular_documents_collections tdc
                     ON td.id = tdc.document_id
-                    JOIN {db_name}.tabular_collections tc
+                    JOIN tabular_collections tc
                     ON tdc.collection_id = tc.id
                     WHERE td.file_hash = %s AND tc.name = %s
                     """,
@@ -749,17 +737,16 @@ class TabularPGVectorStore:
     # Not used, but commented if needed in the future
     '''
     def is_doc_in_list(self, file_name: str, collection: str) -> bool:
-        db_name = self.db_name
         conn = self._get_db_connection()
         try:
             with conn.cursor() as cursor:
                 cursor.execute(
                     f"""
                     SELECT td.file_name
-                    FROM {db_name}.tabular_documents td
-                    JOIN {db_name}.tabular_documents_collections tdc
+                    FROM tabular_documents td
+                    JOIN tabular_documents_collections tdc
                     ON td.id = tdc.document_id
-                    JOIN {db_name}.tabular_collections tc
+                    JOIN tabular_collections tc
                     ON tdc.collection_id = tc.id
                     WHERE td.file_name = %s AND tc.name = %s
                     """,
@@ -780,13 +767,12 @@ class TabularPGVectorStore:
         Returns:
             list[str]: A list of collection names.
         """
-        db_name = self.db_name
         conn = self._get_db_connection()
 
         existing_collections = []
         try:
             with conn.cursor() as c:
-                c.execute(f"SELECT name FROM {db_name}.tabular_collections;")
+                c.execute(f"SELECT name FROM tabular_collections;")
                 rows: list[tuple[str]] = c.fetchall()
                 existing_collections: list[str] = [row[0] for row in rows]
         except Exception as e:
@@ -815,21 +801,20 @@ class TabularPGVectorStore:
         Args:
             collection_name (str): The name of the collection to delete.
         """
-        db_name = self.db_name
         conn = self._get_db_connection()
         with conn.cursor() as c:
             try:
                 c.execute(
                     f"""
                     WITH deleted_collection AS (
-                        DELETE FROM {db_name}.tabular_collections
+                        DELETE FROM tabular_collections
                         WHERE name = %s
                         RETURNING id
                     )
-                    DELETE FROM {db_name}.tabular_documents
+                    DELETE FROM tabular_documents
                     WHERE id IN (
                         SELECT document_id
-                        FROM {db_name}.tabular_documents_collections
+                        FROM tabular_documents_collections
                         WHERE collection_id IN (SELECT id FROM deleted_collection)
                     )
                     RETURNING id
@@ -858,7 +843,6 @@ class TabularPGVectorStore:
             bool: True if the collection exists, False otherwise.
         """
 
-        db_name = self.db_name
         conn = self._get_db_connection()
         with conn.cursor() as c:
             try:
@@ -867,7 +851,7 @@ class TabularPGVectorStore:
                     SELECT EXISTS 
                     (
                         SELECT 1 
-                        FROM {db_name}.tabular_collections 
+                        FROM tabular_collections 
                         WHERE name = %s
                     )
                     """,
@@ -888,7 +872,6 @@ class TabularPGVectorStore:
             collection_name (str): The name of the collection to create.
         """
 
-        db_name = self.db_name
         conn = self._get_db_connection()
         try:
             with conn.cursor() as c:
@@ -899,7 +882,7 @@ class TabularPGVectorStore:
                 # so there normally will not be a conflict.
                 c.execute(
                     f"""
-                    INSERT INTO {db_name}.tabular_collections (name)
+                    INSERT INTO tabular_collections (name)
                     VALUES (%s)
                     ON CONFLICT (name) DO NOTHING;
                     """,
@@ -918,7 +901,6 @@ class TabularPGVectorStore:
         Prints the contents of all tables for debugging purposes.
         """
 
-        db_name = self.db_name
         conn = self._get_db_connection()
 
         tables = [
@@ -930,9 +912,9 @@ class TabularPGVectorStore:
 
         with conn.cursor(cursor_factory=RealDictCursor) as c:
             for table in tables:
-                print(f"--- Contents of {db_name}.{table} ---")
+                print(f"--- Contents of {table} ---")
                 try:
-                    query = f"SELECT * FROM {db_name}.{table};"
+                    query = f"SELECT * FROM {table};"
                     c.execute(query)
                     rows = c.fetchall()
 
@@ -942,5 +924,5 @@ class TabularPGVectorStore:
                     else:
                         print("(No rows found)")
                 except Exception as e:
-                    print(f"Error reading table {db_name}.{table}: {e}")
+                    print(f"Error reading table {table}: {e}")
                 print()  # Add spacing between table outputs
