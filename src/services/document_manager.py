@@ -8,7 +8,8 @@ from werkzeug.utils import secure_filename
 from typing import Optional
 
 from services import utils, blob_service
-from services.abstractclasses.document_loader import (
+
+from services.document_loaders.document_loader_manager import (
     DocumentFileType,
     get_document_file_type,
 )

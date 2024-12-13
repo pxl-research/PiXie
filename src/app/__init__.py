@@ -21,8 +21,16 @@ logging.basicConfig(
 file_to_strategy = {
     "docx": os.getenv("DOCX_STRATEGY"),
     "doc": os.getenv("DOCX_STRATEGY"),
+    #"odt": os.getenv("DOCX_STRATEGY"),
+    #"rtf": os.getenv("DOCX_STRATEGY"),
     "pdf": os.getenv("PDF_STRATEGY"),
     "pptx": os.getenv("PPTX_STRATEGY"),
+    #"odp": os.getenv("PPTX_STRATEGY"),
+    "csv": os.getenv("CSV_STRATEGY"),
+    "xlsx": os.getenv("XLSX_STRATEGY"),
+    "xls": os.getenv("XLSX_STRATEGY"),
+    #"ods": os.getenv("XLSX_STRATEGY"),
+    #"md": os.getenv("MD_STRATEGY"),
 }
 
 document_loader = ConfigurableDocumentProcessingManager(file_to_strategy)
