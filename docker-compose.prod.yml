@@ -9,7 +9,7 @@ services:
       - "24027:7862"
     environment:
       - ENV=production
-    command: sh -c "uv run python src/app/admin_page.py & uv run python src/app/chat.py"
+    command: sh -c "uv run python src/app/ui/admin/admin_page.py & uv run python src/app/ui/chat/chat.py"
     restart: on-failure
     env_file:
       - .env.prod
