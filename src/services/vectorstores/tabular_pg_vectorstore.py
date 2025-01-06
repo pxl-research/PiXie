@@ -926,3 +926,42 @@ class TabularPGVectorStore:
                 except Exception as e:
                     print(f"Error reading table {table}: {e}")
                 print()  # Add spacing between table outputs
+
+    def get_summaries_by_collection(self, collection_name: str) -> list[str]:
+        """
+        Retrieves a list of file_descriptions associated with a specific collection.
+
+        Args:
+            collection_name (str): The name of the collection.
+
+        Returns:
+            list[str]: A list of file descriptions in the collection.
+        """
+        conn = self._get_db_connection()
+
+        summaries_list: list[str] = []
+        with conn.cursor() as c:
+            try:
+                # Retrieve file descriptions for the specified collection
+                c.execute(
+                    """
+                    SELECT td.file_description
+                    FROM tabular_documents td
+                    JOIN tabular_documents_collections tdc
+                    ON td.id = tdc.document_id
+                    JOIN tabular_collections tc
+                    ON tdc.collection_id = tc.id
+                    WHERE tc.name = %s
+                    """,
+                    (collection_name,),
+                )
+                rows = c.fetchall()
+                summaries_list = [row[0] for row in rows]
+            except Exception as e:
+                logging.error(
+                    f"Failed to retrieve file descriptions for collection '{collection_name}': {str(e)}"
+                )
+            finally:
+                conn.close()
+
+        return summaries_list
