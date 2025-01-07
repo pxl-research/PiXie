@@ -117,7 +117,7 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
     try:
         file_hash = utils.compute_hash(temp_file_path)
 
-        document_file_type, document = document_loader.load_document(file_path)
+        document_file_type, document = document_loader.load_document(temp_file_path)
 
         if document_file_type is DocumentFileType.Document:
             # Check if the document is already up-to-date

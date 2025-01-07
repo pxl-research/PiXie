@@ -24,8 +24,10 @@ RUN apt-get update && \
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-# Generate lockfile and install dependencies
-RUN --mount=type=cache,target=/home/appuser/.cache/uv \
+# Before running uv commands, create virtual environment
+RUN python3 -m venv .venv && \
+    . .venv/bin/activate && \
+    mkdir -p /home/appuser/.cache/uv && \
     uv lock && \
     uv sync --no-dev
 
