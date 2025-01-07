@@ -9,7 +9,7 @@ from psycopg2.extras import execute_values, RealDictCursor
 from langdetect import detect as langdetect_detect
 
 
-from services.abstractclasses import EmbeddingModel
+from services.abstractclasses.embedding_model import EmbeddingModel
 from services.llms.tabular_where_filter_generator_llm import (
     TabularWhereFilterGeneratorLLM,
 )
@@ -107,6 +107,12 @@ class TabularPGVectorStore:
     ):
         self.embedding_model = embedding_model
         self.tabular_where_filter_generator_llm = tabular_where_filter_generator_llm
+
+        current_collections = self.list_collections()
+
+        if not current_collections:
+            default_collection_name = "pixie"
+            self._create_collection(default_collection_name)
 
     def _get_db_connection(self) -> psycopg2.extensions.connection:
         """

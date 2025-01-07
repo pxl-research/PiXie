@@ -165,7 +165,7 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
             if isinstance(loaded_data, pd.DataFrame):
                 # will be unique, because in Excel a sheetname cannot be one of those chars
                 dict_data = {prohibited_chars: loaded_data}
-            elif isinstance(loaded_data, dict[str, pd.DataFrame]):
+            elif isinstance(loaded_data, dict):
                 dict_data = loaded_data
             else:
                 return None
@@ -327,6 +327,10 @@ def _prepare_upload_folder() -> None:
 def list_collections() -> list[str]:
     collections = vector_store.list_collections()
     tabular_collections = tabular_vector_store.list_collections()
+    print("Collections:")
+    print(collections)
+    print("Tabular collections:")
+    print(tabular_collections)
     assert set(collections) == set(tabular_collections)
     return list(set(collections + tabular_collections))
 
