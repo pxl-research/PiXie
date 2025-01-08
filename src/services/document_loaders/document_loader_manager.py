@@ -36,7 +36,12 @@ def get_tabular_extensions() -> set[str]:
 
 
 def get_document_file_type(file_path: str) -> DocumentFileType:
-    extension = os.path.splitext(file_path)[1].lower().lstrip(".")
+
+    # Remove sheet name if present (after #)
+    base_file_path = file_path.split("#")[0]
+
+    # Get extension from cleaned path
+    extension = os.path.splitext(base_file_path)[1].lower().lstrip(".")
     document_extensions = get_document_extensions()
     tabular_document_extensions = get_tabular_extensions()
     if extension in document_extensions:

@@ -250,7 +250,7 @@ def add_documents(
 
 def remove_document(
     selected_file: str, collection_name: str = "pixie"
-) -> tuple[str, list[list[str]]]:
+) -> list[list[str]]:
     if selected_file:
         document_file_type = get_document_file_type(selected_file)
         logging.info(f"Removing document: {selected_file}")
@@ -259,29 +259,25 @@ def remove_document(
                 vector_store.delete_document(collection_name, selected_file)
                 success = remove_from_doc_list(selected_file, collection_name)
             elif document_file_type is DocumentFileType.TabularDocument:
-                secure_selected_file = secure_filename(selected_file)
                 success = tabular_vector_store.delete_tabular_document(
-                    collection_name, secure_selected_file
+                    collection_name, selected_file
                 )
             else:
                 raise Exception("No valid file extension used.")
+            blob_service.delete_blob(selected_file)
 
-            blob_service.delete_blob(secure_selected_file)
             if success:
-                feedback_text = f"File '{selected_file}' has been successfully removed."
+                logging.info(f"File '{selected_file}' has been successfully removed.")
             else:
-                feedback_text = f"Could not remove file '{selected_file}'."
+                logging.info(f"Could not remove file '{selected_file}'.")
         except Exception as e:
             logging.error(f"Failed to remove file '{selected_file}': {e}")
-            feedback_text = f"An error occurred while removing the file: {str(e)}"
-
     else:
-        feedback_text = "No file selected."
+        logging.info("Tried to remove document but no file was selected.")
 
     # Retrieve the updated list of files
     files_df = list_documents(collection_name)
-
-    return feedback_text, files_df
+    return files_df
 
 
 def list_documents(collection_name: str) -> list[list[str]]:
