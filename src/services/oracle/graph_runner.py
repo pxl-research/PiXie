@@ -8,6 +8,7 @@ from langgraph.graph import StateGraph, END
 
 from services.oracle.oracle_tools import (
     rag_search,
+    tabular_rag_search,
     weather_api,
     get_date,
     web_search,
@@ -58,7 +59,7 @@ def run_oracle(state: AgentState) -> Dict[str, Any]:
 
     # Create an oracle for the specified collection
     collection_name = state["collection_name"]
-    tools = [rag_search, weather_api, get_date, web_search, final_answer]
+    tools = [rag_search, tabular_rag_search, weather_api, get_date, web_search, final_answer]
     oracle = create_oracle(collection_name, tools)
 
     # Invoke the oracle with the given state
@@ -113,6 +114,7 @@ def run_tool(state: AgentState) -> Dict[str, Any]:
     # Map of tool functions based on tool names
     tool_str_to_func = {
         "rag_search": rag_search,
+        "tabular_rag_search": tabular_rag_search,
         "weather_api": weather_api,
         "get_date": get_date,
         "web_search": web_search,
@@ -125,7 +127,7 @@ def run_tool(state: AgentState) -> Dict[str, Any]:
     logging.info(f"Invoking tool: {tool_name} with input: {tool_args}")
 
     # Ensure collection name is added for rag_search tool
-    if tool_name == "rag_search":
+    if tool_name == "rag_search" or tool_name == "tabular_rag_search":
         collection_name = state.get("collection_name")
         if collection_name is not None:
             tool_args["collection_name"] = collection_name
@@ -160,6 +162,7 @@ def initialize_graph() -> StateGraph:
     # Add nodes to the graph
     graph.add_node("oracle", run_oracle)
     graph.add_node("rag_search", run_tool)
+    graph.add_node("tabular_rag_search", run_tool)
     graph.add_node("weather_api", run_tool)
     graph.add_node("get_date", run_tool)
     graph.add_node("web_search", run_tool)
@@ -172,7 +175,7 @@ def initialize_graph() -> StateGraph:
     graph.add_conditional_edges(source="oracle", path=router)
 
     # Create edges from each tool back to the oracle, except for the final answer
-    tools = [rag_search, weather_api, get_date, web_search, final_answer]
+    tools = [rag_search, tabular_rag_search, weather_api, get_date, web_search, final_answer]
     for tool_obj in tools:
         if tool_obj.name != "final_answer":
             graph.add_edge(tool_obj.name, "oracle")

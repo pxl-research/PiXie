@@ -13,7 +13,16 @@ from services.document_loaders.document_loader_manager import (
     DocumentFileType,
     get_document_file_type,
 )
-from app import document_loader, splitter, vector_store, reranker, summarizer
+from app import (
+    document_loader,
+    splitter,
+    vector_store,
+    reranker,
+    summarizer,
+    tabular_vector_store,
+    tabular_summarizer_llm,
+    tabular_where_filter_generator_llm,
+)
 from database.document_db_operations import (
     is_doc_up_to_date_in_list,
     is_doc_in_list,
@@ -23,17 +32,8 @@ from database.document_db_operations import (
 )
 from page_numbering import text_chunks_to_page_numbers
 
-# TODO: uncomment later when actually used in app/__init__.py
-"""
-from app import tabular_pg_vectorstore, tabular_summarizer_llm, tabular_where_filter_generator_llm
-"""
 
 UPLOAD_FOLDER = "./uploads"
-
-# TODO: remove this when full integration is done:
-PLATFORM_PIXIE = 0
-PLATFORM_KAGGLE = 1
-PLATFORM = PLATFORM_PIXIE
 
 
 def retrieve_and_rerank_chunks(
@@ -165,7 +165,7 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
             if isinstance(loaded_data, pd.DataFrame):
                 # will be unique, because in Excel a sheetname cannot be one of those chars
                 dict_data = {prohibited_chars: loaded_data}
-            elif isinstance(loaded_data, dict[str, pd.DataFrame]):
+            elif isinstance(loaded_data, dict):
                 dict_data = loaded_data
             else:
                 return None
@@ -250,7 +250,7 @@ def add_documents(
 
 def remove_document(
     selected_file: str, collection_name: str = "pixie"
-) -> tuple[str, list[list[str]]]:
+) -> list[list[str]]:
     if selected_file:
         document_file_type = get_document_file_type(selected_file)
         logging.info(f"Removing document: {selected_file}")
@@ -259,29 +259,25 @@ def remove_document(
                 vector_store.delete_document(collection_name, selected_file)
                 success = remove_from_doc_list(selected_file, collection_name)
             elif document_file_type is DocumentFileType.TabularDocument:
-                secure_selected_file = secure_filename(selected_file)
                 success = tabular_vector_store.delete_tabular_document(
-                    collection_name, secure_selected_file
+                    collection_name, selected_file
                 )
             else:
                 raise Exception("No valid file extension used.")
+            blob_service.delete_blob(selected_file)
 
-            blob_service.delete_blob(secure_selected_file)
             if success:
-                feedback_text = f"File '{selected_file}' has been successfully removed."
+                logging.info(f"File '{selected_file}' has been successfully removed.")
             else:
-                feedback_text = f"Could not remove file '{selected_file}'."
+                logging.info(f"Could not remove file '{selected_file}'.")
         except Exception as e:
             logging.error(f"Failed to remove file '{selected_file}': {e}")
-            feedback_text = f"An error occurred while removing the file: {str(e)}"
-
     else:
-        feedback_text = "No file selected."
+        logging.info("Tried to remove document but no file was selected.")
 
     # Retrieve the updated list of files
     files_df = list_documents(collection_name)
-
-    return feedback_text, files_df
+    return files_df
 
 
 def list_documents(collection_name: str) -> list[list[str]]:
@@ -303,19 +299,6 @@ def list_documents(collection_name: str) -> list[list[str]]:
         file_list = tabular_vector_store.list_documents(collection_name)
         return file_list
 
-    # TODO: remove this branching when integration is complete
-    logging.info("Document list retrieved.")
-    if PLATFORM == PLATFORM_PIXIE:
-        file_list = non_tabular(collection_name)
-        file_names = [[filename] for filename in file_list]
-        return file_names
-    elif PLATFORM == PLATFORM_KAGGLE:
-        file_list = tabular(collection_name)
-        file_names = [[filename] for filename in file_list]
-        return file_names
-    #
-
-    # TODO: Later when integration is complete, we can simply do this:
     file_list = non_tabular(collection_name) + tabular(collection_name)
     file_names = [[filename] for filename in file_list]
     logging.info("Document list retrieved.")
@@ -338,33 +321,17 @@ def _prepare_upload_folder() -> None:
 
 
 def list_collections() -> list[str]:
-    # TODO: remove this branching when integration is complete
-    if PLATFORM == PLATFORM_PIXIE:
-        collections = vector_store.list_collections()
-        return collections
-    elif PLATFORM == PLATFORM_KAGGLE:
-        tabular_collections = tabular_vector_store.list_collections()
-        return tabular_collections
-    #
-
-    # TODO: Later when integration is complete, we can simply do this:
     collections = vector_store.list_collections()
     tabular_collections = tabular_vector_store.list_collections()
+    print("Collections:")
+    print(collections)
+    print("Tabular collections:")
+    print(tabular_collections)
     assert set(collections) == set(tabular_collections)
     return list(set(collections + tabular_collections))
 
 
 def add_collection(collection_name: str) -> None:
-    # TODO: remove this branching when integration is complete
-    if PLATFORM == PLATFORM_PIXIE:
-        vector_store.add_collection(collection_name)
-        return
-    elif PLATFORM == PLATFORM_KAGGLE:
-        tabular_vector_store.add_collection(collection_name)
-        return
-    #
-
-    # TODO: Later when integration is complete, we can simply do this:
     # NOTE: make this an atomic transaction in the future
     # because collections in both stores need to be in sync
     vector_store.add_collection(collection_name)

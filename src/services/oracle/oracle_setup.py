@@ -6,7 +6,7 @@ from langchain_core.tools import Tool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from services.database.document_db_operations import get_summaries_by_collection
-from app import llm
+from app import llm, tabular_vector_store
 
 
 def get_system_prompt(collection_name: str) -> str:
@@ -15,16 +15,19 @@ def get_system_prompt(collection_name: str) -> str:
 
     This function fetches summaries of documents related to the given collection name
     and incorporates them into a system prompt. The prompt guides the oracle in deciding
-    which tools to use to answer a user’s query, with specific instructions on tool usage and limitations.
+    which tools to use to answer a user's query, with specific instructions on tool usage and limitations.
 
     Args:
         collection_name (str): The name of the document collection from which summaries are retrieved.
 
     Returns:
         str: A formatted prompt string containing instructions for the oracle, including
-             available tools and topics covered by the rag_search tool.
+             available tools and topics covered by the rag_search and tabular_rag_search tools.
     """
+
     summaries = get_summaries_by_collection(collection_name)
+    tabular_summaries = tabular_vector_store.get_summaries_by_collection(collection_name)
+
     return f"""
 You are the oracle, the great AI decision maker.
 Given the user's query, you must decide what to do with it based on the list of tools provided to you.
@@ -44,6 +47,7 @@ Given the user's query, you must decide what to do with it based on the list of 
 **Information Collection Strategy**:
 
 - Prioritize using the `rag_search` tool for topics it covers: {summaries}.
+- Prioritize using the `tabular_rag_search` tool for topics it covers: {tabular_summaries}.
 - You may reformulate or split the question into sub-questions to gather more information.
 - Aim to collect information from diverse sources before providing the final answer.
 - If the question is time-sensitive, retrieve the current date first.

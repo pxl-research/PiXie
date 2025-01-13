@@ -6,6 +6,7 @@ from langchain_core.tools import tool
 from langchain_community.tools import TavilySearchResults
 
 from services import document_manager
+from services.document_loaders.document_loader_manager import DocumentFileType
 
 
 @tool("get_date")
@@ -113,12 +114,51 @@ def rag_search(question: str, collection_name: str) -> List[str]:
     try:
         # Attempt to retrieve and rerank chunks
         final_docs = document_manager.retrieve_and_rerank_chunks(
-            collection_name, question
+            collection_name, question, document_file_type=DocumentFileType.Document
         )
         logging.info(
             f"Retrieved {len(final_docs)} documents for question: '{question}'"
         )
 
+        # Format documents
+        docs = format_documents(final_docs)
+        logging.info("Document formatting completed successfully.")
+        return docs
+
+    except Exception as e:
+        # Log any exceptions that occur during retrieval or formatting
+        logging.error(
+            f"Error in retrieving or formatting chunks for question '{question}': {e}"
+        )
+        return [f"Error during retrieval: {e}"]
+
+
+@tool("tabular_rag_search")
+def tabular_rag_search(question: str, collection_name: str) -> List[str]:
+    """
+    Retrieve and format top-ranked rows from a tabular document in the specified collection based on the question using a tabular vector store.
+
+    Args:
+        question (str): The question to retrieve relevant rows for.
+        collection_name (str): The name of the collection to search within.
+
+    Returns:
+        List[str]: A list of formatted rows relevant to the question.
+
+    Raises:
+        Exception: If there is an error while retrieving or formatting rows, an exception is raised with details.
+    """
+    logging.info(
+        f"Retrieving chunks for question: '{question}' from collection '{collection_name}'"
+    )
+    try:
+        # Attempt to retrieve and rerank chunks
+        final_docs = document_manager.retrieve_and_rerank_chunks(
+            collection_name, question, document_file_type=DocumentFileType.TabularDocument
+        )
+        logging.info(
+            f"Retrieved {len(final_docs)} rows for question: '{question}'"
+        )
         # Format documents
         docs = format_documents(final_docs)
         logging.info("Document formatting completed successfully.")
