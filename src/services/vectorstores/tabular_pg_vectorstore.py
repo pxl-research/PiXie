@@ -415,9 +415,7 @@ class TabularPGVectorStore:
         with conn.cursor() as c:
             try:
                 unique_schemas_query = f"""
-                SELECT DISTINCT d.file_schema
-                FROM (
-                    SELECT d.file_schema
+                    SELECT DISTINCT d.file_schema
                     FROM tabular_documents AS d
                     JOIN tabular_documents_collections AS dc
                     ON d.id = dc.document_id
@@ -425,8 +423,7 @@ class TabularPGVectorStore:
                     ON dc.collection_id = c.id
                     WHERE c.name = %(collection_name)s
                     ORDER BY (d.file_description_embedding <=> %(question_embedding)s::vector) ASC
-                ) AS ordered_schemas
-                LIMIT %(max_file_count)s
+                    LIMIT %(max_file_count)s
                 """
                 c.execute(
                     unique_schemas_query,
