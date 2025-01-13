@@ -415,16 +415,26 @@ class TabularPGVectorStore:
         with conn.cursor() as c:
             try:
                 unique_schemas_query = f"""
-                    SELECT DISTINCT d.file_schema
-                    FROM tabular_documents AS d
-                    JOIN tabular_documents_collections AS dc
-                    ON d.id = dc.document_id
-                    JOIN tabular_collections AS c
-                    ON dc.collection_id = c.id
-                    WHERE c.name = %(collection_name)s
-                    ORDER BY (d.file_description_embedding <=> %(question_embedding)s::vector) ASC
+                    WITH ranked_documents AS (
+                        SELECT d.file_schema, 
+                           d.file_description_embedding <=> %(question_embedding)s::vector AS similarity
+                        FROM tabular_documents AS d
+                        JOIN tabular_documents_collections AS dc
+                        ON d.id = dc.document_id
+                        JOIN tabular_collections AS c
+                        ON dc.collection_id = c.id
+                        WHERE c.name = %(collection_name)s
+                    ),
+                    distinct_documents AS (
+                        SELECT DISTINCT ON (file_schema) file_schema, similarity
+                        FROM ranked_documents
+                        ORDER BY file_schema, similarity ASC
+                    )
+                    SELECT file_schema
+                    FROM distinct_documents
+                    ORDER BY similarity ASC
                     LIMIT %(max_file_count)s
-                """
+                    """
                 c.execute(
                     unique_schemas_query,
                     {
