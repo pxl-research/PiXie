@@ -10,9 +10,8 @@ from langdetect import detect as langdetect_detect
 
 
 from services.abstractclasses.embedding_model import EmbeddingModel
-from services.llms.tabular_where_filter_generator_llm import (
-    TabularWhereFilterGeneratorLLM,
-)
+# from services.llms.tabular_where_filter_generator_llm import TabularWhereFilterGeneratorLLM
+from services.llms.tabular_sql_query_generator_llm import TabularSQLQueryGeneratorLLM
 
 
 def detect_language(text: str) -> str:
@@ -103,10 +102,12 @@ class TabularPGVectorStore:
     def __init__(
         self,
         embedding_model: EmbeddingModel,
-        tabular_where_filter_generator_llm: TabularWhereFilterGeneratorLLM,
+        tabular_sql_query_generator_llm: TabularSQLQueryGeneratorLLM
+        #tabular_where_filter_generator_llm: TabularWhereFilterGeneratorLLM,
     ):
         self.embedding_model = embedding_model
-        self.tabular_where_filter_generator_llm = tabular_where_filter_generator_llm
+        # self.tabular_where_filter_generator_llm = tabular_where_filter_generator_llm
+        self.tabular_sql_query_generator_llm = tabular_sql_query_generator_llm
 
         current_collections = self.list_collections()
 
@@ -449,6 +450,7 @@ class TabularPGVectorStore:
 
         return list_unique_schemas
 
+    '''
     def retrieve_top_rows(
         self,
         collection_name: str,
@@ -668,6 +670,226 @@ class TabularPGVectorStore:
                 return pd.DataFrame()
 
         return df
+    '''
+
+    def retrieve_top_rows(
+        self,
+        collection_name: str,
+        question: str,
+        top_k: int = 30,
+        k_rrf: int = 60,
+        max_file_count: int = 3,
+    ) -> pd.DataFrame:
+        """
+        Retrieve the top rows relevant to a question from a specified collection.
+
+        Args:
+            collection_name (str): Name of the collection to search within.
+            question (str): The query or question for which relevant rows are retrieved.
+            top_k (int, optional): Number of top rows to return. Default is 10.
+            k_rrf (int, optional): Reciprocal rank fusion parameter. Default is 60.
+            weight_row_vs_file_based (float, optional): Weight to balance 
+                row-level vs. file-level relevance scores. Default is 0.8.
+            max_file_count (int, optional): Maximum number of files to consider 
+                based on schema matching. Default is 3.
+
+        Returns:
+            pd.DataFrame: DataFrame containing the attributes of the top matching rows.
+        """
+
+        # TODO: sanitize generated query to avoid SQL-injection!
+        # This will be done later.
+
+        question_embedding = self.embedding_model.embed_query(
+            text=question, normalize=False, to_list=True
+        )
+
+        list_unique_schemas = self._list_schemas(
+            collection_name=collection_name,
+            question_embedding=question_embedding,
+            max_file_count=max_file_count,
+        )
+
+        if len(list_unique_schemas) <= 0:
+            return pd.DataFrame()
+
+        all_results = []
+        for schema in list_unique_schemas:
+            generated_sql_query = self.tabular_sql_query_generator_llm.generate(schema=schema, question=question)
+
+            conn = self._get_db_connection()
+            with conn.cursor() as c:
+                try:
+                    language = detect_language(text=question)
+                
+                    file_based_vector_query = f"""
+                    SELECT
+                        tabular_rows.id AS id,
+                        RANK () OVER (
+                            ORDER BY tabular_documents.file_description_embedding 
+                                <=> %(question_embedding)s::vector ASC
+                        ) as rank
+                    FROM tabular_documents
+                    JOIN tabular_rows
+                    ON tabular_documents.id = tabular_rows.file_id
+
+                    -- Collection filtering
+                    JOIN tabular_documents_collections
+                    ON tabular_documents.id = tabular_documents_collections.document_id
+                    JOIN tabular_collections
+                    ON tabular_documents_collections.collection_id = tabular_collections.id
+                    WHERE tabular_collections.name = %(collection_name)s
+                
+                    ORDER BY tabular_documents.file_description_embedding 
+                    <=> %(question_embedding)s::vector ASC
+                    """
+
+                    file_based_keyword_query = f"""
+                    SELECT
+                        tabular_rows.id AS id,
+                        RANK() OVER (
+                            ORDER BY ts_rank_cd(
+                                to_tsvector('{language}', tabular_documents.file_description),
+                                plainto_tsquery('{language}', %(question)s)
+                            ) DESC
+                        ) AS rank
+                    FROM tabular_documents
+                    JOIN tabular_rows
+                    ON tabular_documents.id = tabular_rows.file_id
+
+                    -- Collection filtering
+                    JOIN tabular_documents_collections
+                    ON tabular_documents.id = tabular_documents_collections.document_id
+                    JOIN tabular_collections
+                    ON tabular_documents_collections.collection_id = tabular_collections.id
+                    WHERE tabular_collections.name = %(collection_name)s
+                
+                    AND to_tsvector('{language}', tabular_documents.file_description) @@ plainto_tsquery('{language}', %(question)s)
+                    ORDER BY ts_rank_cd(
+                        to_tsvector('{language}', tabular_documents.file_description), 
+                        plainto_tsquery('{language}', %(question)s)
+                    ) DESC
+                    """
+
+                    row_based_vector_query = f"""            
+                    SELECT
+                        tabular_rows.id AS id,
+                        RANK () OVER (
+                            ORDER BY tabular_rows.row_embedding 
+                                <=> %(question_embedding)s::vector ASC
+                        ) as rank
+                    FROM tabular_documents
+                    JOIN tabular_rows
+                    ON tabular_documents.id = tabular_rows.file_id
+
+                    -- Collection filtering
+                    JOIN tabular_documents_collections
+                    ON tabular_documents.id = tabular_documents_collections.document_id
+                    JOIN tabular_collections
+                    ON tabular_documents_collections.collection_id = tabular_collections.id
+                    WHERE tabular_collections.name = %(collection_name)s
+                
+                    ORDER BY tabular_rows.row_embedding 
+                        <=> %(question_embedding)s::vector ASC
+                    """
+
+                    row_based_keyword_query = f"""            
+                    SELECT
+                        tabular_rows.id AS id,
+                        RANK () OVER (
+                            ORDER BY ts_rank_cd(
+                                to_tsvector('{language}', (tabular_rows.attributes)::text), 
+                                plainto_tsquery('{language}', %(question)s)
+                            ) DESC
+                        ) AS rank
+                    FROM tabular_documents
+                    JOIN tabular_rows 
+                    ON tabular_documents.id = tabular_rows.file_id
+
+                    -- Collection filtering
+                    JOIN tabular_documents_collections
+                    ON tabular_documents.id = tabular_documents_collections.document_id
+                    JOIN tabular_collections
+                    ON tabular_documents_collections.collection_id = tabular_collections.id
+                    WHERE tabular_collections.name = %(collection_name)s
+  
+                    AND to_tsvector('{language}', (tabular_rows.attributes)::text) 
+                        @@ plainto_tsquery('{language}', %(question)s)            
+                    ORDER BY ts_rank_cd(
+                        to_tsvector('{language}', (tabular_rows.attributes)::text), 
+                        plainto_tsquery('{language}', %(question)s)
+                    ) DESC
+                    """
+
+                    hybrid_query_file_based = f"""
+                    WITH file_based_vector_search AS ({file_based_vector_query}),
+                        file_based_keyword_search AS ({file_based_keyword_query})
+                    SELECT
+                        COALESCE(
+                            file_based_vector_search.id, 
+                            file_based_keyword_search.id
+                        ) AS id,
+                        (COALESCE(1.0 / (%(k)s + file_based_vector_search.rank), 0.0) + 
+                        COALESCE(1.0 / (%(k)s + file_based_keyword_search.rank), 0.0)) AS score
+                    FROM file_based_vector_search
+                    FULL OUTER JOIN file_based_keyword_search 
+                    ON file_based_vector_search.id = file_based_keyword_search.id
+                    ORDER BY score DESC
+                    """
+
+                    hybrid_query_row_based = f"""
+                    WITH row_based_vector_search AS ({row_based_vector_query}),
+                        row_based_keyword_search AS ({row_based_keyword_query})
+                    SELECT
+                        COALESCE(
+                            row_based_vector_search.id, 
+                            row_based_keyword_search.id
+                        ) AS id,
+                        (COALESCE(1.0 / (%(k)s + row_based_vector_search.rank), 0.0) + 
+                        COALESCE(1.0 / (%(k)s + row_based_keyword_search.rank), 0.0)) AS score
+                    FROM row_based_vector_search
+                    FULL OUTER JOIN row_based_keyword_search
+                    ON row_based_vector_search.id = row_based_keyword_search.id
+                    ORDER BY score DESC
+                    """
+
+                    composite_query = f"""
+                    WITH hybrid_search_file_based AS (
+                        {hybrid_query_file_based}),
+                        hybrid_search_row_based AS (
+                        {hybrid_query_row_based})
+                    {generated_sql_query}
+                    LIMIT %(top_k)s
+                    """
+
+                    # Execute the query with the question embedding parameter
+                    c.execute(
+                        composite_query,
+                        {
+                            "collection_name": collection_name,
+                            "question": question,
+                            "question_embedding": question_embedding,
+                            "k": k_rrf,
+                            "top_k": top_k,
+                        },
+                    )
+                
+                    results = c.fetchall()
+                    columns = ["attributes"]  # DEBUG: ["attributes", "score"]
+                    df = pd.DataFrame(results, columns=columns)
+                    if not df.empty:
+                        all_results.append(df)
+                        
+                except Exception as e:
+                    logging.error(
+                        f"Failed to retrieve rows for collection '{collection_name}': {str(e)}"
+                    )
+                    print(f"Error: {str(e)}")
+
+        # Combine results from all schemas (e.g., by concatenating DataFrames)
+        combined_df = pd.concat(all_results, ignore_index=True) if all_results else pd.DataFrame()
+        return combined_df
+
 
     def list_documents(self, collection_name: str) -> list[str]:
         """

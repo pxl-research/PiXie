@@ -21,7 +21,7 @@ from app import (
     summarizer,
     tabular_vector_store,
     tabular_summarizer_llm,
-    tabular_where_filter_generator_llm,
+    # tabular_where_filter_generator_llm,
 )
 from database.document_db_operations import (
     is_doc_up_to_date_in_list,
@@ -66,13 +66,14 @@ def retrieve_and_rerank_chunks(
         top_chunks = vector_store.retrieve_top_chunks(collection_name, message, top_k)
     elif document_file_type is DocumentFileType.TabularDocument:
         df_top_rows: pd.DataFrame = tabular_vector_store.retrieve_top_rows(
-            collection_name, message, top_k
+            collection_name=collection_name, question=message # more rows than top_k need to be fetched for better results...
         )
         top_dicts: list[dict] = df_top_rows.to_dict("records")
         top_chunks = [Document(page_content=json.dumps(d)) for d in top_dicts]
     else:
         return []
 
+    # TODO(tom): will be leave out reranking for TabularDocuments ? I doubt it is good for results...
     final_chunks: list[str] = []
     if reranker is not None:
         final_chunks = reranker.rerank(message, top_chunks, final_k)

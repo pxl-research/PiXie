@@ -12,7 +12,8 @@ from services.llm_chain_service import LLMChainBuilder
 from services.summarizer import Summarizer
 from services.vectorstores.tabular_pg_vectorstore import TabularPGVectorStore
 from services.llms.tabular_summarizer_llm import TabularSummarizerLLM
-from services.llms.tabular_where_filter_generator_llm import TabularWhereFilterGeneratorLLM
+# from services.llms.tabular_where_filter_generator_llm import TabularWhereFilterGeneratorLLM
+from services.llms.tabular_sql_query_generator_llm import TabularSQLQueryGeneratorLLM
 
 import os
 import logging
@@ -67,9 +68,11 @@ chain_builder = LLMChainBuilder(llm)
 summarizer = Summarizer(llm)
 
 tabular_summarizer_llm = TabularSummarizerLLM(llm=llm)
-tabular_where_filter_generator_llm = TabularWhereFilterGeneratorLLM(llm=llm)
+# tabular_where_filter_generator_llm = TabularWhereFilterGeneratorLLM(llm=llm)
+tabular_sql_query_generator_llm = TabularSQLQueryGeneratorLLM(llm=llm)
 
 tabular_vector_store = TabularPGVectorStore( 
     embedding_model=embeddings_model,
-    tabular_where_filter_generator_llm=tabular_where_filter_generator_llm
+    tabular_sql_query_generator_llm=tabular_sql_query_generator_llm
+    # tabular_where_filter_generator_llm=tabular_where_filter_generator_llm
 )
