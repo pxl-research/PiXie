@@ -29,8 +29,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./install_pg_trgm.sh:/install_pg_trgm.sh
     networks:
       - app-network
+    command: >
+      bash -c "
+      chmod +x /install_pg_trgm.sh &&
+      /install_pg_trgm.sh && 
+      docker-entrypoint.sh postgres
+      "
 
 volumes:
   qdrant_storage:

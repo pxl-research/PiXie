@@ -32,6 +32,8 @@ VALUES ('philippe', '$2b$12$IpMWh09YcV65iO9I9VfXo.sfo5eQeKfSy3F6CHEPPN6LvWtOO51r
 
 -- Tabular vectorstore
 CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
     
 DROP TABLE IF EXISTS tabular_collections;
 CREATE TABLE IF NOT EXISTS tabular_collections (
