@@ -716,6 +716,7 @@ class TabularPGVectorStore:
         all_results = []
         for schema in list_unique_schemas:
             generated_sql_query = self.tabular_sql_query_generator_llm.generate(schema=schema, question=question)
+            generated_sql_query = generated_sql_query[:-1] if generated_sql_query.endswith(";") else generated_sql_query 
 
             conn = self._get_db_connection()
             with conn.cursor() as c:
@@ -875,9 +876,11 @@ class TabularPGVectorStore:
                     )
                 
                     results = c.fetchall()
-                    columns = ["attributes"]  # DEBUG: ["attributes", "score"]
-                    df = pd.DataFrame(results, columns=columns)
+                    # Extract only the "attributes" column from the results
+                    df = pd.DataFrame(results)  # Create DataFrame from all columns
                     if not df.empty:
+                        df = df.iloc[:, :1]  # Keep only the first column (assumed to be "attributes")
+                        df.columns = ["attributes"]  # Rename column for clarity
                         all_results.append(df)
                         
                 except Exception as e:

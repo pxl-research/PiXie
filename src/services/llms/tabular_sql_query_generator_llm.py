@@ -9,10 +9,11 @@ from services.abstractclasses.llm import LLM
 
 class TabularSQLQueryGeneratorLLM:
     def __init__(self, llm: LLM):
-        self.llm
+        self.llm = llm
         self.system_prompt_template = """
     You are an intelligent assistant that generates NoSQL-like PostgreSQL queries. Given a user's question, 
     generate an SQL query based on the given schema of a NoSQL PostgreSQL table.
+    Generate the SQL query without using code block formatting or enclosing the query in triple backticks, just the SQL query as plain text.
 
     ALWAYS apply the following RIGHT JOIN to be able to sort on relevant files:
     RIGHT JOIN hybrid_search_file_based
@@ -139,6 +140,8 @@ class TabularSQLQueryGeneratorLLM:
     -------------------------------------------
     Here is the current schema you use for attribute column names and to cast to the correct datatypes:
     {schema}
+
+    Generate the SQL query without using code block formatting or enclosing the query in triple backticks, just the SQL query as plain text.
     
     * Question: "{question}"
     * Output:
