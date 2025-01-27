@@ -9,6 +9,7 @@ from services.abstractclasses.llm import LLM
 
 class TabularSQLQueryGeneratorLLM:
     def __init__(self, llm: LLM):
+        self.llm
         self.system_prompt_template = """
     You are an intelligent assistant that generates NoSQL-like PostgreSQL queries. Given a user's question, 
     generate an SQL query based on the given schema of a NoSQL PostgreSQL table.
