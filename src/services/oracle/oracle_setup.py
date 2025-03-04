@@ -26,7 +26,9 @@ def get_system_prompt(collection_name: str) -> str:
     """
 
     summaries = get_summaries_by_collection(collection_name)
-    tabular_summaries = tabular_vector_store.get_summaries_by_collection(collection_name)
+    tabular_summaries = tabular_vector_store.get_summaries_by_collection(
+        collection_name
+    )
 
     return f"""
 You are the oracle, the great AI decision maker.
@@ -51,6 +53,13 @@ Given the user's query, you must decide what to do with it based on the list of 
 - You may reformulate or split the question into sub-questions to gather more information.
 - Aim to collect information from diverse sources before providing the final answer.
 - If the question is time-sensitive, retrieve the current date first.
+
+**User Interaction:**
+
+- If you need additional information or clarification to properly answer the user's question, use the `ask_user` tool.
+- Only use the `ask_user` tool when the information is necessary and cannot be inferred from context.
+- Frame your questions clearly and specifically to help the user provide the exact information you need.
+- After receiving a response from the user, continue with the appropriate tools to answer their original query.
 
 **Final Answer Requirement**:
 

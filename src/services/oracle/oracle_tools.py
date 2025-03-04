@@ -4,6 +4,7 @@ from datetime import datetime
 
 from langchain_core.tools import tool
 from langchain_community.tools import TavilySearchResults
+from langgraph.types import interrupt
 
 from services import document_manager
 from services.document_loaders.document_loader_manager import DocumentFileType
@@ -154,11 +155,11 @@ def tabular_rag_search(question: str, collection_name: str) -> List[str]:
     try:
         # Attempt to retrieve and rerank chunks
         final_docs = document_manager.retrieve_and_rerank_chunks(
-            collection_name, question, document_file_type=DocumentFileType.TabularDocument
+            collection_name,
+            question,
+            document_file_type=DocumentFileType.TabularDocument,
         )
-        logging.info(
-            f"Retrieved {len(final_docs)} rows for question: '{question}'"
-        )
+        logging.info(f"Retrieved {len(final_docs)} rows for question: '{question}'")
         # Format documents
         docs = format_documents(final_docs)
         logging.info("Document formatting completed successfully.")
@@ -189,6 +190,21 @@ def format_documents(final_docs):
             for doc in final_docs
         ]
     )
+
+
+@tool("ask_user")
+def ask_user(question: str) -> str:
+    """
+    Ask the user for input by pausing the graph and resuming with the user's response.
+
+    Args:
+      question (str): The question to ask the user.
+
+    Returns:
+      str: The answer provided by the user.
+    """
+    user_input = interrupt(value=question)
+    return user_input
 
 
 @tool("final_answer")

@@ -1,9 +1,10 @@
 from typing import List, Dict, Tuple, Optional, Any
 import os
+from langgraph.types import Command
 
 from services.chat_history import chat_history_manager
 from services import source_processing
-from services.oracle.graph_runner import initialize_graph, compile_graph, execute_graph
+from services.oracle.graph_runner import initialize_graph, compile_graph
 
 
 def append_user(
@@ -62,27 +63,57 @@ def append_ai(
     graph = initialize_graph()
     compiled_oracle_graph = compile_graph(graph)
 
-    answer, sources = execute_graph(
-        compiled_oracle_graph,
-        {
-            "input": message,
-            "chat_history": formatted_history,
-            "collection_name": collection_name,
-        },
-    )
+    input_data = {
+        "input": message,
+        "chat_history": formatted_history,
+        "collection_name": collection_name,
+    }
 
-    sources_list = source_processing.process_sources(sources.strip()) if sources else []
+    thread_config = {
+        "configurable": {"thread_id": 1},
+        "recursion_limit": 5,
+    }
 
-    # Format the final answer with enriched sources
-    final_answer = source_processing.format_final_answer(
-        answer.strip(), source_processing.enrich_sources(sources_list)
-    )
-    chat_history = chat_history_manager.add_message_to_chat_history(
-        chat_history, "assistant", final_answer
-    )
+    try:
+        out = compiled_oracle_graph.invoke(input_data, thread_config)
 
-    chat_history_manager.save_chat_history(user_id, None, final_answer)
-    return "", chat_history
+        output = out["intermediate_steps"][-1].tool_input
+
+        # Test of de output een "question" key heeft
+        if "question" in output:
+            chat_history = chat_history_manager.add_message_to_chat_history(
+                chat_history, "assistant", output["question"]
+            )
+            return "", chat_history
+
+        # Ensure the last tool used is final_answer
+        last_tool = out["intermediate_steps"][-1].tool
+        if last_tool != "final_answer":
+            raise Exception(
+                "Final answer tool was not called. Ensure to route the answer through the final_answer tool."
+            )
+
+        output = out["intermediate_steps"][-1].tool_input
+        answer = output["answer"]
+        sources = output["sources"]
+
+        sources_list = (
+            source_processing.process_sources(sources.strip()) if sources else []
+        )
+
+        # Format the final answer with enriched sources
+        final_answer = source_processing.format_final_answer(
+            answer.strip(), source_processing.enrich_sources(sources_list)
+        )
+        chat_history = chat_history_manager.add_message_to_chat_history(
+            chat_history, "assistant", final_answer
+        )
+
+        chat_history_manager.save_chat_history(user_id, None, final_answer)
+        return "", chat_history
+    except RecursionError:
+        final_answer = "Ik heb niet genoeg informatie om de vraag te beantwoorden."
+        chat_history_manager.save_chat_history(user_id, None, final_answer)
 
 
 def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
