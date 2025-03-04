@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
-from langchain_qdrant import Qdrant
+from langchain_qdrant import QdrantVectorStore as QVStore
 from langchain_core.embeddings import Embeddings
 from langchain_core.documents import Document
 from services.abstractclasses.vectorstore import VectorStore
@@ -54,7 +54,7 @@ class QDrantVectorStore(VectorStore):
             chunk.metadata["file_name"] = file_name
 
         try:
-            Qdrant.from_documents(
+            QVStore.from_documents(
                 chunks,
                 self.embeddings,
                 url=self._get_url(),
@@ -108,10 +108,10 @@ class QDrantVectorStore(VectorStore):
             List[Document]: A list of the top K similar documents.
         """
         try:
-            doc_store = Qdrant(
+            doc_store = QVStore(
                 client=self.client,
                 collection_name=collection_name,
-                embeddings=self.embeddings,
+                embedding=self.embeddings,
             )
             result = doc_store.similarity_search(query=question, k=k)
             logging.info(f"Retrieved top {k} chunks for question: {question}")
