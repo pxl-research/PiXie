@@ -5,6 +5,9 @@ import logging
 from langchain_core.agents import AgentAction
 from langchain_core.messages import BaseMessage
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+
+from langgraph.types import interrupt
 
 from services.oracle.oracle_tools import (
     rag_search,
@@ -12,6 +15,7 @@ from services.oracle.oracle_tools import (
     weather_api,
     get_date,
     web_search,
+    ask_user,
     final_answer,
 )
 from services.oracle.oracle_setup import create_oracle
@@ -59,7 +63,15 @@ def run_oracle(state: AgentState) -> Dict[str, Any]:
 
     # Create an oracle for the specified collection
     collection_name = state["collection_name"]
-    tools = [rag_search, tabular_rag_search, weather_api, get_date, web_search, final_answer]
+    tools = [
+        rag_search,
+        tabular_rag_search,
+        weather_api,
+        get_date,
+        web_search,
+        final_answer,
+        ask_user,
+    ]
     oracle = create_oracle(collection_name, tools)
 
     # Invoke the oracle with the given state
@@ -87,7 +99,10 @@ def router(state: AgentState) -> str:
     Returns:
         str: The name of the tool to use next. If the format is invalid, returns "final_answer" by default.
     """
-    if isinstance(state["intermediate_steps"], list):
+    if (
+        isinstance(state["intermediate_steps"], list)
+        and len(state["intermediate_steps"]) > 0
+    ):
         return state["intermediate_steps"][-1].tool
     else:
         logging.warning(
@@ -119,6 +134,7 @@ def run_tool(state: AgentState) -> Dict[str, Any]:
         "get_date": get_date,
         "web_search": web_search,
         "final_answer": final_answer,
+        "ask_user": ask_user,
     }
 
     tool_name = state["intermediate_steps"][-1].tool
@@ -167,6 +183,7 @@ def initialize_graph() -> StateGraph:
     graph.add_node("get_date", run_tool)
     graph.add_node("web_search", run_tool)
     graph.add_node("final_answer", run_tool)
+    graph.add_node("ask_user", run_tool)
 
     # Specify the entry node
     graph.set_entry_point("oracle")
@@ -175,10 +192,16 @@ def initialize_graph() -> StateGraph:
     graph.add_conditional_edges(source="oracle", path=router)
 
     # Create edges from each tool back to the oracle, except for the final answer
-    tools = [rag_search, tabular_rag_search, weather_api, get_date, web_search, final_answer]
+    tools = [
+        rag_search,
+        tabular_rag_search,
+        weather_api,
+        get_date,
+        web_search,
+        ask_user,
+    ]
     for tool_obj in tools:
-        if tool_obj.name != "final_answer":
-            graph.add_edge(tool_obj.name, "oracle")
+        graph.add_edge(tool_obj.name, "oracle")
 
     # Add an edge from final_answer to END to terminate the graph
     graph.add_edge("final_answer", END)
@@ -196,44 +219,5 @@ def compile_graph(graph: StateGraph) -> Any:
     Returns:
         Any: The compiled oracle graph ready for execution.
     """
-    return graph.compile()
-
-
-def execute_graph(
-    compiled_oracle_graph: Any, input_data: Dict[str, Any], recursion_limit: int = 10
-) -> Tuple[str, str]:
-    """
-    Execute the compiled oracle graph with specified input data and recursion limit.
-
-    Args:
-        compiled_oracle_graph (Any): The compiled oracle graph ready for execution.
-        input_data (Dict[str, Any]): Dictionary with the initial input data, including question and chat history.
-        recursion_limit (int): Limit for recursion to prevent infinite loops (default is 10).
-
-    Returns:
-        Tuple[str, str]: A tuple containing the final answer and the sources used to generate the answer.
-                         If the recursion limit is reached, returns a message indicating insufficient information.
-    """
-    try:
-        logging.info("Executing the oracle graph with input data")
-        out = compiled_oracle_graph.invoke(
-            input_data, {"recursion_limit": recursion_limit}
-        )
-
-        # Ensure the last tool used is final_answer
-        last_tool = out["intermediate_steps"][-1].tool
-        if last_tool != "final_answer":
-            raise Exception(
-                "Final answer tool was not called. Ensure to route the answer through the final_answer tool."
-            )
-
-        output = out["intermediate_steps"][-1].tool_input
-        final_answer = output["answer"]
-        final_sources = output["sources"]
-
-        return final_answer, final_sources
-    except RecursionError:
-        return "Ik heb niet genoeg informatie om de vraag te beantwoorden.", ""
-    except Exception as e:
-        logging.error(f"Execution failed: {e}")
-        return "Er is een fout opgetreden tijdens de verwerking van het antwoord.", ""
+    checkpointer = MemorySaver()
+    return graph.compile(checkpointer=checkpointer)
