@@ -8,6 +8,7 @@ from app.ui.chat.blocks_llm_chat_with_rag import (
 from services.authentication.authentication_manager import custom_auth
 from services.chat_history.chat_history_manager import get_chat_history
 from services.document_manager import list_collections
+from services.database.user_db_operations import get_user_by_username
 from typing import List, Tuple, Optional, Dict, Any
 
 # Constants
@@ -43,75 +44,38 @@ def load_chat_history(user_info: Optional[Dict[str, Any]]) -> List[Dict[str, str
     return []
 
 
-def login(
-    username: str, password: str, user_state: Optional[Dict[str, Any]] = None
-) -> Tuple[
-    gr.update, gr.update, Optional[List[Dict[str, str]]], Optional[Dict[str, Any]]
-]:
+def login(request: gr.Request) -> Tuple[List[Dict[str, str]], Optional[Dict[str, Any]]]:
     """
-    Authenticate the user and store user information in the state.
+    Load chat history for a specific user.
+
+    This function retrieves the chat history for a user from the database, using the user ID.
+    It limits the number of messages to the 10 most recent messages.
 
     Parameters:
-    - username: str
-        The username provided by the user.
-    - password: str
-        The password provided by the user.
-    - user_state: Optional[Dict[str, Any]], optional
-        The current user state (not actively used in this implementation).
+    - request: gr.Request
+        The Gradio request object containing username information.
 
     Returns:
-    - Tuple[gr.update, gr.update, Optional[List[Dict[str, str]]], Optional[Dict[str, Any]]]:
-        - gr.update: Used to hide the login form.
-        - gr.update: Used to show the chat interface.
-        - Optional[List[Dict[str, str]]]: The chat history if the login is successful, otherwise None.
-        - Optional[Dict[str, Any]]: The authenticated user information, or None if authentication fails.
+    - Tuple[List[Dict[str, str]], Optional[Dict[str, Any]]]: A tuple containing:
+        - The chat history as a list of dictionaries with 'role' and 'content' keys
+        - The user information dictionary or None if user not found
     """
-    user = custom_auth(username, password)
-    if user:
-        chatbot = load_chat_history(user)
-        return gr.update(visible=False), gr.update(visible=True), chatbot, user
-    else:
-        return gr.update(visible=True), gr.update(visible=False), None
-
-
-def logout(user_info: Dict[str, Any]) -> Tuple[gr.update, gr.update, None, None]:
-    """
-    Log the user out by clearing the session and resetting the interface.
-
-    Parameters:
-    - user_info: Dict[str, Any]
-        A dictionary containing the current user information, which will be cleared to log the user out.
-
-    Returns:
-    - Tuple[gr.update, gr.update, None, None]:
-        - gr.update: Used to show the login form.
-        - gr.update: Used to hide the chat interface.
-        - None: Clears the chat history interface.
-        - None: Resets the user information.
-    """
-    user_info.clear()
-    return gr.update(visible=True), gr.update(visible=False), None, None
+    username = request.username
+    user_info = get_user_by_username(username)
+    user_id = user_info["id"] if user_info else None
+    chat_history = get_chat_history(user_id, limit=10)
+    return chat_history, user_info
 
 
 # Gradio UI Setup
 with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui:
     user_info = gr.State(value=None)
-    chat_history_state = gr.State(value=[])
 
     gr.Markdown("# <center>Vraag het aan PiXie</center>")
 
-    # Login section
-    with gr.Column(visible=True) as login_row:
-        with gr.Row(visible=True):
-            username = gr.Textbox(label="Username", placeholder="Enter your username")
-            password = gr.Textbox(
-                label="Password", placeholder="Enter your password", type="password"
-            )
-        login_btn = gr.Button("Login", elem_classes="green_bg")
-
     # Chat section
-    with gr.Column(visible=False) as chat_row:
-        logout_btn = gr.Button("Logout", elem_classes="red_bg")
+    with gr.Column() as chat_row:
+        logout_btn = gr.Button("Logout", link="/logout", elem_classes="red_bg")
         cb_live = gr.Chatbot(label="Geschiedenis", scale=1, type="messages")
         with gr.Row(equal_height=True, elem_classes="container"):
             collection_dropdown = gr.Dropdown(
@@ -127,10 +91,12 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
 
             with gr.Column(elem_classes="buttons"):
                 btn_send = gr.Button(
+                    value="Verstuur",
                     icon=SEND_ICON_PATH,
                     elem_classes="green_bg",
                 )
                 btn_remove = gr.Button(
+                    value="Verwijder geschiedenis",
                     icon=DISPOSAL_ICON_PATH,
                     elem_classes="red_bg",
                 )
@@ -148,19 +114,11 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
             )
             btn_remove.click(clear_log, [user_info], [tb_user, cb_live])
 
-            # Logout button event handler
-            logout_btn.click(
-                logout,
-                inputs=[user_info],
-                outputs=[login_row, chat_row, cb_live, user_info],
-            )
-
-    # Login button event handler
-    login_btn.click(
-        login,
-        inputs=[username, password, user_info],
-        outputs=[login_row, chat_row, cb_live, user_info],
+    llm_client_ui.load(
+        fn=login,
+        inputs=None,
+        outputs=[cb_live, user_info],
     )
 
 # Launch the Gradio app
-llm_client_ui.queue().launch(server_name="0.0.0.0", server_port=7862)
+llm_client_ui.queue().launch(server_name="0.0.0.0", server_port=7862, auth=custom_auth)
