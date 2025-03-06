@@ -138,6 +138,7 @@ def rag_search(question: str, collection_name: str) -> List[str]:
 def tabular_rag_search(question: str, collection_name: str) -> List[str]:
     """
     Retrieve and format top-ranked rows from a tabular document in the specified collection based on the question using a tabular vector store.
+    This is used for exact textual matching and numerical or datetime comparisons.
 
     Args:
         question (str): The question to retrieve relevant rows for.
@@ -155,9 +156,12 @@ def tabular_rag_search(question: str, collection_name: str) -> List[str]:
     try:
         # Attempt to retrieve and rerank chunks
         final_docs = document_manager.retrieve_and_rerank_chunks(
-            collection_name,
-            question,
+            collection_name=collection_name,
+            message=question,
+            top_k=10,
+            final_k=20,
             document_file_type=DocumentFileType.TabularDocument,
+            is_recommendation_system=False
         )
         logging.info(f"Retrieved {len(final_docs)} rows for question: '{question}'")
         # Format documents
