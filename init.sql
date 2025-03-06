@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS tabular_documents (
     file_name TEXT NOT NULL UNIQUE,
     file_hash VARCHAR(64) NOT NULL,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    language TEXT,
     file_description TEXT,
     file_description_embedding vector(1024),
     file_schema JSONB
