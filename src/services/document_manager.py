@@ -41,15 +41,15 @@ def retrieve_and_rerank_chunks(
     top_k: int = 15,
     final_k: int = 10,
     document_file_type: DocumentFileType = DocumentFileType.Document,
-    is_recommendation_system: Optional[bool] = None
+    is_recommendation_system: Optional[bool] = None,
 ) -> list[str]:
     """
     Retrieve and optionally rerank document chunks based on the input message.
 
-    This function retrieves the top `top_k` chunks relevant to the 
+    This function retrieves the top `top_k` chunks relevant to the
     input `message` from the vector store.
-    If a reranker is available, it reranks these chunks and 
-    returns the top `final_k` chunks. 
+    If a reranker is available, it reranks these chunks and
+    returns the top `final_k` chunks.
     Otherwise, it simply returns the first `final_k` chunks from retrieved list.
 
     Parameters:
@@ -62,11 +62,14 @@ def retrieve_and_rerank_chunks(
     Returns:
         list[str]: A list of the final selected document chunks.
     """
-    
+
     top_chunks: list[Document] = []
     if document_file_type is DocumentFileType.Document:
         top_chunks = vector_store.retrieve_top_chunks(collection_name, message, top_k)
-    elif document_file_type is DocumentFileType.TabularDocument and is_recommendation_system is not None:
+    elif (
+        document_file_type is DocumentFileType.TabularDocument
+        and is_recommendation_system is not None
+    ):
         df_top_rows: pd.DataFrame = tabular_vector_store.retrieve_top_rows(
             collection_name=collection_name,
             question=message,
@@ -74,11 +77,11 @@ def retrieve_and_rerank_chunks(
             k_rrf=60,
             max_file_count=3,
             try_iteration_max_count=3,
-            is_recommendation_system=is_recommendation_system
+            is_recommendation_system=is_recommendation_system,
         )
         top_dicts: list[dict] = df_top_rows.to_dict("records")
-        #print("Top dicts:")
-        #print(top_dicts)
+        # print("Top dicts:")
+        # print(top_dicts)
         top_chunks = [Document(page_content=json.dumps(d)) for d in top_dicts]
         # Omit reranker for TabularDocuments!
         final_chunks = top_chunks[:final_k]
@@ -97,7 +100,6 @@ def retrieve_and_rerank_chunks(
         )
 
     return final_chunks
-
 
 
 def add_document(collection_name: str, file_path: str) -> Optional[str]:
