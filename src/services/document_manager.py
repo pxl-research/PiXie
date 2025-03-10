@@ -30,9 +30,55 @@ from database.document_db_operations import (
     get_doc_list,
 )
 from page_numbering import text_chunks_to_page_numbers
+import numpy as np
+from langdetect import detect, DetectorFactory
+from collections import Counter
 
+# Fix randomness in langdetect
+DetectorFactory.seed = 42
 
 UPLOAD_FOLDER = "./uploads"
+
+
+def detect_language_from_dataframe_samples(
+    df: pd.DataFrame, n: int = 10
+) -> Optional[str]:
+    """
+    Sample up to n rows evenly spaced across the DataFrame and detect language.
+
+    Parameters:
+        df (pd.DataFrame): The DataFrame to sample.
+        n (int): Maximum number of rows to sample (default is 10).
+
+    Returns:
+        str: detected language
+    """
+    if n < 0:
+        n = 0
+    elif n > len(df):
+        n = len(df)
+
+    indices = list(
+        map(int, np.linspace(0, len(df) - 1, n))
+    )  # evenly spaced row indices
+    sampled_rows = df.iloc[indices]  # sample n rows
+
+    # Flatten text values from sampled rows for language detection
+    text_samples = []
+    for row in sampled_rows.itertuples(index=False):
+        for value in row:
+            if isinstance(value, str) and len(value.strip()) > 0:
+                text_samples.append(value.strip())
+    print(text_samples)
+
+    # Detect language from sampled text
+    detected_languages = [
+        detect(text) for text in text_samples[: min(len(text_samples), 10)]
+    ]  # limit to 10 texts
+    most_common_lang = Counter(detected_languages).most_common(1)
+    detected_language = most_common_lang[0][0] if most_common_lang else None
+
+    return detected_language
 
 
 def retrieve_and_rerank_chunks(
@@ -209,12 +255,18 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
                     file_description = ""
                 file_schema = tabular_vector_store.infer_postgres_schema(df)
 
+                # Infer language from DataFrame df
+                language = detect_language_from_dataframe_samples(df, n=10)
+                if language is None:
+                    language = "en"
+
                 tabular_vector_store.add_tabular_document(
                     collection_name=collection_name,
                     file_name=secure_file_name_sheet,
                     file_hash=file_hash,
                     file_description=file_description,
                     file_schema=file_schema,
+                    language=language,
                     df=df,
                 )
         else:
