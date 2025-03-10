@@ -146,7 +146,7 @@ class TabularPGVectorStore:
             dbname=os.getenv("POSTGRES_DB"),
             user=os.getenv("POSTGRES_USER"),
             password=os.getenv("POSTGRES_PASSWORD"),
-            host="localhost",  # TODO: change to "db" or "tabular_vectorstore" when integrating into Pixie
+            host="db",  # TODO: change to "db" or "tabular_vectorstore" when integrating into Pixie
             port="5432",
         )
         with conn.cursor() as c:
