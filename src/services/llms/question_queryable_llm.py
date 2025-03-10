@@ -4,6 +4,7 @@
 from typing import Optional
 import json
 import logging
+import os
 from langchain.schema import SystemMessage
 
 from services.abstractclasses.llm import LLM
@@ -40,7 +41,7 @@ class QuestionQueryableLLM:
     def generate(
         self, schema: dict[str, str], question: str, language: Optional[str]
     ) -> Optional[str]:
-        language_name = "english"
+        language_name = self.SUPPORTED_LANGUAGES[os.getenv("DEFAULT_LANGUAGE")]
         if language in self.SUPPORTED_LANGUAGES:
             language_name = self.SUPPORTED_LANGUAGES[language]
 

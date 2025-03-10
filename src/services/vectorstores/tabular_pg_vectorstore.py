@@ -41,7 +41,7 @@ def detect_language(text: str) -> str:
     try:
         detected_lang = langdetect_detect(text)
     except Exception:
-        return "english"
+        return language_mapping[os.getenv("DEFAULT_LANGUAGE")]
 
     return language_mapping.get(detected_lang, "english")
 

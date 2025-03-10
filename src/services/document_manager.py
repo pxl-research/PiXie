@@ -69,16 +69,22 @@ def detect_language_from_dataframe_samples(
         for value in row:
             if isinstance(value, str) and len(value.strip()) > 0:
                 text_samples.append(value.strip())
-    print(text_samples)
+    # print(text_samples)
 
     # Detect language from sampled text
-    detected_languages = [
-        detect(text) for text in text_samples[: min(len(text_samples), 10)]
-    ]  # limit to 10 texts
-    most_common_lang = Counter(detected_languages).most_common(1)
-    detected_language = most_common_lang[0][0] if most_common_lang else None
+    default_language = os.getenv("DEFAULT_LANGUAGE")
+    detected_languages = []
+    for text in text_samples[: min(len(text_samples), 10)]:  # Limit to 10 texts
+        try:
+            detected_languages.append(detect(text))
+        except:
+            continue  # Skip text that cannot be detected
 
-    return detected_language
+    if len(detected_languages) <= 0:
+        return default_language
+    
+    most_common_lang = Counter(detected_languages).most_common(1)
+    return most_common_lang[0][0] if most_common_lang else default_language
 
 
 def retrieve_and_rerank_chunks(
@@ -258,7 +264,7 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
                 # Infer language from DataFrame df
                 language = detect_language_from_dataframe_samples(df, n=10)
                 if language is None:
-                    language = "en"
+                    language = os.getenv("DEFAULT_LANGUAGE")
 
                 tabular_vector_store.add_tabular_document(
                     collection_name=collection_name,
