@@ -167,6 +167,8 @@ class TabularSQLQueryGeneratorLLM:
         For example:
             ORDER BY r.attributes->>'number_of_offspring' ASC, hybrid_search_file_based.score DESC
 
+        * When you define new variables, be verbose in the naming of the variables. Make sure it is clear what the variable represents from the name only.
+
         * If necessary for the question add a LIMIT clause at the very end of the query.
         Do this when the question asks for a certain exact number of results.
     

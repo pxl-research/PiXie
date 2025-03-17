@@ -166,7 +166,12 @@ def tabular_rag_search(question: str, collection_name: str) -> List[str]:
         )
         logging.info(f"Retrieved {len(final_docs)} rows for question: '{question}'")
         # Format documents
-        docs = format_documents(final_docs)
+        if len(final_docs) > 0:
+            docs = "\n".join(final_docs)
+        else:
+            docs = "No answer found."
+
+        logging.info(f"Formatted docs: {docs}")
         logging.info("Document formatting completed successfully.")
         return docs
 
@@ -176,6 +181,7 @@ def tabular_rag_search(question: str, collection_name: str) -> List[str]:
             f"Error in retrieving or formatting chunks for question '{question}': {e}"
         )
         return [f"Error during retrieval: {e}"]
+
 
 @tool("tabular_rag_recommendation_search")
 def tabular_rag_recommendation_search(question: str, collection_name: str) -> List[str]:
