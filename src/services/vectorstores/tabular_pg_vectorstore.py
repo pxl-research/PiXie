@@ -811,10 +811,6 @@ class TabularPGVectorStore:
                 )
             # generated_sql_query = self.tabular_sql_query_generator_llm.generate(schema=schema, question=question)
 
-            # print("Generated SQL query:\n")
-            # print("<sql>")
-            # print(generated_sql_query)
-            # print("</sql>")
             for try_iteration in range(try_iteration_max_count):
                 conn = self._get_db_connection()
                 with conn.cursor() as c:

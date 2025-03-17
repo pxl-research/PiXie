@@ -132,9 +132,8 @@ def retrieve_and_rerank_chunks(
             is_recommendation_system=is_recommendation_system,
         )
         top_dicts: list[dict] = df_top_rows.to_dict("records")
-        # print("Top dicts:")
-        # print(top_dicts)
-        top_chunks = [Document(page_content=json.dumps(d)) for d in top_dicts]
+
+        top_chunks = [json.dumps(d) for d in top_dicts]
         # Omit reranker for TabularDocuments!
         final_chunks = top_chunks[:final_k]
         return final_chunks

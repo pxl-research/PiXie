@@ -113,7 +113,10 @@ def append_ai(
         return "", chat_history
     except RecursionError:
         final_answer = "Ik heb niet genoeg informatie om de vraag te beantwoorden."
-        chat_history_manager.save_chat_history(user_id, None, final_answer)
+        chat_history = chat_history_manager.add_message_to_chat_history(
+            chat_history, "assistant", final_answer
+        )
+        return "", chat_history
 
 
 def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:

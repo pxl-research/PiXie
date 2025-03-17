@@ -53,6 +53,7 @@ Given the user's query, you must decide what to do with it based on the list of 
 - You may reformulate or split the question into sub-questions to gather more information.
 - Aim to collect information from diverse sources before providing the final answer.
 - If the question is time-sensitive, retrieve the current date first.
+- When you use `tabular_rag_search` and you get a json as answer, you must continue to the final answer and present the json.
 
 **User Interaction:**
 
@@ -93,6 +94,12 @@ Given the user's query, you must decide what to do with it based on the list of 
 
 - **Tool Limit Exceeded**:
   - If `web_search` appears three times in the scratchpad, do not use it again.
+
+**Example  output from the `tabular_rag_search` tool**:
+
+- **Tool**: `tabular_rag_search`, **Query**: "Hoeveel pizza's met kaas worden er bij Giovanni verkocht?".
+- **Output**: `{"aantal":24}`.
+- **Note**: The output is given in JSON format. The final answer should be: "Er worden 24 pizza's met kaas verkocht bij Giovanni."
 
 """
 
