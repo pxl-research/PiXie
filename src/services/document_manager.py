@@ -21,7 +21,6 @@ from app import (
     summarizer,
     tabular_vector_store,
     tabular_summarizer_llm,
-    tabular_where_filter_generator_llm,
 )
 from database.document_db_operations import (
     is_doc_up_to_date_in_list,
@@ -31,31 +30,86 @@ from database.document_db_operations import (
     get_doc_list,
 )
 from page_numbering import text_chunks_to_page_numbers
+import numpy as np
+from langdetect import detect, DetectorFactory
+from collections import Counter
 
+# Fix randomness in langdetect
+DetectorFactory.seed = 42
 
 UPLOAD_FOLDER = "./uploads"
+
+
+def detect_language_from_dataframe_samples(
+    df: pd.DataFrame, n: int = 10
+) -> Optional[str]:
+    """
+    Sample up to n rows evenly spaced across the DataFrame and detect language.
+
+    Parameters:
+        df (pd.DataFrame): The DataFrame to sample.
+        n (int): Maximum number of rows to sample (default is 10).
+
+    Returns:
+        str: detected language
+    """
+    if n < 0:
+        n = 0
+    elif n > len(df):
+        n = len(df)
+
+    indices = list(
+        map(int, np.linspace(0, len(df) - 1, n))
+    )  # evenly spaced row indices
+    sampled_rows = df.iloc[indices]  # sample n rows
+
+    # Flatten text values from sampled rows for language detection
+    text_samples = []
+    for row in sampled_rows.itertuples(index=False):
+        for value in row:
+            if isinstance(value, str) and len(value.strip()) > 0:
+                text_samples.append(value.strip())
+    # print(text_samples)
+
+    # Detect language from sampled text
+    default_language = os.getenv("DEFAULT_LANGUAGE")
+    detected_languages = []
+    for text in text_samples[: min(len(text_samples), 10)]:  # Limit to 10 texts
+        try:
+            detected_languages.append(detect(text))
+        except:
+            continue  # Skip text that cannot be detected
+
+    if len(detected_languages) <= 0:
+        return default_language
+    
+    most_common_lang = Counter(detected_languages).most_common(1)
+    return most_common_lang[0][0] if most_common_lang else default_language
 
 
 def retrieve_and_rerank_chunks(
     collection_name: str,
     message: str,
     top_k: int = 15,
-    final_k: int = 5,
+    final_k: int = 10,
     document_file_type: DocumentFileType = DocumentFileType.Document,
+    is_recommendation_system: Optional[bool] = None,
 ) -> list[str]:
     """
     Retrieve and optionally rerank document chunks based on the input message.
 
-    This function retrieves the top `top_k` chunks relevant to the input `message` from the vector store.
-    If a reranker is available, it reranks these chunks and returns the top `final_k` chunks. Otherwise,
-    it simply returns the first `final_k` chunks from the retrieved list.
+    This function retrieves the top `top_k` chunks relevant to the
+    input `message` from the vector store.
+    If a reranker is available, it reranks these chunks and
+    returns the top `final_k` chunks.
+    Otherwise, it simply returns the first `final_k` chunks from retrieved list.
 
     Parameters:
-        collection_name (str): The name of the collection to retrieve document chunks from.
-        message (str): The input message used to retrieve relevant document chunks.
-        top_k (int, optional): The number of top chunks to retrieve initially. Defaults to 15.
-        final_k (int, optional): The number of chunks to return after reranking. Defaults to 5.
-        document_file_type (DocumentFileType, optional): Kind of document. Defaults to DocumentFileType.Document.
+        collection_name (str): Name of the collection to retrieve rows from.
+        message (str): Message used to retrieve relevant rows.
+        top_k (int, optional): Number of top rows to retrieve initially. Default: 15.
+        final_k (int, optional): Number of chunks to return after reranking. Default: 5.
+        document_file_type (DocumentFileType, optional): Document type. Default: Document.
 
     Returns:
         list[str]: A list of the final selected document chunks.
@@ -64,12 +118,26 @@ def retrieve_and_rerank_chunks(
     top_chunks: list[Document] = []
     if document_file_type is DocumentFileType.Document:
         top_chunks = vector_store.retrieve_top_chunks(collection_name, message, top_k)
-    elif document_file_type is DocumentFileType.TabularDocument:
+    elif (
+        document_file_type is DocumentFileType.TabularDocument
+        and is_recommendation_system is not None
+    ):
         df_top_rows: pd.DataFrame = tabular_vector_store.retrieve_top_rows(
-            collection_name, message, top_k
+            collection_name=collection_name,
+            question=message,
+            top_k=top_k,  # Ensure `top_k` is defined in the scope
+            k_rrf=60,
+            max_file_count=3,
+            try_iteration_max_count=3,
+            is_recommendation_system=is_recommendation_system,
         )
         top_dicts: list[dict] = df_top_rows.to_dict("records")
+        # print("Top dicts:")
+        # print(top_dicts)
         top_chunks = [Document(page_content=json.dumps(d)) for d in top_dicts]
+        # Omit reranker for TabularDocuments!
+        final_chunks = top_chunks[:final_k]
+        return final_chunks
     else:
         return []
 
@@ -193,12 +261,18 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
                     file_description = ""
                 file_schema = tabular_vector_store.infer_postgres_schema(df)
 
+                # Infer language from DataFrame df
+                language = detect_language_from_dataframe_samples(df, n=10)
+                if language is None:
+                    language = os.getenv("DEFAULT_LANGUAGE")
+
                 tabular_vector_store.add_tabular_document(
                     collection_name=collection_name,
                     file_name=secure_file_name_sheet,
                     file_hash=file_hash,
                     file_description=file_description,
                     file_schema=file_schema,
+                    language=language,
                     df=df,
                 )
         else:

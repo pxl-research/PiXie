@@ -18,7 +18,7 @@ class PandasCSVStrategy:
         def _detect_csv_delimiter(file_path: str) -> str:
             delimiter = ","
             with open(file_path, "r") as file:
-                sample = file.read(1024)  # Read the first 1KB for detection
+                sample = "\n".join(file.readlines(10))
                 sniffer = csv.Sniffer()
                 delimiter = sniffer.sniff(sample).delimiter
             return delimiter

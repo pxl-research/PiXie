@@ -1,6 +1,11 @@
+# --------------------
+# TabularPGVectorStore
+# --------------------
 import os
+import re
 import logging
 from typing import Optional
+from decimal import Decimal
 import json
 import pandas as pd
 import psycopg2
@@ -10,8 +15,13 @@ from langdetect import detect as langdetect_detect
 
 
 from services.abstractclasses.embedding_model import EmbeddingModel
-from services.llms.tabular_where_filter_generator_llm import (
-    TabularWhereFilterGeneratorLLM,
+
+# from services.llms.tabular_where_filter_generator_llm import TabularWhereFilterGeneratorLLM
+from services.llms.tabular_sql_query_generator_llm import TabularSQLQueryGeneratorLLM
+from services.llms.question_queryable_llm import QuestionQueryableLLM
+from services.llms.sql_query_corrector_llm import SQLQueryCorrectorLLM
+from services.llms.recommendation_sql_post_processor_llm import (
+    RecommendationSQLPostProcessorLLM,
 )
 
 
@@ -31,7 +41,7 @@ def detect_language(text: str) -> str:
     try:
         detected_lang = langdetect_detect(text)
     except Exception:
-        return "english"
+        return language_mapping[os.getenv("DEFAULT_LANGUAGE")]
 
     return language_mapping.get(detected_lang, "english")
 
@@ -103,13 +113,22 @@ class TabularPGVectorStore:
     def __init__(
         self,
         embedding_model: EmbeddingModel,
-        tabular_where_filter_generator_llm: TabularWhereFilterGeneratorLLM,
+        tabular_sql_query_generator_llm: TabularSQLQueryGeneratorLLM,
+        question_queryable_llm: QuestionQueryableLLM,
+        sql_query_corrector_llm: SQLQueryCorrectorLLM,
+        recommendation_sql_post_processor_llm: RecommendationSQLPostProcessorLLM,
+        # tabular_where_filter_generator_llm: TabularWhereFilterGeneratorLLM
     ):
         self.embedding_model = embedding_model
-        self.tabular_where_filter_generator_llm = tabular_where_filter_generator_llm
+        self.tabular_sql_query_generator_llm = tabular_sql_query_generator_llm
+        self.question_queryable_llm = question_queryable_llm
+        self.sql_query_corrector_llm = sql_query_corrector_llm
+        self.recommendation_sql_post_processor_llm = (
+            recommendation_sql_post_processor_llm
+        )
+        # self.tabular_where_filter_generator_llm = tabular_where_filter_generator_llm
 
         current_collections = self.list_collections()
-
         if not current_collections:
             default_collection_name = "pixie"
             self._create_collection(default_collection_name)
@@ -127,7 +146,7 @@ class TabularPGVectorStore:
             dbname=os.getenv("POSTGRES_DB"),
             user=os.getenv("POSTGRES_USER"),
             password=os.getenv("POSTGRES_PASSWORD"),
-            host="db",
+            host="db",  # TODO: change to "db" or "tabular_vectorstore" when integrating into Pixie
             port="5432",
         )
         with conn.cursor() as c:
@@ -147,17 +166,51 @@ class TabularPGVectorStore:
         This is needed for correct WHERE-clause generation.
 
         Args:
-            df (pd.DataFrame): DataFrame for which we want to
-                determine the datatypes of the columns.
+            df (pd.DataFrame): DataFrame for which we want to determine the datatypes of the columns.
         Returns:
-            dict[str, str]: Dictionary mapping columns
-                as the key to Postgres datatypes as the value.
+            dict[str, str]: Dictionary mapping columns as the key to Postgres datatypes as the value.
         """
         schema = {}
+        # print("Schema inference is starting...")
+        # print(f"Row count: {df.shape[0]}")
+        datatype_mapper = dict_pandas_to_postgres_dtype()
+
         for column in df.columns:
             dtype = str(df[column].dtype)
-            # Default Postgres datatype is TEXT
-            pg_type = dict_pandas_to_postgres_dtype().get(dtype, "TEXT")
+            pg_type = "TEXT"  # Default Postgres datatype is TEXT (fallback)
+
+            # Custom inference if object
+            if dtype == "object":
+                # Try to infer numeric type
+                numeric_series = pd.to_numeric(df[column], errors="coerce")
+                if not numeric_series.isnull().all():
+                    # Successfully converted to numeric (at least partially)
+                    # Further refine numeric type if needed (e.g., integer vs float)
+                    if pd.api.types.is_integer_dtype(numeric_series.dropna()):
+                        pg_type = "INTEGER"  # or BIGINT/SMALLINT if more or less precision required
+                    elif pd.api.types.is_float_dtype(numeric_series.dropna()):
+                        pg_type = (
+                            "DOUBLE PRECISION"  # use REAL if single precision is enough
+                        )
+                    else:
+                        # Fallback to NUMERIC if mixed numeric types or other issues
+                        pg_type = "NUMERIC"
+                    dtype = "numeric_inferred"  # Indicate inferred numeric
+
+                else:
+                    # Try to infer datetime type if numeric inference failed
+                    datetime_series = pd.to_datetime(df[column], errors="coerce")
+                    if not datetime_series.isnull().all():
+                        pg_type = "TIMESTAMP"  # Assume timestamp for datetime (can refine to DATE if needed)
+                        dtype = "datetime_inferred"  # Indicate inferred datetime
+                    else:
+                        pg_type = "TEXT"  # Still object and cannot be converted to number or date, remain TEXT
+                        dtype = "object_text"
+            else:
+                # Use the standard mapping for non-object types
+                pg_type = datatype_mapper.get(dtype, "TEXT")
+
+            # print(f"Column '{column}': Pandas dtype '{dtype}', Postgres type '{pg_type}'")
             schema[column] = pg_type
 
         return schema
@@ -169,6 +222,7 @@ class TabularPGVectorStore:
         file_hash: str,
         file_description: Optional[str],
         file_schema: dict[str, str],
+        language: str,
         df: pd.DataFrame,
     ) -> None:
         """
@@ -212,14 +266,15 @@ class TabularPGVectorStore:
                 c.execute(
                     f"""
                     INSERT INTO tabular_documents (
-                        file_name, file_hash, last_updated, 
+                        file_name, file_hash, last_updated, language,
                         file_description, file_description_embedding, file_schema
                     )
-                    VALUES (%s, %s, NOW(), %s, %s, %s::jsonb)
+                    VALUES (%s, %s, NOW(), %s, %s, %s, %s::jsonb)
                     ON CONFLICT (file_name) DO UPDATE
                     SET 
                         file_hash = EXCLUDED.file_hash,
                         last_updated = EXCLUDED.last_updated,
+                        language = EXCLUDED.language,
                         file_description = EXCLUDED.file_description,
                         file_description_embedding = EXCLUDED.file_description_embedding,
                         file_schema = EXCLUDED.file_schema
@@ -232,6 +287,7 @@ class TabularPGVectorStore:
                     (
                         file_name,
                         file_hash,
+                        language,
                         file_description,
                         file_description_embedding,
                         file_schema_str,
@@ -240,9 +296,9 @@ class TabularPGVectorStore:
                 res = c.fetchone()
                 file_id, is_updated = res[0], res[1]
 
-                print("collection_id:", collection_id)
-                print("file_id:", file_id)
-                print(str(is_updated))
+                # print("collection_id:", collection_id)
+                # print("file_id:", file_id)
+                # print(str(is_updated))
 
                 if is_updated:
                     # When it is updated, remove all tabular_rows for this file,
@@ -395,7 +451,7 @@ class TabularPGVectorStore:
 
     def _list_schemas(
         self, collection_name: str, question_embedding: list[float], max_file_count: int
-    ) -> list[dict[str, str]]:
+    ) -> list[tuple[dict[str, str], str]]:
         """
         List unique schemas filtered by collection_name and sorted
         by similarity to the question_embedding.
@@ -406,7 +462,7 @@ class TabularPGVectorStore:
             max_file_count (int): The maximum number of schemas to return.
 
         Returns:
-            list[dict[str, str]]: A list of unique schemas as dictionaries.
+            list[tuple[dict[str, str], str]]: A list of tuples of unique schemas as dictionaries and languages as a string.
         """
         conn = self._get_db_connection()
 
@@ -416,8 +472,8 @@ class TabularPGVectorStore:
             try:
                 unique_schemas_query = f"""
                     WITH ranked_documents AS (
-                        SELECT d.file_schema, 
-                           d.file_description_embedding <=> %(question_embedding)s::vector AS similarity
+                        SELECT d.file_schema, d.language,
+                            d.file_description_embedding <=> %(question_embedding)s::vector AS similarity
                         FROM tabular_documents AS d
                         JOIN tabular_documents_collections AS dc
                         ON d.id = dc.document_id
@@ -426,15 +482,15 @@ class TabularPGVectorStore:
                         WHERE c.name = %(collection_name)s
                     ),
                     distinct_documents AS (
-                        SELECT DISTINCT ON (file_schema) file_schema, similarity
+                        SELECT DISTINCT ON (file_schema) file_schema, language, similarity
                         FROM ranked_documents
                         ORDER BY file_schema, similarity ASC
                     )
-                    SELECT file_schema
+                    SELECT file_schema, language
                     FROM distinct_documents
                     ORDER BY similarity ASC
                     LIMIT %(max_file_count)s
-                    """
+                """
                 c.execute(
                     unique_schemas_query,
                     {
@@ -443,12 +499,15 @@ class TabularPGVectorStore:
                         "max_file_count": max_file_count,
                     },
                 )
-                list_unique_schemas = [row[0] for row in c.fetchall()]
+                list_unique_schemas = [(row[0], row[1]) for row in c.fetchall()]
+                # print(list_unique_schemas)
             except psycopg2.DatabaseError as e:
                 logging.error(f"Failed to retrieve unique table schemas: {str(e)}")
+                print(f"Failed to retrieve unique table schemas: {str(e)}")
 
         return list_unique_schemas
 
+    '''
     def retrieve_top_rows(
         self,
         collection_name: str,
@@ -466,9 +525,9 @@ class TabularPGVectorStore:
             question (str): The query or question for which relevant rows are retrieved.
             top_k (int, optional): Number of top rows to return. Default is 10.
             k_rrf (int, optional): Reciprocal rank fusion parameter. Default is 60.
-            weight_row_vs_file_based (float, optional): Weight to balance
+            weight_row_vs_file_based (float, optional): Weight to balance 
                 row-level vs. file-level relevance scores. Default is 0.8.
-            max_file_count (int, optional): Maximum number of files to consider
+            max_file_count (int, optional): Maximum number of files to consider 
                 based on schema matching. Default is 3.
 
         Returns:
@@ -501,7 +560,7 @@ class TabularPGVectorStore:
         with conn.cursor() as c:
             try:
                 language = detect_language(text=question)
-
+                
                 file_based_vector_query = f"""
                 SELECT
                     tabular_rows.id AS id,
@@ -668,6 +727,297 @@ class TabularPGVectorStore:
                 return pd.DataFrame()
 
         return df
+    '''
+
+    def _query_ends_with_limit(self, query: str) -> bool:
+        """
+        Checks if a SQL query string ends with a LIMIT clause.
+
+        Args:
+            query (str): The SQL query string.
+
+        Returns:
+            bool: True if the query ends with a LIMIT clause (case-insensitive), False otherwise.
+        """
+        query = query.strip()  # Remove leading/trailing whitespace
+        limit_pattern = re.compile(
+            r"\bLIMIT\s+\d+\s*;\s*$", re.IGNORECASE
+        )  # Added semi colon and whitespace to the end of the regex.
+        limit_pattern_no_semicolon = re.compile(r"\bLIMIT\s+\d+\s*$", re.IGNORECASE)
+        return bool(
+            limit_pattern.search(query) or limit_pattern_no_semicolon.search(query)
+        )
+
+    def retrieve_top_rows(
+        self,
+        collection_name: str,
+        question: str,
+        top_k: int = 30,
+        k_rrf: int = 60,
+        max_file_count: int = 3,
+        try_iteration_max_count=3,
+        is_recommendation_system: bool = False,
+    ) -> pd.DataFrame:
+        """
+        Retrieve the top rows relevant to a question from a specified collection.
+
+        Args:
+            collection_name (str): Name of the collection to search within.
+            question (str): The query or question for which relevant rows are retrieved.
+            top_k (int, optional): Number of top rows to return. Default is 10.
+            k_rrf (int, optional): Reciprocal rank fusion parameter. Default is 60.
+            weight_row_vs_file_based (float, optional): Weight to balance
+                row-level vs. file-level relevance scores. Default is 0.8.
+            max_file_count (int, optional): Maximum number of files to consider
+                based on schema matching. Default is 3.
+
+        Returns:
+            pd.DataFrame: DataFrame containing the attributes of the top matching rows.
+        """
+
+        # TODO: sanitize generated query to avoid SQL-injection!
+        # This will be done later.
+
+        # Question embedding in original language of question can be used to list unique schemas
+        # Reason: embedding model is multilingual
+        question_embedding = self.embedding_model.embed_query(
+            text=question, normalize=False, to_list=True
+        )
+        # list[tuple[dict[str, str], str]]
+        list_unique_schemas = self._list_schemas(
+            collection_name=collection_name,
+            question_embedding=question_embedding,
+            max_file_count=max_file_count,
+        )
+
+        if len(list_unique_schemas) <= 0:
+            return pd.DataFrame()
+
+        all_results = []
+        for schema, language in list_unique_schemas:
+            question_reformulated = self.question_queryable_llm.generate(
+                schema=schema, question=question, language=language
+            )
+            generated_sql_query = self.tabular_sql_query_generator_llm.generate(
+                schema=schema,
+                question=question_reformulated,
+                is_recommendation_system=is_recommendation_system,
+            )
+            if is_recommendation_system:
+                generated_sql_query = (
+                    self.recommendation_sql_post_processor_llm.generate(
+                        query_to_correct=generated_sql_query
+                    )
+                )
+            # generated_sql_query = self.tabular_sql_query_generator_llm.generate(schema=schema, question=question)
+
+            # print("Generated SQL query:\n")
+            # print("<sql>")
+            # print(generated_sql_query)
+            # print("</sql>")
+            for try_iteration in range(try_iteration_max_count):
+                conn = self._get_db_connection()
+                with conn.cursor() as c:
+                    try:
+                        language = detect_language(text=question)
+
+                        file_based_vector_query = f"""
+                        SELECT
+                            tabular_rows.id AS id,
+                            RANK () OVER (
+                                ORDER BY tabular_documents.file_description_embedding 
+                                    <=> %(question_embedding)s::vector ASC
+                            ) as rank
+                        FROM tabular_documents
+                        JOIN tabular_rows
+                        ON tabular_documents.id = tabular_rows.file_id
+
+                        -- Collection filtering
+                        JOIN tabular_documents_collections
+                        ON tabular_documents.id = tabular_documents_collections.document_id
+                        JOIN tabular_collections
+                        ON tabular_documents_collections.collection_id = tabular_collections.id
+                        WHERE tabular_collections.name = %(collection_name)s
+                
+                        ORDER BY tabular_documents.file_description_embedding 
+                        <=> %(question_embedding)s::vector ASC
+                        """
+
+                        file_based_keyword_query = f"""
+                        SELECT
+                            tabular_rows.id AS id,
+                            RANK() OVER (
+                                ORDER BY ts_rank_cd(
+                                    to_tsvector('{language}', tabular_documents.file_description),
+                                    plainto_tsquery('{language}', %(question)s)
+                                ) DESC
+                            ) AS rank
+                        FROM tabular_documents
+                        JOIN tabular_rows
+                        ON tabular_documents.id = tabular_rows.file_id
+
+                        -- Collection filtering
+                        JOIN tabular_documents_collections
+                        ON tabular_documents.id = tabular_documents_collections.document_id
+                        JOIN tabular_collections
+                        ON tabular_documents_collections.collection_id = tabular_collections.id
+                        WHERE tabular_collections.name = %(collection_name)s
+                
+                        AND to_tsvector('{language}', tabular_documents.file_description) @@ plainto_tsquery('{language}', %(question)s)
+                        ORDER BY ts_rank_cd(
+                            to_tsvector('{language}', tabular_documents.file_description), 
+                            plainto_tsquery('{language}', %(question)s)
+                        ) DESC
+                        """
+
+                        row_based_vector_query = f"""            
+                        SELECT
+                            tabular_rows.id AS id,
+                            RANK () OVER (
+                                ORDER BY tabular_rows.row_embedding 
+                                    <=> %(question_embedding)s::vector ASC
+                            ) as rank
+                        FROM tabular_documents
+                        JOIN tabular_rows
+                        ON tabular_documents.id = tabular_rows.file_id
+
+                        -- Collection filtering
+                        JOIN tabular_documents_collections
+                        ON tabular_documents.id = tabular_documents_collections.document_id
+                        JOIN tabular_collections
+                        ON tabular_documents_collections.collection_id = tabular_collections.id
+                        WHERE tabular_collections.name = %(collection_name)s
+                
+                        ORDER BY tabular_rows.row_embedding 
+                            <=> %(question_embedding)s::vector ASC
+                        """
+
+                        row_based_keyword_query = f"""            
+                        SELECT
+                            tabular_rows.id AS id,
+                            RANK () OVER (
+                                ORDER BY ts_rank_cd(
+                                    to_tsvector('{language}', (tabular_rows.attributes)::text), 
+                                    plainto_tsquery('{language}', %(question)s)
+                                ) DESC
+                            ) AS rank
+                        FROM tabular_documents
+                        JOIN tabular_rows 
+                        ON tabular_documents.id = tabular_rows.file_id
+
+                        -- Collection filtering
+                        JOIN tabular_documents_collections
+                        ON tabular_documents.id = tabular_documents_collections.document_id
+                        JOIN tabular_collections
+                        ON tabular_documents_collections.collection_id = tabular_collections.id
+                        WHERE tabular_collections.name = %(collection_name)s
+  
+                        AND to_tsvector('{language}', (tabular_rows.attributes)::text) 
+                            @@ plainto_tsquery('{language}', %(question)s)            
+                        ORDER BY ts_rank_cd(
+                            to_tsvector('{language}', (tabular_rows.attributes)::text), 
+                            plainto_tsquery('{language}', %(question)s)
+                        ) DESC
+                        """
+
+                        hybrid_query_file_based = f"""
+                        WITH file_based_vector_search AS ({file_based_vector_query}),
+                            file_based_keyword_search AS ({file_based_keyword_query})
+                        SELECT
+                            COALESCE(
+                                file_based_vector_search.id, 
+                                file_based_keyword_search.id
+                            ) AS id,
+                            (COALESCE(1.0 / (%(k)s + file_based_vector_search.rank), 0.0) + 
+                            COALESCE(1.0 / (%(k)s + file_based_keyword_search.rank), 0.0)) AS score
+                        FROM file_based_vector_search
+                        FULL OUTER JOIN file_based_keyword_search 
+                        ON file_based_vector_search.id = file_based_keyword_search.id
+                        ORDER BY score DESC
+                        """
+
+                        hybrid_query_row_based = f"""
+                        WITH row_based_vector_search AS ({row_based_vector_query}),
+                            row_based_keyword_search AS ({row_based_keyword_query})
+                        SELECT
+                            COALESCE(
+                                row_based_vector_search.id, 
+                                row_based_keyword_search.id
+                            ) AS id,
+                            (COALESCE(1.0 / (%(k)s + row_based_vector_search.rank), 0.0) + 
+                            COALESCE(1.0 / (%(k)s + row_based_keyword_search.rank), 0.0)) AS score
+                        FROM row_based_vector_search
+                        FULL OUTER JOIN row_based_keyword_search
+                        ON row_based_vector_search.id = row_based_keyword_search.id
+                        ORDER BY score DESC
+                    """
+
+                        composite_query = f"""
+                        WITH hybrid_search_file_based AS (
+                            {hybrid_query_file_based}),
+                            hybrid_search_row_based AS (
+                            {hybrid_query_row_based})
+                        {generated_sql_query}
+                        {'' if self._query_ends_with_limit(generated_sql_query) else 'LIMIT %(top_k)s'}
+                        """
+
+                        # Execute the query with the question embedding parameter
+                        c.execute(
+                            composite_query,
+                            {
+                                "collection_name": collection_name,
+                                "question": question,
+                                "question_embedding": question_embedding,
+                                "k": k_rrf,
+                                "top_k": top_k,
+                            },
+                        )
+
+                        results = c.fetchall()
+
+                        # Extract column names dynamically from cursor description
+                        extracted_column_names = [desc[0] for desc in c.description]
+                        df = pd.DataFrame(results, columns=extracted_column_names)
+                        df = df.head(top_k)
+                        df = df.apply(
+                            lambda col: col.map(
+                                lambda x: float(x) if isinstance(x, Decimal) else x
+                            )
+                        )
+                        df = df.drop(
+                            [
+                                "__hybrid_search_file_based_score",
+                                "__hybrid_search_row_based_score",
+                            ],
+                            axis=1,
+                            errors="ignore",
+                        )
+                        if not df.empty:
+                            all_results.append(df)
+                        # Do not try again, because query works
+                        break
+
+                    except Exception as e:
+                        if try_iteration < try_iteration_max_count - 1:
+                            generated_sql_query = self.sql_query_corrector_llm.generate(
+                                schema=schema,
+                                question=question_reformulated,
+                                query_to_correct=generated_sql_query,
+                                error_message=repr(e),
+                            )
+                            # try again with corrected query
+                            continue
+                        else:
+                            logging.error(
+                                f"Failed to retrieve rows for collection '{collection_name}': {str(e)}"
+                            )
+                            print(f"Error: {str(e)}")
+
+        # Combine results from all schemas (e.g., by concatenating DataFrames)
+        combined_df = (
+            pd.concat(all_results, ignore_index=True) if all_results else pd.DataFrame()
+        )
+        return combined_df
 
     def list_documents(self, collection_name: str) -> list[str]:
         """

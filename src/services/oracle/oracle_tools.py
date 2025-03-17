@@ -138,6 +138,8 @@ def rag_search(question: str, collection_name: str) -> List[str]:
 def tabular_rag_search(question: str, collection_name: str) -> List[str]:
     """
     Retrieve and format top-ranked rows from a tabular document in the specified collection based on the question using a tabular vector store.
+    This is the default call for a tabular RAG search and should be done first.
+    This is used for exact textual matching and numerical or datetime comparisons.
 
     Args:
         question (str): The question to retrieve relevant rows for.
@@ -155,9 +157,55 @@ def tabular_rag_search(question: str, collection_name: str) -> List[str]:
     try:
         # Attempt to retrieve and rerank chunks
         final_docs = document_manager.retrieve_and_rerank_chunks(
-            collection_name,
-            question,
+            collection_name=collection_name,
+            message=question,
+            top_k=10,
+            final_k=20,
             document_file_type=DocumentFileType.TabularDocument,
+            is_recommendation_system=False
+        )
+        logging.info(f"Retrieved {len(final_docs)} rows for question: '{question}'")
+        # Format documents
+        docs = format_documents(final_docs)
+        logging.info("Document formatting completed successfully.")
+        return docs
+
+    except Exception as e:
+        # Log any exceptions that occur during retrieval or formatting
+        logging.error(
+            f"Error in retrieving or formatting chunks for question '{question}': {e}"
+        )
+        return [f"Error during retrieval: {e}"]
+
+@tool("tabular_rag_recommendation_search")
+def tabular_rag_recommendation_search(question: str, collection_name: str) -> List[str]:
+    """
+    Retrieve and format top-ranked rows from a tabular document in the specified collection based on the question using a tabular vector store.
+    This should be done AFTER the tabular_rag_search.
+    This is used for non-exact textual matching based on similarity scores of embeddings and for numerical or datetime comparisons.
+
+    Args:
+        question (str): The question to retrieve relevant rows for.
+        collection_name (str): The name of the collection to search within.
+
+    Returns:
+        List[str]: A list of formatted rows relevant to the question.
+
+    Raises:
+        Exception: If there is an error while retrieving or formatting rows, an exception is raised with details.
+    """
+    logging.info(
+        f"Retrieving chunks for question: '{question}' from collection '{collection_name}'"
+    )
+    try:
+        # Attempt to retrieve and rerank chunks
+        final_docs = document_manager.retrieve_and_rerank_chunks(
+            collection_name=collection_name,
+            message=question,
+            top_k=10,
+            final_k=20,
+            document_file_type=DocumentFileType.TabularDocument,
+            is_recommendation_system=True
         )
         logging.info(f"Retrieved {len(final_docs)} rows for question: '{question}'")
         # Format documents
