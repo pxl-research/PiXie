@@ -9,6 +9,7 @@ services:
     volumes:
       - embeddings_cache:/app/embeddings_cache
       - reranker_cache:/app/reranker_cache
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - app-network
 
