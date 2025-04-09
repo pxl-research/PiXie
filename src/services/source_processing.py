@@ -57,7 +57,7 @@ def parse_source_line(
         return [source_line]  # Keep URLs intact
 
     source_line = re.sub(r"^Bron(?:nen)?:\s*", "", source_line.strip())
-    match = re.match(r"^(.+?)\s*\(pagina\s*([^)]+)\)$", source_line)
+    match = re.match(r"^(.+?)\s+pagina\s+(\d+)$", source_line)
 
     if match:
         file_name = match.group(1).strip()
@@ -140,9 +140,10 @@ def process_sources(
         - A string if the source is a URL or lacks page numbers.
     """
     sources_list = [
-        re.sub(r"^\d+\.\s*", "", re.sub(r"^Bron(?:nen)?:\s*", "", source.strip()))
+        re.sub(r"^\d+\.\s*", "", re.sub(r"^-*\s*Bron(?:nen)?:\s*", "", source.strip()))
         for source in split_sources(sources_text)
     ]
+
 
     seen = set()
     deduped_sources = []
@@ -157,7 +158,7 @@ def process_sources(
 
 
 def enrich_sources(
-    sources_list: List[Union[str, Tuple[str, Union[int, None], Union[int, None]]]]
+    sources_list: List[Union[str, Tuple[str, Union[int, None], Union[int, None]]]],
 ) -> List[str]:
     """
     Enrich sources with hyperlinks and remove duplicates.
@@ -233,3 +234,20 @@ def format_final_answer(answer_text: str, enriched_sources: List[str]) -> str:
         )
         return f"{answer_text}\n\nBronnen:\n{sources_formatted}"
     return answer_text
+
+
+def split_answer_and_sources(content: str) -> Tuple[str, str]:
+    """
+    Split the content into answer and sources.
+
+    Parameters:
+    - content: str
+        The content to be split.
+
+    Returns:
+    - Tuple[str, str]: A tuple containing the answer and sources.
+    """
+    if "Bron:" in content:
+        answer, sources = content.split("Bron:", 1)
+        return answer.strip(), sources.strip()
+    return content.strip(), ""

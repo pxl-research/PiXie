@@ -1,10 +1,17 @@
+from app import llm, tabular_vector_store
 from typing import List, Dict, Tuple, Optional, Any
 import os
-from langgraph.types import Command
 
 from services.chat_history import chat_history_manager
 from services import source_processing
-from services.oracle.graph_runner import initialize_graph, compile_graph
+from services.database.document_db_operations import get_summaries_by_collection
+from services.prompt_manager import get_agent_system_prompt, get_tool_description
+from services.mcp_tools.tool_config import get_mcp_tool_configurations
+
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.prebuilt import create_react_agent
+
+from services.agent_service import execute_agent
 
 
 def append_user(
@@ -24,7 +31,6 @@ def append_user(
       and the AI response (or None if no response yet).
     """
     user_id = user_info["id"] if user_info else None
-    print("Echte append_user functie")
     chat_history = chat_history_manager.get_chat_history(user_id, limit=10)
     chat_history_manager.save_chat_history(user_id, message, None)
     chat_history = chat_history_manager.add_message_to_chat_history(
@@ -33,89 +39,68 @@ def append_user(
     return chat_history
 
 
-def append_ai(
+async def append_ai(
     collection_name: str, message: str, user_info: Optional[Dict[str, Any]]
 ) -> Tuple[str, List[Tuple[str, str]]]:
     """
     Generate an AI response to the user's message, update the chat history, and save it.
 
+    This asynchronous function orchestrates the entire AI response generation pipeline:
+    1. Retrieves and formats the chat history
+    2. Initializes tool connections through MultiServerMCPClient
+    3. Gathers document summaries from vector stores
+    4. Creates a customized system prompt
+    5. Executes the agent to generate a response
+    6. Updates and saves the chat history
+
     Parameters:
-    - collection_name: str
-        The name of the collection to retrieve documents from.
-    - message: str
-        The user's message to which the AI should respond.
-    - user_info: Optional[Dict[str, Any]]
+    ----------
+    collection_name : str
+        The name of the document collection to search within for relevant information.
+    message : str
+        The user's message that requires an AI response.
+    user_info : Optional[Dict[str, Any]]
         A dictionary containing user information, including the user ID.
+        If None, the function will use a default/anonymous user context.
 
     Returns:
-    - Tuple[str, List[Tuple[str, str]]]: The final response text for the textbox and the updated chat history for the chatbot.
+    -------
+    Tuple[str, List[Tuple[str, str]]]
+        A tuple containing:
+        - An empty string (used for the UI's textbox)
+        - The updated chat history as a list of (role, message) tuples
+
+    Note:
+    -----
+    This function leverages various tools through the MCP client including RAG search,
+    tabular database queries, weather information, and other specialized tools configured
+    in the mcp_tool_configurations. The response generation is delegated to the execute_agent
+    function which handles tool selection and response formatting.
     """
     user_id = user_info["id"] if user_info else None
 
     chat_history = chat_history_manager.get_chat_history(user_id, limit=9)
-    chat_history_for_llm = chat_history_manager.get_chat_history(
-        user_id=user_id, limit=5
-    )
     formatted_history = chat_history_manager.format_chat_history_for_llm(
-        chat_history_for_llm
+        chat_history_manager.get_chat_history(user_id=user_id, limit=5)
     )
 
-    graph = initialize_graph()
-    compiled_oracle_graph = compile_graph(graph)
-
-    input_data = {
-        "input": message,
-        "chat_history": formatted_history,
-        "collection_name": collection_name,
-    }
-
-    thread_config = {
-        "configurable": {"thread_id": 1},
-        "recursion_limit": 5,
-    }
-
-    try:
-        out = compiled_oracle_graph.invoke(input_data, thread_config)
-
-        output = out["intermediate_steps"][-1].tool_input
-
-        # Test of de output een "question" key heeft
-        if "question" in output:
-            chat_history = chat_history_manager.add_message_to_chat_history(
-                chat_history, "assistant", output["question"]
-            )
-            return "", chat_history
-
-        # Ensure the last tool used is final_answer
-        last_tool = out["intermediate_steps"][-1].tool
-        if last_tool != "final_answer":
-            raise Exception(
-                "Final answer tool was not called. Ensure to route the answer through the final_answer tool."
-            )
-
-        output = out["intermediate_steps"][-1].tool_input
-        answer = output["answer"]
-        sources = output["sources"]
-
-        sources_list = (
-            source_processing.process_sources(sources.strip()) if sources else []
+    async with MultiServerMCPClient(get_mcp_tool_configurations()) as client:
+        summaries = get_summaries_by_collection(collection_name)
+        tabular_summaries = tabular_vector_store.get_summaries_by_collection(
+            collection_name
         )
 
-        # Format the final answer with enriched sources
-        final_answer = source_processing.format_final_answer(
-            answer.strip(), source_processing.enrich_sources(sources_list)
+        custom_prompt = get_agent_system_prompt(summaries, tabular_summaries)
+
+        final_answer, _ = await execute_agent(
+            client, message, custom_prompt, formatted_history, collection_name
         )
+
         chat_history = chat_history_manager.add_message_to_chat_history(
             chat_history, "assistant", final_answer
         )
 
         chat_history_manager.save_chat_history(user_id, None, final_answer)
-        return "", chat_history
-    except RecursionError:
-        final_answer = "Ik heb niet genoeg informatie om de vraag te beantwoorden."
-        chat_history = chat_history_manager.add_message_to_chat_history(
-            chat_history, "assistant", final_answer
-        )
         return "", chat_history
 
 
