@@ -1,4 +1,19 @@
 import os
+from langchain_core.tools import tool
+
+
+@tool
+def ask_user(prompt: str) -> str:
+    """
+    Vraag extra input van de gebruiker op via de interface.
+    Gebruik dit wanneer je een verduidelijking nodig hebt.
+
+    Args:
+        prompt: De vraag die je aan de gebruiker wil stellen.
+    Returns:
+        De input die de gebruiker gaf.
+    """
+    return f"__user_input_required__::{prompt}"
 
 
 def load_env_vars(*keys):

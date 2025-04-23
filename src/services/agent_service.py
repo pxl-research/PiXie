@@ -9,7 +9,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import create_react_agent
 
 from services.database.document_db_operations import get_summaries_by_collection
-from services.mcp_tools.tool_config import get_mcp_tool_configurations
+from services.mcp_tools.tool_config import get_mcp_tool_configurations, ask_user
 from services.prompt_manager import get_agent_system_prompt, get_tool_description
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,7 @@ async def init_mcp_agent():
     configs = get_mcp_tool_configurations()
     _mcp_client = await MultiServerMCPClient(configs).__aenter__()
     _mcp_tools = _mcp_client.get_tools()
+    _mcp_tools.append(ask_user)
     # Werk tool beschrijvingen bij
     for tool in _mcp_tools:
         description = get_tool_description(tool.name)
@@ -48,12 +49,27 @@ async def execute_agent(
     collection_name: str,
 ):
     """
-    Execute the agent with the given message and process the response.
+    Asynchronously executes a multi-step agent process with tool usage and streaming updates.
 
-    Returns:
-        Tuple[str, List[Dict]]: The processed answer and any source information
+    This function feeds a user message and chat history into a pre-initialized MCP-based agent,
+    which may invoke tools and request additional user input during reasoning. The function yields
+    intermediate status messages that can be used to update the UI in real time (e.g., "thinking...",
+    "calling tool..."). If the agent requests user input mid-process, it yields (question, "") and exits.
+
+    Final output is returned as (answer, "") once reasoning is complete.
+
+    Args:
+        message (str): The new user message to be processed by the agent.
+        formatted_history (List[Dict[str, str]]): Previous conversation messages formatted for the agent.
+        collection_name (str): The name of the document collection used for summaries and RAG search.
+
+    Yields:
+        Tuple[str, str]: Intermediate or final responses to be displayed in the UI.
+                        First element is either the final answer or a question for the user.
+                        Second element is a transient status message or empty string.
     """
-    yield "", "Initializing agent ..."
+
+    yield "", "🔄 Preparing AI to process your question..."
     if _agent is None:
         await init_mcp_agent()
 
@@ -94,6 +110,11 @@ async def execute_agent(
 
             # 2. Tool geeft output terug
             elif "tools" in step and step["tools"]["messages"]:
+                content = step["tools"]["messages"][0].content
+                if content.startswith("__user_input_required__::"):
+                    question = content.replace("__user_input_required__::", "").strip()
+                    yield question, ""  # Signaal aan Gradio: wacht op user input
+                    return
                 yield "", f"📦 Tooloutput ontvangen"
 
             out = step
