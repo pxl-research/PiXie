@@ -1,7 +1,8 @@
 import logging
+import asyncio
 from typing import Dict, Tuple, List, Any, Optional
 
-from app import llm, tabular_vector_store
+from services.init_services import get_agent_services
 from services import source_processing
 from services.chat_history import chat_history_manager
 from langchain_mcp_adapters.client import MultiServerMCPClient
@@ -13,11 +14,42 @@ from services.prompt_manager import get_agent_system_prompt, get_tool_descriptio
 
 logger = logging.getLogger(__name__)
 
+# Shared chat services
+_services = get_agent_services()
+
+# Global variables to hold the initialized client and agent
+_mcp_client = None
+_agent = None
+
+
+async def init_mcp_agent():
+    """
+    Initialize the MCP client and agent once.
+    """
+    logging.info("Initializing MCP agent ...")
+    global _mcp_client, _agent
+    if _agent is not None:
+        return  # Already initialized
+
+    configs = get_mcp_tool_configurations()
+    logging.info(f"Initializing MCP client with configs")
+    _mcp_client = await MultiServerMCPClient(configs).__aenter__()
+    logging.info("MCP client initialized")
+    _mcp_tools = _mcp_client.get_tools()
+    logging.info("Tools loaded from MCP client")
+    # Werk tool beschrijvingen bij
+    for tool in _mcp_tools:
+        description = get_tool_description(tool.name)
+        if description:
+            tool.description = description
+
+    logging.info("Tools loaded")
+    _agent = create_react_agent(_services["llm"].model, _mcp_tools)
+    logging.info("Agent created")
+
 
 async def execute_agent(
-    client: MultiServerMCPClient,
     message: str,
-    custom_prompt: str,
     formatted_history: List[Dict[str, str]],
     collection_name: str,
 ) -> Tuple[str, List[Dict]]:
@@ -27,16 +59,20 @@ async def execute_agent(
     Returns:
         Tuple[str, List[Dict]]: The processed answer and any source information
     """
-    tools = client.get_tools()
+    logging.info(f"Executing agent ...")
+    if _agent is None:
+        await init_mcp_agent()
+    logging.info("MCP agent initialized")
 
-    # Werk tool beschrijvingen bij
-    for tool in tools:
-        description = get_tool_description(tool.name)
-        if description:
-            tool.description = description
-
-    agent = create_react_agent(llm.model, tools)
-
+    # Build custom system prompt from document and table summaries
+    summaries = get_summaries_by_collection(collection_name)
+    logging.info(f"Got document summaries")
+    tabular_summaries = _services["tabular_vector_store"].get_summaries_by_collection(
+        collection_name
+    )
+    logging.info(f"Got table summaries")
+    custom_prompt = get_agent_system_prompt(summaries, tabular_summaries)
+    logging.info("Custom prompt defined")
     input_data = {
         "messages": (
             [{"role": "system", "content": custom_prompt}]
@@ -52,7 +88,9 @@ async def execute_agent(
     }
 
     try:
-        out = await agent.ainvoke(input_data, thread_config)
+        logging.info(f"Executing agent with input data inside try block")
+        out = await _agent.ainvoke(input_data, thread_config)
+        logging.info(f"Direct na ainvoke")
         content = out["messages"][-1].content
 
         answer, sources = source_processing.split_answer_and_sources(content)

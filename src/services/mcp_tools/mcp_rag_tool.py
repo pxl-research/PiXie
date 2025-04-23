@@ -9,6 +9,13 @@ from typing import List, Tuple
 import logging
 import os
 
+from services.init_services import get_rag_services
+
+_rag_services = get_rag_services()
+_vector_store = _rag_services["vector_store"]
+_reranker = None
+
+
 # Initialize FastMCP server with configuration
 mcp = FastMCP(
     "RAG",  # Name of the MCP server
@@ -41,27 +48,11 @@ def retrieve_and_rerank_chunks(
         list[str]: A list of the final selected document chunks.
     """
 
-    model_kwargs = {"device": os.getenv("DEVICE_TYPE", "cpu")}
-
-    embeddings_model = LangChainHuggingFaceEmbeddingModel(
-        model_name=os.getenv("EMBEDDINGS_MODEL_NAME"),
-        model_kwargs=model_kwargs,
-        cache_folder="embeddings_cache",
-    )
-
-    vector_store = QDrantVectorStore(
-        embeddings=embeddings_model.get_embeddings(),
-        host=os.getenv("QDRANT_HOST"),
-        port=os.getenv("QDRANT_PORT"),
-    )
-
-    reranker = BGEReranker()
-
-    top_chunks = vector_store.retrieve_top_chunks(collection_name, message, top_k)
+    top_chunks = _vector_store.retrieve_top_chunks(collection_name, message, top_k)
 
     final_chunks: list[str] = []
-    if reranker is not None:
-        final_chunks = reranker.rerank(message, top_chunks, final_k)
+    if _reranker is not None:
+        final_chunks = _reranker.rerank(message, top_chunks, final_k)
         logging.info(f"Chunks have been reranked for the message: {message}")
     else:
         final_chunks = top_chunks[:final_k]
@@ -70,25 +61,6 @@ def retrieve_and_rerank_chunks(
         )
 
     return final_chunks
-
-
-def format_documents(final_docs):
-    """
-    Format retrieved documents into a string for processing.
-
-    Parameters:
-    - final_docs: list
-        A list of document objects, where each document contains metadata and page content.
-
-    Returns:
-    - str: A formatted string of document references with file names and page numbers, each separated by new lines.
-    """
-    return "\n\n".join(
-        [
-            f"Bron: {doc.metadata.get('file_name', 'Onbekend bestand')} (pagina {doc.metadata.get('page_numbers', 'n.v.t.')})\n{doc.page_content}"
-            for doc in final_docs
-        ]
-    )
 
 
 @mcp.tool()
@@ -120,7 +92,6 @@ async def rag_search(question: str) -> List[str]:
         )
 
         # Format documents
-        # docs = format_documents(final_docs)
         logging.info("Document formatting completed successfully.")
         return final_docs
 
