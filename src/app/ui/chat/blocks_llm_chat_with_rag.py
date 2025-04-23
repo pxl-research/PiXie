@@ -29,49 +29,57 @@ def append_user(
 
 
 async def append_ai(
-  collection_name: str, message: str, user_info: Optional[Dict[str, Any]]
+    collection_name: str, message: str, user_info: Optional[Dict[str, Any]]
 ) -> Tuple[str, List[Tuple[str, str]]]:
-  """
-  Generate an AI response to the user's message, update the chat history, and save it.
+    """
+    Generate an AI response to the user's message, update the chat history, and save it.
 
-  Parameters:
-  ----------
-  collection_name : str
-    The name of the document collection to search for relevant information.
-  message : str
-    The user's message that requires an AI response.
-  user_info : Optional[Dict[str, Any]]
-    A dictionary containing user information, including the user ID.
-    If None, the function will use a default/anonymous user context.
+    Parameters:
+    ----------
+    collection_name : str
+      The name of the document collection to search for relevant information.
+    message : str
+      The user's message that requires an AI response.
+    user_info : Optional[Dict[str, Any]]
+      A dictionary containing user information, including the user ID.
+      If None, the function will use a default/anonymous user context.
 
-  Returns:
-  -------
-  Tuple[str, List[Tuple[str, str]]]
-    A tuple containing:
-    - An empty string (used for clearing the UI's input field)
-    - The updated chat history as a list of (role, message) tuples
+    Returns:
+    -------
+    Tuple[str, List[Tuple[str, str]]]
+      A tuple containing:
+      - An empty string (used for clearing the UI's input field)
+      - The updated chat history as a list of (role, message) tuples
 
-  Note:
-  -----
-  This function retrieves the chat history, formats it for the LLM, 
-  uses execute_agent to generate a response with RAG capabilities,
-  then updates and saves the chat history with the AI's response.
-  """
-  user_id = user_info["id"] if user_info else None
+    Note:
+    -----
+    This function retrieves the chat history, formats it for the LLM,
+    uses execute_agent to generate a response with RAG capabilities,
+    then updates and saves the chat history with the AI's response.
+    """
+    user_id = user_info["id"] if user_info else None
 
-  chat_history = chat_history_manager.get_chat_history(user_id, limit=9)
-  formatted_history = chat_history_manager.format_chat_history_for_llm(
-    chat_history_manager.get_chat_history(user_id=user_id, limit=5)
-  )
+    chat_history = chat_history_manager.get_chat_history(user_id, limit=9)
+    formatted_history = chat_history_manager.format_chat_history_for_llm(
+        chat_history_manager.get_chat_history(user_id=user_id, limit=5)
+    )
 
-  final_answer, _ = await execute_agent(message, formatted_history, collection_name)
+    final_answer = ""
+    # Hier itereren we over elke yield van execute_agent.
+    async for content, metadata in execute_agent(
+        message, formatted_history, collection_name
+    ):
+        # We kunnen ervoor kiezen om het laatste update als eindantwoord te gebruiken.
+        final_answer = content
 
-  chat_history = chat_history_manager.add_message_to_chat_history(
-    chat_history, "assistant", final_answer
-  )
+        chat_history = chat_history_manager.replace_last_message_in_chat_history(
+            chat_history, "assistant", content, metadata
+        )
 
-  chat_history_manager.save_chat_history(user_id, None, final_answer)
-  return "", chat_history
+        yield "", chat_history
+
+    chat_history_manager.save_chat_history(user_id, None, final_answer)
+    yield "", chat_history
 
 
 def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
