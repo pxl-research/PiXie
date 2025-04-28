@@ -18,29 +18,78 @@ logger = logging.getLogger(__name__)
 _services = get_agent_services()
 
 # Global variables to hold the initialized client and agent
-_mcp_client = None
+_persistent_client = None
 _agent = None
 
 
-async def init_mcp_agent():
+async def wait_for_agent_initialization(
+    timeout: float = 15.0, poll_interval: float = 0.5
+):
+    """
+    Waits asynchronously until the MCP agent is initialized or until a timeout is reached.
+
+    Args:
+        timeout (float): Maximum time to wait in seconds.
+        poll_interval (float): Interval between checks in seconds.
+
+    Returns:
+        bool: True if agent is ready, False if timeout was reached.
+    """
+    global _agent
+    elapsed = 0.0
+    while elapsed < timeout:
+        if _agent is not None:
+            return True
+        await asyncio.sleep(poll_interval)
+        elapsed += poll_interval
+    return False
+
+
+class PersistentMCPClient:
+    def __init__(self, configs):
+        self.configs = configs
+        self.client = None
+
+    async def connect(self):
+        self.client = await MultiServerMCPClient(self.configs).__aenter__()
+
+    async def disconnect(self):
+        if self.client:
+            await self.client.__aexit__(None, None, None)
+
+    def get_tools(self):
+        return self.client.get_tools() if self.client else []
+
+
+async def init_mcp_agent(state=None):
     """
     Initialize the MCP client and agent once.
     """
-    global _mcp_client, _agent
+    global _persistent_client, _agent
     if _agent is not None:
-        return  # Already initialized
+        logger.info("MCP agent already initialized.")
+        return
 
-    configs = get_mcp_tool_configurations()
-    _mcp_client = await MultiServerMCPClient(configs).__aenter__()
-    _mcp_tools = _mcp_client.get_tools()
-    _mcp_tools.append(ask_user)
-    # Werk tool beschrijvingen bij
-    for tool in _mcp_tools:
-        description = get_tool_description(tool.name)
-        if description:
-            tool.description = description
+    logger.info("Initializing MCP agent ...")
+    try:
+        configs = get_mcp_tool_configurations()
+        _persistent_client = PersistentMCPClient(configs)
+        await _persistent_client.connect()
 
-    _agent = create_react_agent(_services["llm"].model, _mcp_tools)
+        _mcp_tools = _persistent_client.get_tools()
+        _mcp_tools.append(ask_user)
+
+        # Werk tool beschrijvingen bij
+        for tool in _mcp_tools:
+            description = get_tool_description(tool.name)
+            if description:
+                tool.description = description
+
+        _agent = create_react_agent(_services["llm"].model, _mcp_tools)
+        logger.info("MCP agent initialized successfully.")
+    except Exception as e:
+        logger.error(f"MCP agent initialization failed: {str(e)}", exc_info=True)
+        raise
 
 
 async def execute_agent(
@@ -57,23 +106,17 @@ async def execute_agent(
     "calling tool..."). If the agent requests user input mid-process, it yields (question, "") and exits.
 
     Final output is returned as (answer, "") once reasoning is complete.
-
-    Args:
-        message (str): The new user message to be processed by the agent.
-        formatted_history (List[Dict[str, str]]): Previous conversation messages formatted for the agent.
-        collection_name (str): The name of the document collection used for summaries and RAG search.
-
-    Yields:
-        Tuple[str, str]: Intermediate or final responses to be displayed in the UI.
-                        First element is either the final answer or a question for the user.
-                        Second element is a transient status message or empty string.
     """
+    global _agent
+
+    ready = await wait_for_agent_initialization()
+    if not ready:
+        logger.error("[Agent] MCP agent was not ready even after waiting.")
+        yield "Het systeem is nog niet klaar om je vraag te behandelen. Probeer het opnieuw in enkele seconden.", ""
+        return
 
     yield "", "🔄 Preparing AI to process your question..."
-    if _agent is None:
-        await init_mcp_agent()
 
-    # Build custom system prompt from document and table summaries
     summaries = get_summaries_by_collection(collection_name)
     tabular_summaries = _services["tabular_vector_store"].get_summaries_by_collection(
         collection_name
@@ -96,24 +139,21 @@ async def execute_agent(
     try:
         out = None
         async for step in _agent.astream(input_data, thread_config):
-
-            # 1. Tool wordt opgeroepen
             if "agent" in step and step["agent"]["messages"]:
                 message = step["agent"]["messages"][0]
                 if message.content:
-                    yield "", f"💬 AI denkt na .."
+                    yield "", f"💬 AI denkt na..."
                 elif "tool_calls" in message.additional_kwargs:
                     tool_name = message.additional_kwargs["tool_calls"][0]["function"][
                         "name"
                     ]
                     yield "", f"🛠 Tool wordt opgeroepen: {tool_name}"
 
-            # 2. Tool geeft output terug
             elif "tools" in step and step["tools"]["messages"]:
                 content = step["tools"]["messages"][0].content
                 if content.startswith("__user_input_required__::"):
                     question = content.replace("__user_input_required__::", "").strip()
-                    yield question, ""  # Signaal aan Gradio: wacht op user input
+                    yield question, ""
                     return
                 yield "", f"📦 Tooloutput ontvangen"
 
@@ -139,4 +179,4 @@ async def execute_agent(
 
     except Exception as e:
         logger.error(f"Error in agent execution: {str(e)}", exc_info=True)
-        yield f"Er is een fout opgetreden: {str(e)}", ""
+        yield f"Er is een interne fout opgetreden: {str(e)}", ""

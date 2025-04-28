@@ -1,3 +1,4 @@
+import gradio as gr
 from typing import List, Dict, Tuple, Optional, Any
 from services.chat_history import chat_history_manager
 from services.agent_service import execute_agent
@@ -29,8 +30,11 @@ def append_user(
 
 
 async def append_ai(
-    collection_name: str, message: str, user_info: Optional[Dict[str, Any]]
-) -> Tuple[str, List[Tuple[str, str]]]:
+    collection_name: str,
+    message: str,
+    user_info: Optional[Dict[str, Any]],
+    mcp_state: Optional[Any] = None,
+) -> Tuple[str, List[Tuple[str, str]], Any]:
     """
     Generate an AI response to the user's message, update the chat history, and save it.
 
@@ -43,13 +47,16 @@ async def append_ai(
     user_info : Optional[Dict[str, Any]]
       A dictionary containing user information, including the user ID.
       If None, the function will use a default/anonymous user context.
+    mcp_state : Optional[Any]
+      The state object for the MCP agent.
 
     Returns:
     -------
-    Tuple[str, List[Tuple[str, str]]]
+    Tuple[str, List[Tuple[str, str]], Any]
       A tuple containing:
       - An empty string (used for clearing the UI's input field)
       - The updated chat history as a list of (role, message) tuples
+      - A Gradio update command to hide the loading spinner
 
     Note:
     -----
@@ -65,21 +72,17 @@ async def append_ai(
     )
 
     final_answer = ""
-    # Hier itereren we over elke yield van execute_agent.
     async for content, metadata in execute_agent(
         message, formatted_history, collection_name
     ):
-        # We kunnen ervoor kiezen om het laatste update als eindantwoord te gebruiken.
         final_answer = content
-
         chat_history = chat_history_manager.replace_last_message_in_chat_history(
             chat_history, "assistant", content, metadata
         )
-
-        yield "", chat_history
+        yield "", chat_history, gr.update(visible=True)
 
     chat_history_manager.save_chat_history(user_id, None, final_answer)
-    yield "", chat_history
+    yield "", chat_history, gr.update(visible=False)
 
 
 def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:

@@ -9,6 +9,7 @@ from services.authentication.authentication_manager import custom_auth
 from services.chat_history.chat_history_manager import get_chat_history
 from services.document_manager import list_collections
 from services.database.user_db_operations import get_user_by_username
+from services.agent_service import init_mcp_agent
 from typing import List, Tuple, Optional, Dict, Any
 
 # Constants
@@ -76,6 +77,7 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
     # Chat section
     with gr.Column() as chat_row:
         logout_btn = gr.Button("Logout", link="/logout", elem_classes="red_bg")
+        loading_spinner = gr.Markdown(value="", visible=False)
         cb_live = gr.Chatbot(label="Geschiedenis", scale=1, type="messages")
         with gr.Row(equal_height=True, elem_classes="container"):
             collection_dropdown = gr.Dropdown(
@@ -105,12 +107,13 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
             tb_user.submit(append_user, [tb_user, user_info], [cb_live]).then(
                 append_ai,
                 [collection_dropdown, tb_user, user_info],
-                [tb_user, cb_live],
+                [tb_user, cb_live, loading_spinner],
             )
+
             btn_send.click(append_user, [tb_user, user_info], [cb_live]).then(
                 append_ai,
                 [collection_dropdown, tb_user, user_info],
-                [tb_user, cb_live],
+                [tb_user, cb_live, loading_spinner],
             )
             btn_remove.click(clear_log, [user_info], [tb_user, cb_live])
 
@@ -120,5 +123,16 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
         outputs=[cb_live, user_info],
     )
 
-# Launch the Gradio app
-llm_client_ui.queue().launch(server_name="0.0.0.0", server_port=7862, auth=custom_auth)
+    llm_client_ui.load(
+        fn=init_mcp_agent,
+        inputs=None,
+        outputs=None,
+        trigger_mode="once",
+        show_progress=True,
+    )
+
+
+if __name__ == "__main__":
+    llm_client_ui.queue().launch(
+        server_name="0.0.0.0", server_port=7862, auth=custom_auth
+    )
