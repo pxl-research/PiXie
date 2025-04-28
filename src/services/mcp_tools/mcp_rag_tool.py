@@ -13,7 +13,7 @@ from services.init_services import get_rag_services
 
 _rag_services = get_rag_services()
 _vector_store = _rag_services["vector_store"]
-_reranker = None
+_reranker = _rag_services["reranker"]
 
 
 # Initialize FastMCP server with configuration
@@ -84,14 +84,11 @@ async def rag_search(question: str) -> List[str]:
     )
 
     try:
-        # Attempt to retrieve and rerank chunks
         final_docs = retrieve_and_rerank_chunks(collection_name, question)
         logging.info(
             f"Retrieved {len(final_docs)} documents for question: '{question}'"
         )
 
-        # Format documents
-        logging.info("Document formatting completed successfully.")
         return final_docs
 
     except Exception as e:

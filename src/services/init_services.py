@@ -143,10 +143,12 @@ def initialize_rag_services():
     """
     embedding_model = create_embeddings_model()
     vector_store = create_vector_store(embedding_model)
+    reranker = create_reranker()
 
     return {
         "vector_store": vector_store,
         "embedding_model": embedding_model,
+        "reranker": reranker,
     }
 
 
