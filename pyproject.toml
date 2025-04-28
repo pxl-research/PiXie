@@ -9,7 +9,7 @@ authors = [
     { name = "Robin Schrijvers", email = "robin.schrijvers@pxl.be" }
 ]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11,<3.12"
 license = {text = "MIT"}
 
 dependencies = [
@@ -18,7 +18,7 @@ dependencies = [
   "bcrypt==4.2.0",
   "docling==2.8.1",
   "fastapi==0.115.5",
-  "FlagEmbedding==1.2.11",
+  "FlagEmbedding==1.3.4",
   "fuzzywuzzy==0.18.0",
   "gradio==5.11.0",
   "langdetect==1.0.9",
