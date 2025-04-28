@@ -47,8 +47,7 @@ def retrieve_and_rerank_chunks(
     Returns:
         list[str]: A list of the final selected document chunks.
     """
-
-    top_chunks = _vector_store.retrieve_top_chunks(collection_name, message, top_k)
+    top_chunks = _vector_store.fast_retrieve_top_chunks(collection_name, message, top_k)
 
     final_chunks: list[str] = []
     if _reranker is not None:

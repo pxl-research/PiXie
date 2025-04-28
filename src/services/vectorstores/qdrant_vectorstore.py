@@ -120,6 +120,48 @@ class QDrantVectorStore(VectorStore):
             logging.error(f"Failed to retrieve top chunks: {str(e)}")
             return []
 
+    def fast_retrieve_top_chunks(
+        self, collection_name: str, question: str, k: int
+    ) -> List[Document]:
+        """
+        Retrieves the top K most similar document chunks quickly using direct Qdrant API calls.
+
+        Args:
+            collection_name (str): Name of the collection.
+            question (str): The query to search for.
+            k (int): The number of top results to return.
+
+        Returns:
+            List[Document]: A list of the top K similar documents.
+        """
+        try:
+            # 1. Embed the query
+            embedded_query = self.embeddings.embed_query(question)
+
+            # 2. Use direct Qdrant client search
+            search_result = self.client.search(
+                collection_name=collection_name,
+                query_vector=embedded_query,
+                limit=k,
+                with_payload=True,
+            )
+
+            # 3. Convert the search results to Document instances
+            documents = []
+            for point in search_result:
+                content = point.payload.get("page_content", "")
+                metadata = point.payload.get("metadata", {})
+                documents.append(Document(page_content=content, metadata=metadata))
+
+            logging.info(
+                f"Retrieved {len(documents)} documents (fast mode) for question: {question}"
+            )
+            return documents
+
+        except Exception as e:
+            logging.error(f"Fast retrieval failed: {str(e)}")
+            return []
+
     def list_collections(self) -> List[str]:
         """
         Lists all collections in the QDrant vector store.
