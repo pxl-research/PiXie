@@ -1,13 +1,5 @@
 import logging
-from typing import Optional
 from services.database.database import get_db_connection
-from langchain_core.messages import (
-    AIMessage,
-    HumanMessage,
-    messages_from_dict,
-    messages_to_dict,
-)
-from langchain_community.chat_message_histories import ChatMessageHistory
 from typing import List, Optional, Dict, Any
 
 
@@ -146,7 +138,7 @@ def add_message_to_chat_history(
     chat_history: List[Dict[str, Any]],
     role: str,
     content: str,
-    metadata: Dict[str, Any] = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Add a new message to the chat history.
@@ -165,7 +157,9 @@ def add_message_to_chat_history(
     if metadata is None:
         chat_history.append({"role": role, "content": content})
     else:
-        chat_history.append({"role": role, "content": content, "metadata": metadata})
+        chat_history.append(
+            {"role": role, "content": content, "metadata": {"title": metadata}}
+        )
     return chat_history
 
 
@@ -189,23 +183,14 @@ def replace_last_message_in_chat_history(
     Returns:
     - List[Dict[str, str]]: The updated chat history.
     """
-    if chat_history:
-        if chat_history[-1]["role"] == role:
-            if metadata is None:
-                chat_history[-1] = {"role": role, "content": content}
-            else:
-                chat_history[-1] = {
-                    "role": role,
-                    "content": content,
-                    "metadata": {"title": metadata},
-                }
-        else:
-            if metadata is None:
-                chat_history.append({"role": role, "content": content})
-            else:
-                chat_history.append(
-                    {"role": role, "content": content, "metadata": {"title": metadata}}
-                )
+    new_message = {"role": role, "content": content}
+    if metadata is not None:
+        new_message["metadata"] = {"title": metadata}
+
+    if chat_history and chat_history[-1]["role"] == role:
+        chat_history[-1] = new_message
+    else:
+        chat_history.append(new_message)
     return chat_history
 
 

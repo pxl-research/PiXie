@@ -1,10 +1,9 @@
 import logging
 import asyncio
-from typing import Dict, Tuple, List, Any, Optional
+from typing import Dict, List
 
 from services.init_services import get_agent_services
 from services import source_processing
-from services.chat_history import chat_history_manager
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import create_react_agent
 

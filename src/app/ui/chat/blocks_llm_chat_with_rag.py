@@ -1,5 +1,5 @@
 import gradio as gr
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Tuple, Optional, Any, AsyncGenerator
 from services.chat_history import chat_history_manager
 from services.agent_service import execute_agent
 
@@ -34,7 +34,7 @@ async def append_ai(
     message: str,
     user_info: Optional[Dict[str, Any]],
     mcp_state: Optional[Any] = None,
-) -> Tuple[str, List[Tuple[str, str]], Any]:
+) -> AsyncGenerator[Tuple[str, List[Tuple[str, str]]], None]:
     """
     Generate an AI response to the user's message, update the chat history, and save it.
 
@@ -52,7 +52,7 @@ async def append_ai(
 
     Returns:
     -------
-    Tuple[str, List[Tuple[str, str]], Any]
+    AsyncGenerator[Tuple[str, List[Tuple[str, str]]], None]
       A tuple containing:
       - An empty string (used for clearing the UI's input field)
       - The updated chat history as a list of (role, message) tuples
@@ -68,7 +68,7 @@ async def append_ai(
 
     chat_history = chat_history_manager.get_chat_history(user_id, limit=9)
     formatted_history = chat_history_manager.format_chat_history_for_llm(
-        chat_history_manager.get_chat_history(user_id=user_id, limit=5)
+      chat_history[-5:] if len(chat_history) > 5 else chat_history
     )
 
     final_answer = ""
