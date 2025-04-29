@@ -65,6 +65,21 @@ def login(request: gr.Request) -> Tuple[List[Dict[str, str]], Optional[Dict[str,
     user_info = get_user_by_username(username)
     user_id = user_info["id"] if user_info else None
     chat_history = get_chat_history(user_id, limit=10)
+
+    if not chat_history:
+        welcome_message = (
+            f"👋 Welkom {username}!\n\n"
+            "Je maakt nu gebruik van **PiXie**, de AI-assistent ontwikkeld door **PXL Smart ICT**.\n\n"
+            "Je kan hier je vragen stellen. PiXie probeert deze te beantwoorden op basis van de documenten en tabellen "
+            "die geüpload zijn in jouw collectie.\n\n"
+            "Veel succes!"
+        )
+        chat_history = [
+            {
+                "role": "assistant",
+                "content": welcome_message,
+            }
+        ]
     return chat_history, user_info
 
 
@@ -77,7 +92,6 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
     # Chat section
     with gr.Column() as chat_row:
         logout_btn = gr.Button("Logout", link="/logout", elem_classes="red_bg")
-        loading_spinner = gr.Markdown(value="", visible=False)
         cb_live = gr.Chatbot(label="Geschiedenis", scale=1, type="messages")
         with gr.Row(equal_height=True, elem_classes="container"):
             collection_dropdown = gr.Dropdown(
@@ -107,13 +121,13 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
             tb_user.submit(append_user, [tb_user, user_info], [cb_live]).then(
                 append_ai,
                 [collection_dropdown, tb_user, user_info],
-                [tb_user, cb_live, loading_spinner],
+                [tb_user, cb_live],
             )
 
             btn_send.click(append_user, [tb_user, user_info], [cb_live]).then(
                 append_ai,
                 [collection_dropdown, tb_user, user_info],
-                [tb_user, cb_live, loading_spinner],
+                [tb_user, cb_live],
             )
             btn_remove.click(clear_log, [user_info], [tb_user, cb_live])
 

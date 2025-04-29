@@ -108,14 +108,14 @@ async def execute_agent(
     Final output is returned as (answer, "") once reasoning is complete.
     """
     global _agent
-
+    yield "⏳ Een ogenblikje geduld... Bij het opstarten hebben we even tijd nodig om de beste modellen in te laden zodat we je vragen het beste kunnen beantwoorden. Geen nood, dit is enkel bij de eerste vraag.", ""
     ready = await wait_for_agent_initialization()
     if not ready:
         logger.error("[Agent] MCP agent was not ready even after waiting.")
-        yield "Het systeem is nog niet klaar om je vraag te behandelen. Probeer het opnieuw in enkele seconden.", ""
+        yield "Het systeem is nog bezig met opstarten. Probeer binnen enkele seconden opnieuw.", "⏳ Systeem nog niet klaar"
         return
 
-    yield "", "🔄 Preparing AI to process your question..."
+    yield "De AI wordt klaargemaakt om je vraag te verwerken.", "🔄 Voorbereiding"
 
     summaries = get_summaries_by_collection(collection_name)
     tabular_summaries = _services["tabular_vector_store"].get_summaries_by_collection(
@@ -142,12 +142,12 @@ async def execute_agent(
             if "agent" in step and step["agent"]["messages"]:
                 message = step["agent"]["messages"][0]
                 if message.content:
-                    yield "", f"💬 AI denkt na..."
+                    yield "De AI is bezig met redeneren op basis van je vraag.", "💬 AI denkt na..."
                 elif "tool_calls" in message.additional_kwargs:
                     tool_name = message.additional_kwargs["tool_calls"][0]["function"][
                         "name"
                     ]
-                    yield "", f"🛠 Tool wordt opgeroepen: {tool_name}"
+                    yield f"De tool '{tool_name}' wordt uitgevoerd om extra informatie te verzamelen.", f"🛠 Tool wordt opgeroepen: {tool_name}"
 
             elif "tools" in step and step["tools"]["messages"]:
                 content = step["tools"]["messages"][0].content
@@ -155,12 +155,13 @@ async def execute_agent(
                     question = content.replace("__user_input_required__::", "").strip()
                     yield question, ""
                     return
-                yield "", f"📦 Tooloutput ontvangen"
+                yield "De tool heeft resultaten opgeleverd. De AI verwerkt deze nu.", "📦 Tooloutput ontvangen"
 
             out = step
 
         if out and out.get("agent") and out["agent"]["messages"]:
             final_msg = out["agent"]["messages"][0].content
+            yield "De AI is nu de bronnen aan het verwerken.", "📚 Bronnen worden verwerkt"
             answer, sources = source_processing.split_answer_and_sources(final_msg)
             sources_list = (
                 source_processing.process_sources(sources.strip()) if sources else []
@@ -175,8 +176,8 @@ async def execute_agent(
 
     except RecursionError as e:
         logger.error(f"RecursionError in agent execution: {str(e)}", exc_info=True)
-        yield "Ik heb niet genoeg informatie om de vraag te beantwoorden.", ""
+        yield "De AI heeft onvoldoende informatie kunnen verzamelen om je vraag correct te beantwoorden.", "❌ Niet genoeg informatie"
 
     except Exception as e:
         logger.error(f"Error in agent execution: {str(e)}", exc_info=True)
-        yield f"Er is een interne fout opgetreden: {str(e)}", ""
+        yield f"Er is een interne fout opgetreden: {str(e)}", "🚨 Interne fout"

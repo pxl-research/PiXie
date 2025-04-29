@@ -79,10 +79,10 @@ async def append_ai(
         chat_history = chat_history_manager.replace_last_message_in_chat_history(
             chat_history, "assistant", content, metadata
         )
-        yield "", chat_history, gr.update(visible=True)
+        yield "", chat_history
 
     chat_history_manager.save_chat_history(user_id, None, final_answer)
-    yield "", chat_history, gr.update(visible=False)
+    yield "", chat_history
 
 
 def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
