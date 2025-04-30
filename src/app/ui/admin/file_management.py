@@ -119,10 +119,10 @@ def file_upload_interface():
             )
 
             delete_file_button.click(
-                remove_document, 
-                inputs=[selected_file], 
-                outputs=[files_list], 
-                queue=False
+                remove_document,
+                inputs=[selected_file],
+                outputs=[files_list],
+                queue=False,
             )
 
             file_upload.upload(
@@ -137,6 +137,3 @@ def file_upload_interface():
         )
 
     return (files_list, file_upload, delete_file_button, load_files_list)
-
-
-file_upload_interface()

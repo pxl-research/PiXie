@@ -5,19 +5,12 @@ from app.ui.chat.blocks_llm_chat_with_rag import (
     append_ai,
     clear_log,
 )
-from services.authentication.authentication_manager import custom_auth
 from services.chat_history.chat_history_manager import get_chat_history
 from services.document_manager import list_collections
 from services.database.user_db_operations import get_user_by_username
 from services.agent_service import init_mcp_agent
 from typing import List, Tuple, Optional, Dict, Any
 
-# Constants
-CSS_STYLES = """
-    .red_bg {background: red}
-    .green_bg {background: green}
-    footer {display:none !important}
-"""
 SEND_ICON_PATH = os.path.join("src", "assets", "icons", "send.png")
 DISPOSAL_ICON_PATH = os.path.join("src", "assets", "icons", "disposal.png")
 
@@ -83,8 +76,7 @@ def login(request: gr.Request) -> Tuple[List[Dict[str, str]], Optional[Dict[str,
     return chat_history, user_info
 
 
-# Gradio UI Setup
-with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui:
+def create_chat_ui(chat_app: gr.Blocks) -> None:
     user_info = gr.State(value=None)
 
     gr.Markdown("# <center>Vraag het aan PiXie</center>")
@@ -131,22 +123,16 @@ with gr.Blocks(fill_height=True, title="PiXie", css=CSS_STYLES) as llm_client_ui
             )
             btn_remove.click(clear_log, [user_info], [tb_user, cb_live])
 
-    llm_client_ui.load(
+    chat_app.load(
         fn=login,
         inputs=None,
         outputs=[cb_live, user_info],
     )
 
-    llm_client_ui.load(
+    chat_app.load(
         fn=init_mcp_agent,
         inputs=None,
         outputs=None,
         trigger_mode="once",
         show_progress=True,
-    )
-
-
-if __name__ == "__main__":
-    llm_client_ui.queue().launch(
-        server_name="0.0.0.0", server_port=7862, auth=custom_auth
     )
