@@ -38,18 +38,6 @@ def get_mcp_tool_configurations():
               including command, args, env, disabled, and autoApprove if applicable.
     """
     return {
-        "rag": {
-            "command": "python",
-            "args": ["src/services/mcp_tools/mcp_rag_tool.py"],
-            "env": load_env_vars(
-                "AZURE_BLOB_CONNECTION_STRING",
-                "AZURE_STORAGE_ACCOUNT_NAME",
-                "AZURE_CONTAINER_NAME",
-                "EMBEDDINGS_MODEL_NAME",
-                "QDRANT_HOST",
-                "QDRANT_PORT",
-            ),
-        },
         "tabular-rag": {
             "command": "python",
             "args": ["src/services/mcp_tools/mcp_tabular_rag_tool.py"],
@@ -89,4 +77,5 @@ def get_mcp_tool_configurations():
             "command": "docker",
             "args": ["run", "--rm", "-i", "mcp/sequentialthinking"],
         },
+        "rag": {"url": os.getenv("RAG_API_URL"), "transport": "sse"},
     }
