@@ -8,17 +8,7 @@ services:
       - db
     volumes:
       - embeddings_cache:/app/embeddings_cache
-      - reranker_cache:/app/reranker_cache
       - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - app-network
-
-  vectorstore:
-    image: qdrant/qdrant
-    ports:
-      - "6333:6333"
-    volumes:
-      - qdrant_storage:/qdrant/storage
     networks:
       - app-network
 
@@ -34,9 +24,7 @@ services:
       - app-network
 
 volumes:
-  qdrant_storage:
   embeddings_cache:
-  reranker_cache:
   postgres_data:
 
 networks:

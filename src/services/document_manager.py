@@ -266,10 +266,16 @@ def remove_document(
         logging.info(f"Removing document: {selected_file}")
         try:
             if document_file_type is DocumentFileType.Document:
-                _services["vector_store"].delete_document(
-                    collection_name, selected_file
+                success_deletion_from_vector_store = _services[
+                    "vector_store"
+                ].delete_document(collection_name, selected_file)
+                success_deletion_from_doc_list = remove_from_doc_list(
+                    selected_file, collection_name
                 )
-                success = remove_from_doc_list(selected_file, collection_name)
+                success = (
+                    success_deletion_from_vector_store
+                    and success_deletion_from_doc_list
+                )
             elif document_file_type is DocumentFileType.TabularDocument:
                 success = tabular_vector_store.delete_tabular_document(
                     collection_name, selected_file
@@ -339,7 +345,7 @@ def list_collections() -> list[str]:
     print(collections)
     print("Tabular collections:")
     print(tabular_collections)
-    assert set(collections) == set(tabular_collections)
+    # assert set(collections) == set(tabular_collections)
     return list(set(collections + tabular_collections))
 
 

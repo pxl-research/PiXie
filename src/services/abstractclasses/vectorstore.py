@@ -11,8 +11,11 @@ class VectorStore(ABC):
     Abstract base class for a vector store.
     """
 
-    def __init__(self, embeddings: Embeddings):
-        self.embeddings = embeddings
+    def __init__(self, embeddings: Embeddings = None):
+        if embeddings is not None:
+            self.embeddings = embeddings
+        else:
+            self.embeddings = None
 
     @abstractmethod
     def add_document(

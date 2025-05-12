@@ -5,8 +5,7 @@ from services.splitters.custom_markdown_splitter import CustomMarkdownSplitter
 from services.embedding_models.lc_huggingface_embedding_model import (
     LangChainHuggingFaceEmbeddingModel,
 )
-from services.vectorstores.qdrant_vectorstore import QDrantVectorStore
-from services.rerankers.bge_reranker import BGEReranker
+from services.vectorstores.remote_vectorstore import RemoteVectorStore
 from services.llms.azure_openai_llm import AzureOpenAILLM
 from services.summarizer import Summarizer
 from services.vectorstores.tabular_pg_vectorstore import TabularPGVectorStore
@@ -67,20 +66,10 @@ def create_embeddings_model():
 
 def create_vector_store(embeddings_model):
     """
-    Create and return the Qdrant vector store.
+    Create and return the remote vector store.
     """
-    return QDrantVectorStore(
-        embeddings=embeddings_model.get_embeddings(),
-        host=os.getenv("QDRANT_HOST"),
-        port=os.getenv("QDRANT_PORT"),
-    )
-
-
-def create_reranker():
-    """
-    Create and return the reranker instance.
-    """
-    return BGEReranker()
+    return RemoteVectorStore(
+        url=os.getenv("VECTOR_STORE_URL"))
 
 
 def create_llm():
@@ -143,12 +132,10 @@ def initialize_rag_services():
     """
     embedding_model = create_embeddings_model()
     vector_store = create_vector_store(embedding_model)
-    reranker = create_reranker()
 
     return {
         "vector_store": vector_store,
         "embedding_model": embedding_model,
-        "reranker": reranker,
     }
 
 
