@@ -20,7 +20,7 @@ def append_user(
     - List[Tuple[str, str]]: The updated chat history list of tuples, where each tuple contains the user's message
       and the AI response (or None if no response yet).
     """
-    user_id = user_info["id"] if user_info else None
+    user_id = user_info["id"] if user_info else 0  # Default to 0 for anonymous users
     chat_history = chat_history_manager.get_chat_history(user_id, limit=10)
     chat_history_manager.save_chat_history(user_id, message, None)
     chat_history = chat_history_manager.add_message_to_chat_history(
@@ -64,20 +64,20 @@ async def append_ai(
     uses execute_agent to generate a response with RAG capabilities,
     then updates and saves the chat history with the AI's response.
     """
-    user_id = user_info["id"] if user_info else None
+    user_id = user_info["id"] if user_info else 0  # Default to 0 for anonymous users
 
     chat_history = chat_history_manager.get_chat_history(user_id, limit=9)
     formatted_history = chat_history_manager.format_chat_history_for_llm(
-      chat_history[-5:] if len(chat_history) > 5 else chat_history
+        chat_history[-5:] if len(chat_history) > 5 else chat_history
     )
 
     final_answer = ""
-    async for content, metadata in execute_agent(
+    async for content, metadata_title in execute_agent(
         message, formatted_history, collection_name
     ):
         final_answer = content
         chat_history = chat_history_manager.replace_last_message_in_chat_history(
-            chat_history, "assistant", content, metadata
+            chat_history, "assistant", content, {"title": metadata_title}
         )
         yield "", chat_history
 
@@ -96,6 +96,6 @@ def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
     Returns:
     - List[str]: An empty list containing two empty strings, used to reset the chat interface.
     """
-    user_id = user_info["id"] if user_info else None
+    user_id = user_info["id"] if user_info else 0  # Default to 0 for anonymous users
     chat_history_manager.delete_chat_history(user_id)
     return ["", ""]

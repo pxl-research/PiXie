@@ -39,7 +39,9 @@ def get_chat_history(user_id: int, limit: Optional[int] = None) -> List[Dict[str
         conn.close()
 
 
-def save_chat_history(user_id: int, question: str, response: str) -> None:
+def save_chat_history(
+    user_id: int, question: Optional[str], response: Optional[str]
+) -> None:
     """
     Save a new interaction to the user's chat history in the database.
 
@@ -157,9 +159,7 @@ def add_message_to_chat_history(
     if metadata is None:
         chat_history.append({"role": role, "content": content})
     else:
-        chat_history.append(
-            {"role": role, "content": content, "metadata": {"title": metadata}}
-        )
+        chat_history.append({"role": role, "content": content, "metadata": metadata})
     return chat_history
 
 
@@ -167,7 +167,7 @@ def replace_last_message_in_chat_history(
     chat_history: List[Dict[str, str]],
     role: str,
     content: str,
-    metadata: Dict[str, Any] = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, str]]:
     """
     Replace the last message in the chat history with a new message.
@@ -183,9 +183,9 @@ def replace_last_message_in_chat_history(
     Returns:
     - List[Dict[str, str]]: The updated chat history.
     """
-    new_message = {"role": role, "content": content}
+    new_message: dict[str, Any] = {"role": role, "content": content}
     if metadata is not None:
-        new_message["metadata"] = {"title": metadata}
+        new_message["metadata"] = metadata
 
     if chat_history and chat_history[-1]["role"] == role:
         chat_history[-1] = new_message

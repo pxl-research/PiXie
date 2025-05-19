@@ -23,7 +23,6 @@ _services = get_services()
 _persistent_client = None
 _agent = None
 
-
 async def wait_for_agent_initialization(
     timeout: float = 15.0, poll_interval: float = 0.5
 ):
@@ -123,8 +122,6 @@ async def execute_agent(
     tabular_summaries = _services["tabular_vector_store"].get_summaries_by_collection(
         collection_name
     )
-    logger.info(f"Summaries: {summaries}")
-    logger.info(f"Tabular Summaries: {tabular_summaries}")
     custom_prompt = get_agent_system_prompt(summaries, tabular_summaries)
     input_data = {
         "messages": (

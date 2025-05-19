@@ -57,7 +57,7 @@ def login(request: gr.Request) -> Tuple[List[Dict[str, str]], Optional[Dict[str,
     username = request.username
     user_info = get_user_by_username(username)
     user_id = user_info["id"] if user_info else None
-    chat_history = get_chat_history(user_id, limit=10)
+    chat_history = get_chat_history(user_id, limit=10) if user_id is not None else []
 
     if not chat_history:
         welcome_message = (

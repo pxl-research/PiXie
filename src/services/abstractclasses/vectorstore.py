@@ -27,7 +27,7 @@ class VectorStore(ABC):
         pass
 
     @abstractmethod
-    def delete_document(self, collection_name: str, file_name: str) -> None:
+    def delete_document(self, collection_name: str, file_name: str) -> bool:
         """
         Abstract method to delete a document from the vector store.
 
