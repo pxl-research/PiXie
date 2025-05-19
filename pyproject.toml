@@ -16,7 +16,7 @@ dependencies = [
   "azure-ai-documentintelligence==1.0.0b3",
   "azure-storage-blob==12.22.0",
   "bcrypt==4.2.0",
-  "docling==2.8.1",
+  "docling==2.32.0",
   "fastapi==0.115.5",
   "fuzzywuzzy==0.18.0",
   "gradio==5.11.0",
@@ -43,11 +43,12 @@ dependencies = [
   "peft==0.12.0",
   "sentencepiece==0.2.0",
   "tiktoken==0.8.0",
-  "transformers==4.48.0",
   "uvicorn[standard]==0.32.1",
   "langchain-mcp-adapters>=0.0.7",
   "pydantic>=2.9.2",
   "pydantic-core>=2.23.4",
+  "requests==2.32.3",
+  "fastmcp==2.3.3",
 ]
 
 [build-system]

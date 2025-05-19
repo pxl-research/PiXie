@@ -1,8 +1,6 @@
 # vector_store.py
-import logging
 from typing import List
 from abc import ABC, abstractmethod
-from langchain_core.embeddings import Embeddings
 from langchain_core.documents import Document
 
 
@@ -11,11 +9,8 @@ class VectorStore(ABC):
     Abstract base class for a vector store.
     """
 
-    def __init__(self, embeddings: Embeddings = None):
-        if embeddings is not None:
-            self.embeddings = embeddings
-        else:
-            self.embeddings = None
+    def __init__(self, url: str):
+        self.url = url
 
     @abstractmethod
     def add_document(

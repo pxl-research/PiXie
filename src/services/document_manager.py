@@ -1,8 +1,8 @@
 import os
 import shutil
-import json
 import logging
 import pandas as pd
+import datetime
 from langchain.schema import Document
 from werkzeug.utils import secure_filename
 from typing import Optional
@@ -27,10 +27,10 @@ from langdetect import detect, DetectorFactory
 from collections import Counter
 
 # Import shared services for document management
-from services.init_services import get_document_services
+from services.init_services import get_services
 
 # Shared services for document management
-_services = get_document_services()
+_services = get_services()
 tabular_vector_store = _services["tabular_vector_store"]
 
 # Fix randomness in langdetect
@@ -123,11 +123,15 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
 
         if document_file_type is DocumentFileType.Document:
             # Check if the document is already up-to-date
-            if is_doc_up_to_date_in_list(file_hash, collection_name):
+            if _services["vector_store"].is_doc_up_to_date_in_list(
+                file_hash, collection_name
+            ):
                 logging.info(f"File {secure_file_name} is already up-to-date.")
                 return None
 
-            delete = is_doc_in_list(secure_file_name, collection_name)
+            delete = _services["vector_store"].is_doc_in_list(
+                secure_file_name, collection_name
+            )
 
             summary = _services["summarizer"].summarize(document[0])
             chunks = _services["splitter"].split(document)
@@ -148,7 +152,7 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
             )
 
             # Update the document list
-            add_to_doc_list(
+            _services["vector_store"].add_to_doc_list(
                 secure_file_name, file_hash, collection_name, summary, delete
             )
 
@@ -193,21 +197,32 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
                 """
 
                 file_description = _services["tabular_summarizer"].generate(df=df)
+                logging.info(f"File description: {file_description}")
                 if file_description is None:
                     file_description = ""
-                file_schema = tabular_vector_store.infer_postgres_schema(df)
 
                 # Infer language from DataFrame df
                 language = detect_language_from_dataframe_samples(df, n=10)
                 if language is None:
                     language = os.getenv("DEFAULT_LANGUAGE")
 
-                tabular_vector_store.add_tabular_document(
+                # Use map on each column instead of deprecated applymap
+                for col in df.columns:
+                    df[col] = df[col].map(
+                        lambda x: (
+                            x.isoformat()
+                            if isinstance(
+                                x, (pd.Timestamp, datetime.datetime, datetime.date)
+                            )
+                            else x
+                        )
+                    )
+
+                tabular_vector_store.add_document(
                     collection_name=collection_name,
                     file_name=secure_file_name_sheet,
                     file_hash=file_hash,
                     file_description=file_description,
-                    file_schema=file_schema,
                     language=language,
                     df=df,
                 )
@@ -269,9 +284,9 @@ def remove_document(
                 success_deletion_from_vector_store = _services[
                     "vector_store"
                 ].delete_document(collection_name, selected_file)
-                success_deletion_from_doc_list = remove_from_doc_list(
-                    selected_file, collection_name
-                )
+                success_deletion_from_doc_list = _services[
+                    "vector_store"
+                ].remove_from_doc_list(selected_file, collection_name)
                 success = (
                     success_deletion_from_vector_store
                     and success_deletion_from_doc_list
@@ -310,7 +325,7 @@ def list_documents(collection_name: str) -> list[list[str]]:
     """
 
     def non_tabular(collection_name: str) -> list[str]:
-        file_list = get_doc_list(collection_name)
+        file_list = _services["vector_store"].get_doc_list(collection_name)
         return file_list
 
     def tabular(collection_name: str) -> list[str]:

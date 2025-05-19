@@ -2,7 +2,7 @@ import logging
 import asyncio
 from typing import Dict, List
 
-from services.init_services import get_agent_services
+from services.init_services import get_services
 from services import source_processing
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import create_react_agent
@@ -10,11 +10,14 @@ from langgraph.prebuilt import create_react_agent
 from services.database.document_db_operations import get_summaries_by_collection
 from services.mcp_tools.tool_config import get_mcp_tool_configurations, ask_user
 from services.prompt_manager import get_agent_system_prompt, get_tool_description
+import subprocess
+import os
+
 
 logger = logging.getLogger(__name__)
 
 # Shared chat services
-_services = get_agent_services()
+_services = get_services()
 
 # Global variables to hold the initialized client and agent
 _persistent_client = None
@@ -50,7 +53,7 @@ class PersistentMCPClient:
         self.client = None
 
     async def connect(self):
-        self.client = await MultiServerMCPClient(self.configs).__aenter__()
+        self.client = MultiServerMCPClient(self.configs)
 
     async def disconnect(self):
         if self.client:
@@ -75,7 +78,7 @@ async def init_mcp_agent(state=None):
         _persistent_client = PersistentMCPClient(configs)
         await _persistent_client.connect()
 
-        _mcp_tools = _persistent_client.get_tools()
+        _mcp_tools = await _persistent_client.get_tools()
         _mcp_tools.append(ask_user)
 
         # Werk tool beschrijvingen bij
@@ -120,6 +123,8 @@ async def execute_agent(
     tabular_summaries = _services["tabular_vector_store"].get_summaries_by_collection(
         collection_name
     )
+    logger.info(f"Summaries: {summaries}")
+    logger.info(f"Tabular Summaries: {tabular_summaries}")
     custom_prompt = get_agent_system_prompt(summaries, tabular_summaries)
     input_data = {
         "messages": (

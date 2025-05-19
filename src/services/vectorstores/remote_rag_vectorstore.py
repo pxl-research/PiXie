@@ -6,7 +6,7 @@ import os
 import logging
 
 
-class RemoteVectorStore(VectorStore):
+class RemoteRagVectorStore(VectorStore):
     def __init__(self, url: str):
         self.url = url
 
@@ -44,7 +44,7 @@ class RemoteVectorStore(VectorStore):
             logging.error(f"Failed to add document {file_name}: {str(e)}")
             raise
 
-    def delete_document(self, collection_name: str, file_name: str) -> None:
+    def delete_document(self, collection_name: str, file_name: str) -> bool:
         """
         Deletes a document from the remote vector store.
 
@@ -82,9 +82,9 @@ class RemoteVectorStore(VectorStore):
             raise Exception(f"Failed to list collections: {response.text}")
 
         data = response.json()
-        if "collections" not in data:
+        if "items" not in data:
             raise Exception("Invalid response format: 'collections' key missing.")
-        return data["collections"]
+        return data["items"]
 
     def add_collection(self, collection_name):
         """
@@ -112,9 +112,100 @@ class RemoteVectorStore(VectorStore):
             List[Document]: A list of the top K similar documents.
         """
         logging.info("Calling obsolete function to retrieve top chunks.")
-        return True
+        return []
 
-    def _get(self, call: str, data: dict = None):
+    def is_doc_up_to_date_in_list(self, file_hast: str, collection_name: str) -> bool:
+        """
+        Checks if a document is up to date in the list.
+
+        Args:
+            collection_name (str): The name of the collection.
+            file_name (str): The name of the document.
+
+        Returns:
+            bool: True if the document is up to date, False otherwise.
+        """
+        response = self._get(
+            "is_doc_up_to_date",
+            {"file_hash": file_hast, "collection_name": collection_name},
+        )
+        if response.status_code != 200:
+            raise Exception(f"Failed to check document status: {response.text}")
+        return response.json().get("success", False)
+
+    def is_doc_in_list(self, file_name: str, collection_name: str) -> bool:
+        """
+        Checks if a document is in the list.
+
+        Args:
+            collection_name (str): The name of the collection.
+            file_name (str): The name of the document.
+
+        Returns:
+            bool: True if the document is in the list, False otherwise.
+        """
+        response = self._get(
+            "is_doc_in_list",
+            {"file_name": file_name, "collection_name": collection_name},
+        )
+        if response.status_code != 200:
+            raise Exception(f"Failed to check document status: {response.text}")
+        return response.json().get("success", False)
+
+    def get_doc_list(self, collection_name: str) -> List[str]:
+        """
+        Retrieves the list of documents in a collection.
+
+        Args:
+            collection_name (str): The name of the collection.
+
+        Returns:
+            List[str]: A list of document names.
+        """
+        response = self._get("get_doc_list", {"collection_name": collection_name})
+        if response.status_code != 200:
+            raise Exception(f"Failed to get document list: {response.text}")
+        return response.json().get("items", [])
+
+    def add_to_doc_list(self, file_name: str, collection_name: str) -> bool:
+        """
+        Adds a document to the list.
+
+        Args:
+            file_name (str): The name of the document.
+            collection_name (str): The name of the collection.
+
+        Returns:
+            bool: True if the document was added successfully, False otherwise.
+        """
+        response = self._get(
+            "add_to_doc_list",
+            {"file_name": file_name, "collection_name": collection_name},
+        )
+        if response.status_code != 200:
+            raise Exception(f"Failed to add document to list: {response.text}")
+        return response.json().get("success", False)
+
+    def remove_from_doc_list(self, file_name: str, collection_name: str) -> bool:
+        """
+        Deletes a document from the list.
+
+        Args:
+            file_name (str): The name of the document.
+            collection_name (str): The name of the collection.
+
+        Returns:
+            bool: True if the document was deleted successfully, False otherwise.
+        """
+        response = self._get(
+            "remove_from_doc_list",
+            {"file_name": file_name, "collection_name": collection_name},
+        )
+        if response.status_code != 200:
+            raise Exception(f"Failed to delete document from list: {response.text}")
+        return response.json().get("success", False)
+
+    def _get(self, call: str, data: dict | None = None):
         return requests.get(
             f"{self.url}/{call}",
             headers={

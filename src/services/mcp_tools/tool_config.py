@@ -38,44 +38,29 @@ def get_mcp_tool_configurations():
               including command, args, env, disabled, and autoApprove if applicable.
     """
     return {
-        "tabular-rag": {
-            "command": "python",
-            "args": ["src/services/mcp_tools/mcp_tabular_rag_tool.py"],
-            "env": load_env_vars(
-                "DEVICE_TYPE",
-                "EMBEDDINGS_MODEL_NAME",
-                "AZURE_OPENAI_API_VERSION",
-                "AZURE_OPENAI_ENDPOINT",
-                "AZURE_OPENAI_API_KEY",
-                "AZURE_OPENAI_MODEL_VERSION",
-                "POSTGRES_DB",
-                "POSTGRES_USER",
-                "POSTGRES_PASSWORD",
-                "DEFAULT_LANGUAGE",
-            ),
-        },
         "tavily-mcp": {
+            "transport": "stdio",
             "command": "npx",
             "args": ["-y", "tavily-mcp@0.1.4"],
             "env": load_env_vars("TAVILY_API_KEY"),
             "disabled": False,
             "autoApprove": [],
         },
-        "github": {
-            "command": "docker",
-            "args": [
-                "run",
-                "-i",
-                "--rm",
-                "-e",
-                "GITHUB_PERSONAL_ACCESS_TOKEN",
-                "ghcr.io/github/github-mcp-server",
-            ],
-            "env": load_env_vars("GITHUB_PERSONAL_ACCESS_TOKEN"),
-        },
         "sequentialthinking": {
+            "transport": "stdio",
             "command": "docker",
             "args": ["run", "--rm", "-i", "mcp/sequentialthinking"],
         },
-        "rag": {"url": os.getenv("RAG_API_URL"), "transport": "sse"},
+        "rag": {
+            "transport": "stdio",
+            "command": "python",
+            "args": ["src/services/mcp_tools/mcp_rag_tool.py"],
+            "env": {**load_env_vars("RAG_API_KEY")},
+        },
+        "tabular": {
+            "transport": "stdio",
+            "command": "python",
+            "args": ["src/services/mcp_tools/mcp_tabular_tool.py"],
+            "env": {**load_env_vars("RAG_API_KEY")},
+        },
     }

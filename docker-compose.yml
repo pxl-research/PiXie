@@ -4,7 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     depends_on:
-      - vectorstore
       - db
     volumes:
       - embeddings_cache:/app/embeddings_cache
