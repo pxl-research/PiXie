@@ -6,16 +6,17 @@ from services.authentication.authentication_manager import (
     decode_access_token,
     verify_password,
     hash_password,
-    oauth2_scheme
+    oauth2_scheme,
 )
 from services.database.user_db_operations import (
     get_user_by_username,
     add_user_to_db,
     user_exists,
-    get_db_connection,
 )
 
 from pydantic import BaseModel
+import os
+
 
 # Maak een Pydantic-model voor de request body
 class RegisterUser(BaseModel):
@@ -23,16 +24,12 @@ class RegisterUser(BaseModel):
     password: str
     role: str = "user"
 
-router = APIRouter()
 
-# Configuratie
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+auth_router = APIRouter()
 
 
-@router.post("/token")
-def login(
-    form_data: OAuth2PasswordRequestForm = Depends()
-):
+@auth_router.post("/token")
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
     """
     Login route die een JWT access token retourneert.
 
@@ -51,12 +48,14 @@ def login(
 
     access_token = create_access_token(
         data={"sub": user["username"], "role": user["role"]},
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        expires_delta=timedelta(
+            minutes=float(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+        ),
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/register")
+@auth_router.post("/register")
 def register(user_data: RegisterUser):
     """
     Registreer een nieuwe gebruiker.
@@ -72,7 +71,11 @@ def register(user_data: RegisterUser):
     if user_exists(username=user_data.username):
         raise HTTPException(status_code=400, detail="User already exists")
     hashed_password = hash_password(user_data.password)
-    success = add_user_to_db(username=user_data.username, hashed_password=hashed_password, role=user_data.role)
+    success = add_user_to_db(
+        username=user_data.username,
+        hashed_password=hashed_password,
+        role=user_data.role,
+    )
 
     if not success:
         raise HTTPException(status_code=500, detail="Failed to register user")
@@ -80,7 +83,7 @@ def register(user_data: RegisterUser):
     return {"message": f"User '{user_data.username}' successfully registered"}
 
 
-@router.get("/me")
+@auth_router.get("/me")
 def get_current_user(
     token: str = Depends(oauth2_scheme),
 ):
@@ -93,7 +96,6 @@ def get_current_user(
     Returns:
         dict: Gebruikersinformatie uit het token.
     """
-    print("Echte get_current_user functie")
     payload = decode_access_token(token)
     username = payload.get("sub")
     if not username:

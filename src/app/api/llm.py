@@ -1,21 +1,36 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from app.api.auth import get_current_user
-from app.ui.chat.blocks_llm_chat_with_rag import append_user, append_ai
+from app.ui.chat.blocks_llm_chat_with_rag import append_user, append_ai_for_api
 import logging
 
 
 # Pydantic modellen
 class UserInput(BaseModel):
     user_question: str
+    session_id: int = 0
     collection: str = "pixie"
 
 
-router = APIRouter()
+class AIResponse(BaseModel):
+    response: str
 
 
-@router.post("/ask_question")
-def ask_question(input_data: UserInput, current_user: dict = Depends(get_current_user)):
+chat_router = APIRouter()
+
+
+@chat_router.post(
+    "/chat",
+    response_model=AIResponse,
+    summary="Submit a question to the AI with RAG and session support",
+    description=(
+        "Adds a user question to the chat history and generates a response "
+        "using retrieval-augmented generation (RAG) from the specified collection. "
+        "Supports session-based history using session_id."
+    ),
+    tags=["Chat"],
+)
+async def chat(input_data: UserInput, current_user: dict = Depends(get_current_user)):
     """
     Combineert append_user en append_ai in één stap.
 
@@ -27,23 +42,21 @@ def ask_question(input_data: UserInput, current_user: dict = Depends(get_current
         dict: Het antwoord van de AI en bijgewerkte chatgeschiedenis.
     """
     try:
-        print(current_user)
+        current_user["session_id"] = input_data.session_id
         logging.info(
             f"User '{current_user['username']}' asked a question: {input_data.user_question}"
         )
         # Voeg de gebruikersvraag toe aan de chatgeschiedenis
-        tmp = append_user(input_data.user_question, current_user)
-        print("User added")
-        print(tmp)
+        append_user(input_data.user_question, current_user)
+
         # Genereer een AI-antwoord en voeg dit toe aan de chatgeschiedenis
-        response, updated_chat_history = append_ai(
+        response: str = await append_ai_for_api(
             input_data.collection, input_data.user_question, current_user
         )
-        print("Response:")
-        print(response)
-        print("Chat history:")
-        print(updated_chat_history)
 
-        return {"response": response, "chat_history": updated_chat_history}
+        return {"response": response}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+        logging.exception(
+            f"Error processing chat request for user '{current_user['username']}': {e}"
+        )
+        raise HTTPException(status_code=500, detail="Internal Server Error")

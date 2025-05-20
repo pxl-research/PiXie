@@ -33,7 +33,8 @@ def load_chat_history(user_info: Optional[Dict[str, Any]]) -> List[Dict[str, str
     """
     if user_info and "id" in user_info:
         user_id = user_info["id"]
-        chat_history = get_chat_history(user_id, limit=10)
+        session_id = user_info.get("session_id", 0)
+        chat_history = get_chat_history(user_id, session_id, limit=10)
         return chat_history
     return []
 
@@ -57,7 +58,10 @@ def login(request: gr.Request) -> Tuple[List[Dict[str, str]], Optional[Dict[str,
     username = request.username
     user_info = get_user_by_username(username)
     user_id = user_info["id"] if user_info else None
-    chat_history = get_chat_history(user_id, limit=10) if user_id is not None else []
+    session_id = user_info.get("session_id", 0) if user_info else 0
+    chat_history = (
+        get_chat_history(user_id, session_id, limit=10) if user_id is not None else []
+    )
 
     if not chat_history:
         welcome_message = (
@@ -127,12 +131,4 @@ def create_chat_ui(chat_app: gr.Blocks) -> None:
         fn=login,
         inputs=None,
         outputs=[cb_live, user_info],
-    )
-
-    chat_app.load(
-        fn=init_mcp_agent,
-        inputs=None,
-        outputs=None,
-        trigger_mode="once",
-        show_progress=True,
     )

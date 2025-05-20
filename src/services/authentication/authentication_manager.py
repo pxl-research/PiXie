@@ -21,10 +21,9 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
+
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode(
-        "utf-8"
-    )
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def add_user(username, password, role="user"):
@@ -122,16 +121,18 @@ def custom_auth(username: str, password: str) -> Optional[Dict[str, Any]]:
         Optional[Dict[str, Any]]: Gebruikersinformatie als authenticatie succesvol is, anders None.
     """
     user = get_user_by_username(username)
-    if user and verify_password(password, user['password']):
+    if user and verify_password(password, user["password"]):
         logging.info(f"User '{username}' authenticated successfully.")
         return {
-            "id": user['id'],
-            "username": user['username'],
-            "role": user['role']
+            "id": user["id"],
+            "username": user["username"],
+            "role": user["role"],
+            "session_id": 0,
         }
     else:
         logging.warning(f"Authentication failed for user '{username}'.")
         return None
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
@@ -144,7 +145,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         bool: True als het wachtwoord overeenkomt, anders False.
     """
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+    )
 
 
 def admin_auth(username, password):
@@ -157,7 +160,7 @@ def admin_auth(username, password):
         )
     else:
         return False
-    
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """
@@ -171,7 +174,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         str: Het JWT-token.
     """
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(timezone.utc) + (
+        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -192,7 +197,9 @@ def decode_access_token(token: str) -> Dict[str, Any]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         exp = payload.get("exp")
-        if exp and datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
+        if exp and datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(
+            timezone.utc
+        ):
             raise HTTPException(status_code=401, detail="Token expired")
         return payload
     except jwt.ExpiredSignatureError:
