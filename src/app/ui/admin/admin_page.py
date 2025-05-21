@@ -4,12 +4,7 @@ from app.ui.admin.user_management import user_management_interface
 from services.authentication.authentication_manager import admin_auth
 from services.document_manager import (
     list_collections,
-)  # Import function to get collections
-
-CSS_STYLES = """
-    .red_bg {background: red}
-    footer {display:none !important}
-"""
+)
 
 # Haal de eerste collectie op
 collection_choices = list_collections()
@@ -17,7 +12,8 @@ default_collection = (
     collection_choices[0] if collection_choices else None
 )  # Eerste collectie standaard geselecteerd
 
-with gr.Blocks(css=CSS_STYLES, title="PiXie") as llm_client_ui:
+
+def create_admin_ui(admin_app: gr.Blocks) -> None:
     gr.Markdown("# Admin Dashboard")
 
     with gr.Row():
@@ -40,14 +36,14 @@ with gr.Blocks(css=CSS_STYLES, title="PiXie") as llm_client_ui:
         )
 
     # Zorg ervoor dat de juiste collectie wordt doorgegeven bij het laden
-    llm_client_ui.load(
+    admin_app.load(
         fn=lambda: load_files_list(
             default_collection
         ),  # Geeft standaard de eerste collectie door
         inputs=None,
         outputs=files_list,
     )
-    llm_client_ui.load(fn=load_users_list, inputs=None, outputs=users_list)
+    admin_app.load(fn=load_users_list, inputs=None, outputs=users_list)
 
     # Functions to show/hide sections
     def show_user_management():
@@ -68,5 +64,3 @@ with gr.Blocks(css=CSS_STYLES, title="PiXie") as llm_client_ui:
         inputs=None,
         outputs=[user_management_section, file_upload_section],
     )
-
-llm_client_ui.launch(server_name="0.0.0.0", server_port=7861, auth=admin_auth)

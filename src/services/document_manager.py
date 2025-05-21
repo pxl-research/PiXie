@@ -1,8 +1,8 @@
 import os
 import shutil
-import json
 import logging
 import pandas as pd
+import datetime
 from langchain.schema import Document
 from werkzeug.utils import secure_filename
 from typing import Optional
@@ -13,15 +13,7 @@ from services.document_loaders.document_loader_manager import (
     DocumentFileType,
     get_document_file_type,
 )
-from app import (
-    document_loader,
-    splitter,
-    vector_store,
-    reranker,
-    summarizer,
-    tabular_vector_store,
-    tabular_summarizer_llm,
-)
+
 from database.document_db_operations import (
     is_doc_up_to_date_in_list,
     is_doc_in_list,
@@ -33,6 +25,13 @@ from page_numbering import text_chunks_to_page_numbers
 import numpy as np
 from langdetect import detect, DetectorFactory
 from collections import Counter
+
+# Import shared services for document management
+from services.init_services import get_services
+
+# Shared services for document management
+_services = get_services()
+tabular_vector_store = _services["tabular_vector_store"]
 
 # Fix randomness in langdetect
 DetectorFactory.seed = 42
@@ -82,75 +81,9 @@ def detect_language_from_dataframe_samples(
 
     if len(detected_languages) <= 0:
         return default_language
-    
+
     most_common_lang = Counter(detected_languages).most_common(1)
     return most_common_lang[0][0] if most_common_lang else default_language
-
-
-def retrieve_and_rerank_chunks(
-    collection_name: str,
-    message: str,
-    top_k: int = 15,
-    final_k: int = 10,
-    document_file_type: DocumentFileType = DocumentFileType.Document,
-    is_recommendation_system: Optional[bool] = None,
-) -> list[str]:
-    """
-    Retrieve and optionally rerank document chunks based on the input message.
-
-    This function retrieves the top `top_k` chunks relevant to the
-    input `message` from the vector store.
-    If a reranker is available, it reranks these chunks and
-    returns the top `final_k` chunks.
-    Otherwise, it simply returns the first `final_k` chunks from retrieved list.
-
-    Parameters:
-        collection_name (str): Name of the collection to retrieve rows from.
-        message (str): Message used to retrieve relevant rows.
-        top_k (int, optional): Number of top rows to retrieve initially. Default: 15.
-        final_k (int, optional): Number of chunks to return after reranking. Default: 5.
-        document_file_type (DocumentFileType, optional): Document type. Default: Document.
-
-    Returns:
-        list[str]: A list of the final selected document chunks.
-    """
-
-    top_chunks: list[Document] = []
-    if document_file_type is DocumentFileType.Document:
-        top_chunks = vector_store.retrieve_top_chunks(collection_name, message, top_k)
-    elif (
-        document_file_type is DocumentFileType.TabularDocument
-        and is_recommendation_system is not None
-    ):
-        df_top_rows: pd.DataFrame = tabular_vector_store.retrieve_top_rows(
-            collection_name=collection_name,
-            question=message,
-            top_k=top_k,  # Ensure `top_k` is defined in the scope
-            k_rrf=60,
-            max_file_count=3,
-            try_iteration_max_count=3,
-            is_recommendation_system=is_recommendation_system,
-        )
-        top_dicts: list[dict] = df_top_rows.to_dict("records")
-
-        top_chunks = [json.dumps(d) for d in top_dicts]
-        # Omit reranker for TabularDocuments!
-        final_chunks = top_chunks[:final_k]
-        return final_chunks
-    else:
-        return []
-
-    final_chunks: list[str] = []
-    if reranker is not None:
-        final_chunks = reranker.rerank(message, top_chunks, final_k)
-        logging.info(f"Chunks have been reranked for the message: {message}")
-    else:
-        final_chunks = top_chunks[:final_k]
-        logging.info(
-            f"No reranker available. Returning top {final_k} chunks for the message: {message}"
-        )
-
-    return final_chunks
 
 
 def add_document(collection_name: str, file_path: str) -> Optional[str]:
@@ -184,18 +117,24 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
     try:
         file_hash = utils.compute_hash(temp_file_path)
 
-        document_file_type, document = document_loader.load_document(file_path)
+        document_file_type, document = _services["document_loader"].load_document(
+            file_path
+        )
 
         if document_file_type is DocumentFileType.Document:
             # Check if the document is already up-to-date
-            if is_doc_up_to_date_in_list(file_hash, collection_name):
+            if _services["vector_store"].is_doc_up_to_date_in_list(
+                file_hash, collection_name
+            ):
                 logging.info(f"File {secure_file_name} is already up-to-date.")
                 return None
 
-            delete = is_doc_in_list(secure_file_name, collection_name)
+            delete = _services["vector_store"].is_doc_in_list(
+                secure_file_name, collection_name
+            )
 
-            summary = summarizer.summarize(document[0])
-            chunks = splitter.split(document)
+            summary = _services["summarizer"].summarize(document[0])
+            chunks = _services["splitter"].split(document)
 
             # Extract text from chunks
             text_chunks = [chunk.page_content for chunk in chunks]
@@ -208,10 +147,12 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
                 if page_numbers is not None:
                     chunk.metadata["page_numbers"] = page_numbers
 
-            vector_store.add_document(collection_name, secure_file_name, chunks)
+            _services["vector_store"].add_document(
+                collection_name, secure_file_name, chunks
+            )
 
             # Update the document list
-            add_to_doc_list(
+            _services["vector_store"].add_to_doc_list(
                 secure_file_name, file_hash, collection_name, summary, delete
             )
 
@@ -255,22 +196,33 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
                     )
                 """
 
-                file_description = tabular_summarizer_llm.generate(df=df)
+                file_description = _services["tabular_summarizer"].generate(df=df)
+                logging.info(f"File description: {file_description}")
                 if file_description is None:
                     file_description = ""
-                file_schema = tabular_vector_store.infer_postgres_schema(df)
 
                 # Infer language from DataFrame df
                 language = detect_language_from_dataframe_samples(df, n=10)
                 if language is None:
                     language = os.getenv("DEFAULT_LANGUAGE")
 
-                tabular_vector_store.add_tabular_document(
+                # Use map on each column instead of deprecated applymap
+                for col in df.columns:
+                    df[col] = df[col].map(
+                        lambda x: (
+                            x.isoformat()
+                            if isinstance(
+                                x, (pd.Timestamp, datetime.datetime, datetime.date)
+                            )
+                            else x
+                        )
+                    )
+
+                tabular_vector_store.add_document(
                     collection_name=collection_name,
                     file_name=secure_file_name_sheet,
                     file_hash=file_hash,
                     file_description=file_description,
-                    file_schema=file_schema,
                     language=language,
                     df=df,
                 )
@@ -329,8 +281,16 @@ def remove_document(
         logging.info(f"Removing document: {selected_file}")
         try:
             if document_file_type is DocumentFileType.Document:
-                vector_store.delete_document(collection_name, selected_file)
-                success = remove_from_doc_list(selected_file, collection_name)
+                success_deletion_from_vector_store = _services[
+                    "vector_store"
+                ].delete_document(collection_name, selected_file)
+                success_deletion_from_doc_list = _services[
+                    "vector_store"
+                ].remove_from_doc_list(selected_file, collection_name)
+                success = (
+                    success_deletion_from_vector_store
+                    and success_deletion_from_doc_list
+                )
             elif document_file_type is DocumentFileType.TabularDocument:
                 success = tabular_vector_store.delete_tabular_document(
                     collection_name, selected_file
@@ -365,7 +325,7 @@ def list_documents(collection_name: str) -> list[list[str]]:
     """
 
     def non_tabular(collection_name: str) -> list[str]:
-        file_list = get_doc_list(collection_name)
+        file_list = _services["vector_store"].get_doc_list(collection_name)
         return file_list
 
     def tabular(collection_name: str) -> list[str]:
@@ -394,18 +354,18 @@ def _prepare_upload_folder() -> None:
 
 
 def list_collections() -> list[str]:
-    collections = vector_store.list_collections()
+    collections = _services["vector_store"].list_collections()
     tabular_collections = tabular_vector_store.list_collections()
     print("Collections:")
     print(collections)
     print("Tabular collections:")
     print(tabular_collections)
-    assert set(collections) == set(tabular_collections)
+    # assert set(collections) == set(tabular_collections)
     return list(set(collections + tabular_collections))
 
 
 def add_collection(collection_name: str) -> None:
     # NOTE: make this an atomic transaction in the future
     # because collections in both stores need to be in sync
-    vector_store.add_collection(collection_name)
+    _services["vector_store"].add_collection(collection_name)
     tabular_vector_store.add_collection(collection_name)

@@ -1,10 +1,7 @@
-from typing import List, Dict, Tuple, Optional, Any
-import os
-from langgraph.types import Command
-
+import gradio as gr
+from typing import List, Dict, Tuple, Optional, Any, AsyncGenerator
 from services.chat_history import chat_history_manager
-from services import source_processing
-from services.oracle.graph_runner import initialize_graph, compile_graph
+from services.agent_service import execute_agent
 
 
 def append_user(
@@ -23,8 +20,7 @@ def append_user(
     - List[Tuple[str, str]]: The updated chat history list of tuples, where each tuple contains the user's message
       and the AI response (or None if no response yet).
     """
-    user_id = user_info["id"] if user_info else None
-    print("Echte append_user functie")
+    user_id = user_info["id"] if user_info else 0  # Default to 0 for anonymous users
     chat_history = chat_history_manager.get_chat_history(user_id, limit=10)
     chat_history_manager.save_chat_history(user_id, message, None)
     chat_history = chat_history_manager.add_message_to_chat_history(
@@ -33,90 +29,60 @@ def append_user(
     return chat_history
 
 
-def append_ai(
-    collection_name: str, message: str, user_info: Optional[Dict[str, Any]]
-) -> Tuple[str, List[Tuple[str, str]]]:
+async def append_ai(
+    collection_name: str,
+    message: str,
+    user_info: Optional[Dict[str, Any]],
+    mcp_state: Optional[Any] = None,
+) -> AsyncGenerator[Tuple[str, List[Tuple[str, str]]], None]:
     """
     Generate an AI response to the user's message, update the chat history, and save it.
 
     Parameters:
-    - collection_name: str
-        The name of the collection to retrieve documents from.
-    - message: str
-        The user's message to which the AI should respond.
-    - user_info: Optional[Dict[str, Any]]
-        A dictionary containing user information, including the user ID.
+    ----------
+    collection_name : str
+      The name of the document collection to search for relevant information.
+    message : str
+      The user's message that requires an AI response.
+    user_info : Optional[Dict[str, Any]]
+      A dictionary containing user information, including the user ID.
+      If None, the function will use a default/anonymous user context.
+    mcp_state : Optional[Any]
+      The state object for the MCP agent.
 
     Returns:
-    - Tuple[str, List[Tuple[str, str]]]: The final response text for the textbox and the updated chat history for the chatbot.
+    -------
+    AsyncGenerator[Tuple[str, List[Tuple[str, str]]], None]
+      A tuple containing:
+      - An empty string (used for clearing the UI's input field)
+      - The updated chat history as a list of (role, message) tuples
+      - A Gradio update command to hide the loading spinner
+
+    Note:
+    -----
+    This function retrieves the chat history, formats it for the LLM,
+    uses execute_agent to generate a response with RAG capabilities,
+    then updates and saves the chat history with the AI's response.
     """
-    user_id = user_info["id"] if user_info else None
+    user_id = user_info["id"] if user_info else 0  # Default to 0 for anonymous users
 
     chat_history = chat_history_manager.get_chat_history(user_id, limit=9)
-    chat_history_for_llm = chat_history_manager.get_chat_history(
-        user_id=user_id, limit=5
-    )
     formatted_history = chat_history_manager.format_chat_history_for_llm(
-        chat_history_for_llm
+        chat_history[-5:] if len(chat_history) > 5 else chat_history
     )
 
-    graph = initialize_graph()
-    compiled_oracle_graph = compile_graph(graph)
-
-    input_data = {
-        "input": message,
-        "chat_history": formatted_history,
-        "collection_name": collection_name,
-    }
-
-    thread_config = {
-        "configurable": {"thread_id": 1},
-        "recursion_limit": 5,
-    }
-
-    try:
-        out = compiled_oracle_graph.invoke(input_data, thread_config)
-
-        output = out["intermediate_steps"][-1].tool_input
-
-        # Test of de output een "question" key heeft
-        if "question" in output:
-            chat_history = chat_history_manager.add_message_to_chat_history(
-                chat_history, "assistant", output["question"]
-            )
-            return "", chat_history
-
-        # Ensure the last tool used is final_answer
-        last_tool = out["intermediate_steps"][-1].tool
-        if last_tool != "final_answer":
-            raise Exception(
-                "Final answer tool was not called. Ensure to route the answer through the final_answer tool."
-            )
-
-        output = out["intermediate_steps"][-1].tool_input
-        answer = output["answer"]
-        sources = output["sources"]
-
-        sources_list = (
-            source_processing.process_sources(sources.strip()) if sources else []
+    final_answer = ""
+    async for content, metadata_title in execute_agent(
+        message, formatted_history, collection_name
+    ):
+        final_answer = content
+        chat_history = chat_history_manager.replace_last_message_in_chat_history(
+            chat_history, "assistant", content, {"title": metadata_title}
         )
+        yield "", chat_history
 
-        # Format the final answer with enriched sources
-        final_answer = source_processing.format_final_answer(
-            answer.strip(), source_processing.enrich_sources(sources_list)
-        )
-        chat_history = chat_history_manager.add_message_to_chat_history(
-            chat_history, "assistant", final_answer
-        )
-
-        chat_history_manager.save_chat_history(user_id, None, final_answer)
-        return "", chat_history
-    except RecursionError:
-        final_answer = "Ik heb niet genoeg informatie om de vraag te beantwoorden."
-        chat_history = chat_history_manager.add_message_to_chat_history(
-            chat_history, "assistant", final_answer
-        )
-        return "", chat_history
+    chat_history_manager.save_chat_history(user_id, None, final_answer)
+    yield "", chat_history
 
 
 def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
@@ -130,6 +96,6 @@ def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
     Returns:
     - List[str]: An empty list containing two empty strings, used to reset the chat interface.
     """
-    user_id = user_info["id"] if user_info else None
+    user_id = user_info["id"] if user_info else 0  # Default to 0 for anonymous users
     chat_history_manager.delete_chat_history(user_id)
     return ["", ""]

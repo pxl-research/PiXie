@@ -1,8 +1,6 @@
 # vector_store.py
-import logging
 from typing import List
 from abc import ABC, abstractmethod
-from langchain_core.embeddings import Embeddings
 from langchain_core.documents import Document
 
 
@@ -11,8 +9,8 @@ class VectorStore(ABC):
     Abstract base class for a vector store.
     """
 
-    def __init__(self, embeddings: Embeddings):
-        self.embeddings = embeddings
+    def __init__(self, url: str):
+        self.url = url
 
     @abstractmethod
     def add_document(
@@ -29,7 +27,7 @@ class VectorStore(ABC):
         pass
 
     @abstractmethod
-    def delete_document(self, collection_name: str, file_name: str) -> None:
+    def delete_document(self, collection_name: str, file_name: str) -> bool:
         """
         Abstract method to delete a document from the vector store.
 

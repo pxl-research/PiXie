@@ -1,0 +1,13 @@
+A tool for adaptive problem-solving through iterative thinking.
+Facilitates breaking down complex issues, planning with flexibility, and multi-step analysis.
+Key features include adjusting thought sequences, revising previous insights, branching, and hypothesis generation and verification.
+Parameters:
+- thought: Current thinking step.
+- next_thought_needed: Indicates if further thinking is required.
+- thought_number: Current sequence number.
+- total_thoughts: Estimated total thoughts needed.
+- is_revision: Boolean indicating if this is a revision.
+- revises_thought: Specifies which thought is being reconsidered.
+- branch_from_thought: Indicates branching point.
+- branch_id: Identifier for the branch.
+- needs_more_thoughts: Indicates if more thoughts are needed.
