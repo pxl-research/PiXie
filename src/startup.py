@@ -52,4 +52,4 @@ app = gr.mount_gradio_app(app, admin_ui, path="/admin", auth=admin_auth)
 app = gr.mount_gradio_app(app, chat_ui, path="/chat", auth=custom_auth)
 
 # Start de server met:
-# uvicorn src.app.ui.startup:app --host 0.0.0.0 --port 8000
+# uvicorn src.startup:app --host 0.0.0.0 --port 8000
