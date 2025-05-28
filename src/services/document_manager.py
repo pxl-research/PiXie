@@ -2,26 +2,16 @@ import os
 import shutil
 import logging
 import pandas as pd
-import datetime
-from langchain.schema import Document
 from werkzeug.utils import secure_filename
 from typing import Optional
 
-from services import utils, blob_service
+from services import utils
 
 from services.document_loaders.document_loader_manager import (
     DocumentFileType,
     get_document_file_type,
 )
 
-from database.document_db_operations import (
-    is_doc_up_to_date_in_list,
-    is_doc_in_list,
-    add_to_doc_list,
-    remove_from_doc_list,
-    get_doc_list,
-)
-from page_numbering import text_chunks_to_page_numbers
 import numpy as np
 from langdetect import detect, DetectorFactory
 from collections import Counter
@@ -76,7 +66,7 @@ def detect_language_from_dataframe_samples(
     for text in text_samples[: min(len(text_samples), 10)]:  # Limit to 10 texts
         try:
             detected_languages.append(detect(text))
-        except:
+        except Exception:
             continue  # Skip text that cannot be detected
 
     if len(detected_languages) <= 0:
@@ -116,121 +106,101 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
 
     try:
         file_hash = utils.compute_hash(temp_file_path)
-
-        document_file_type, document = _services["document_loader"].load_document(
-            file_path
-        )
+        document_file_type = get_document_file_type(secure_file_name)
 
         if document_file_type is DocumentFileType.Document:
+
             # Check if the document is already up-to-date
             if _services["vector_store"].is_doc_up_to_date_in_list(
-                file_hash, collection_name
+                file_hash=file_hash, collection_name=collection_name
             ):
                 logging.info(f"File {secure_file_name} is already up-to-date.")
                 return None
 
-            delete = _services["vector_store"].is_doc_in_list(
-                secure_file_name, collection_name
-            )
-
-            summary = _services["summarizer"].summarize(document[0])
-            chunks = _services["splitter"].split(document)
-
-            # Extract text from chunks
-            text_chunks = [chunk.page_content for chunk in chunks]
-
-            # Map text chunks to page numbers
-            page_numbers_list = text_chunks_to_page_numbers(temp_file_path, text_chunks)
-
-            # Add page numbers to chunks metadata (only if page numbers exist)
-            for chunk, page_numbers in zip(chunks, page_numbers_list):
-                if page_numbers is not None:
-                    chunk.metadata["page_numbers"] = page_numbers
-
             _services["vector_store"].add_document(
-                collection_name, secure_file_name, chunks
-            )
-
-            # Update the document list
-            _services["vector_store"].add_to_doc_list(
-                secure_file_name, file_hash, collection_name, summary, delete
+                collection_name=collection_name,
+                file_path=temp_file_path,
+                file_hash=file_hash,
             )
 
         elif document_file_type is DocumentFileType.TabularDocument:
-            # Check if the document is already up-to-date: new hash is the same as stored
-            # No further actions needed
-            loaded_data = document
-            if tabular_vector_store.is_doc_up_to_date_in_list(
-                file_hash, collection_name
-            ):
-                logging.info(f"File {secure_file_name} is already up-to-date.")
-                return None
+            logging.info(
+                f"Processing tabular document: {secure_file_name} of type {document_file_type}"
+            )
+        #     # Check if the document is already up-to-date: new hash is the same as stored
+        #     # No further actions needed
+        #     loaded_data = document
+        #     if tabular_vector_store.is_doc_up_to_date_in_list(
+        #         file_hash, collection_name
+        #     ):
+        #         logging.info(f"File {secure_file_name} is already up-to-date.")
+        #         return None
 
-            # If document is already stored, but different hash (thus different content)
-            # Delete it first and insert it again later
-            # We do this for every sheet
-            prohibited_chars = "\\/?*[]"
-            if isinstance(loaded_data, pd.DataFrame):
-                # will be unique, because in Excel a sheetname cannot be one of those chars
-                dict_data = {prohibited_chars: loaded_data}
-            elif isinstance(loaded_data, dict):
-                dict_data = loaded_data
-            else:
-                return None
+        #     # If document is already stored, but different hash (thus different content)
+        #     # Delete it first and insert it again later
+        #     # We do this for every sheet
+        #     prohibited_chars = "\\/?*[]"
+        #     if isinstance(loaded_data, pd.DataFrame):
+        #         # will be unique, because in Excel a sheetname cannot be one of those chars
+        #         dict_data = {prohibited_chars: loaded_data}
+        #     elif isinstance(loaded_data, dict):
+        #         dict_data = loaded_data
+        #     else:
+        #         return None
 
-            for sheet_name, df in dict_data.items():
-                if sheet_name == prohibited_chars and len(dict_data) == 1:
-                    secure_file_name_sheet = secure_file_name
-                else:
-                    secure_file_name_sheet = f"{secure_file_name}#{sheet_name}"
+        #     for sheet_name, df in dict_data.items():
+        #         if sheet_name == prohibited_chars and len(dict_data) == 1:
+        #             secure_file_name_sheet = secure_file_name
+        #         else:
+        #             secure_file_name_sheet = f"{secure_file_name}#{sheet_name}"
 
-                # Is not necessary, since we already do this
-                # in add_tabular_document()
-                """
-                will_delete = tabular_vector_store.is_doc_in_list(
-                    secure_file_name_sheet, collection_name
-                )
-                if will_delete:
-                    tabular_vector_store.delete_tabular_document(
-                        collection_name, secure_file_name_sheet
-                    )
-                """
+        #         # Is not necessary, since we already do this
+        #         # in add_tabular_document()
+        #         """
+        #         will_delete = tabular_vector_store.is_doc_in_list(
+        #             secure_file_name_sheet, collection_name
+        #         )
+        #         if will_delete:
+        #             tabular_vector_store.delete_tabular_document(
+        #                 collection_name, secure_file_name_sheet
+        #             )
+        #         """
 
-                file_description = _services["tabular_summarizer"].generate(df=df)
-                logging.info(f"File description: {file_description}")
-                if file_description is None:
-                    file_description = ""
+        #         file_description = _services["tabular_summarizer"].generate(df=df)
+        #         logging.info(f"File description: {file_description}")
+        #         if file_description is None:
+        #             file_description = ""
 
-                # Infer language from DataFrame df
-                language = detect_language_from_dataframe_samples(df, n=10)
-                if language is None:
-                    language = os.getenv("DEFAULT_LANGUAGE")
+        #         # Infer language from DataFrame df
+        #         language = detect_language_from_dataframe_samples(df, n=10)
+        #         if language is None:
+        #             language = os.getenv("DEFAULT_LANGUAGE")
 
-                # Use map on each column instead of deprecated applymap
-                for col in df.columns:
-                    df[col] = df[col].map(
-                        lambda x: (
-                            x.isoformat()
-                            if isinstance(
-                                x, (pd.Timestamp, datetime.datetime, datetime.date)
-                            )
-                            else x
-                        )
-                    )
+        #         # Use map on each column instead of deprecated applymap
+        #         for col in df.columns:
+        #             df[col] = df[col].map(
+        #                 lambda x: (
+        #                     x.isoformat()
+        #                     if isinstance(
+        #                         x, (pd.Timestamp, datetime.datetime, datetime.date)
+        #                     )
+        #                     else x
+        #                 )
+        #             )
 
-                tabular_vector_store.add_document(
-                    collection_name=collection_name,
-                    file_name=secure_file_name_sheet,
-                    file_hash=file_hash,
-                    file_description=file_description,
-                    language=language,
-                    df=df,
-                )
-        else:
-            return None
+        #         tabular_vector_store.add_document(
+        #             collection_name=collection_name,
+        #             file_name=secure_file_name_sheet,
+        #             file_hash=file_hash,
+        #             file_description=file_description,
+        #             language=language,
+        #             df=df,
+        #         )
+        # else:
+        #     return None
 
-        # Upload the file to Azure Blob Storage
-        blob_service.upload_blob(temp_file_path, secure_file_name)
+        # # Upload the file to Azure Blob Storage
+        # blob_service.upload_blob(temp_file_path, secure_file_name)
         logging.info(
             f"Document {secure_file_name} has been uploaded to Azure Blob Storage."
         )

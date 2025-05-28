@@ -1,5 +1,4 @@
 import logging
-import pandas as pd
 import gradio as gr
 
 from services.document_manager import (
@@ -44,23 +43,22 @@ def add_new_collection(new_collection, collections_state):
         collections_state.append(new_collection)
         return (
             gr.update(choices=collections_state, value=new_collection),
-            None,
+            gr.update(value=None),
         )  # Reset TextInput
     return (
         gr.update(choices=collections_state, value=new_collection),
-        None,
+        gr.update(value=None),
     )
 
 
 def file_upload_interface():
     selected_file = gr.State()
-    gr.HTML(EXPLAINER_TEXT, visible=True)
 
-    with gr.Blocks() as interface:
+    with gr.Blocks():
+        gr.HTML(EXPLAINER_TEXT, visible=True)
         gr.Markdown("### Kies een collectie of maak een nieuwe aan")
 
-        collections_state = gr.State(value=list_collections)
-
+        collections_state = gr.State(value=list_collections())
         # Voeg een lege optie toe als placeholder
         collection_choices = list_collections()
         default_collection = collection_choices[0] if collection_choices else None

@@ -1,7 +1,6 @@
 import gradio as gr
 from app.ui.admin.file_management import file_upload_interface
 from app.ui.admin.user_management import user_management_interface
-from services.authentication.authentication_manager import admin_auth
 from services.document_manager import (
     list_collections,
 )
@@ -9,7 +8,7 @@ from services.document_manager import (
 # Haal de eerste collectie op
 collection_choices = list_collections()
 default_collection = (
-    collection_choices[0] if collection_choices else None
+    collection_choices[0] if collection_choices else []
 )  # Eerste collectie standaard geselecteerd
 
 

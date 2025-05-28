@@ -4,6 +4,7 @@ from typing import List
 import requests
 import os
 import logging
+from pathlib import Path
 
 
 class RemoteRagVectorStore(VectorStore):
@@ -11,37 +12,34 @@ class RemoteRagVectorStore(VectorStore):
         self.url = url
 
     def add_document(
-        self, collection_name: str, file_name: str, chunks: List[Document]
+        self, collection_name: str, file_path: str, file_hash: str
     ) -> None:
         """
-        Adds a document to the remote vector store.
+        Uploads a document file to the remote vector store via the /upload_raw endpoint.
         Args:
-            collection_name (str): The name of the collection to add the document to.
-            file_name (str): The name of the file to add.
-            chunks (List[Document]): The document chunks to add.
+            collection_name (str): The name of the collection to upload to.
+            file_path (str): The path to the file to upload.
+            file_hash (str): The hash of the file.
         """
-
-        for chunk in chunks:
-            chunk.metadata["file_name"] = file_name
         try:
-            # Convert Document objects to dictionaries for JSON serialization
-            serializable_chunks = [
-                {"page_content": chunk.page_content, "metadata": chunk.metadata}
-                for chunk in chunks
-            ]
-            response = self._post(
-                "add_document",
-                {
+            file_name = Path(file_path).name
+            with open(file_path, "rb") as f:
+                files = {"file": (file_name, f)}
+                data = {
                     "collection_name": collection_name,
-                    "document_name": file_name,
-                    "chunks": serializable_chunks,
-                },
-            )
+                    "file_hash": file_hash,
+                }
+                response = requests.post(
+                    f"{self.url}/upload_raw",
+                    headers={"x-api-key": os.getenv("RAG_API_KEY")},
+                    files=files,
+                    data=data,
+                )
             if response.status_code != 200:
-                raise Exception(f"Failed to add document: {response.text}")
-            logging.info(f"Document {file_name} added to {collection_name}.")
+                raise Exception(f"Failed to upload document: {response.text}")
+            logging.info(f"Document '{file_name}' uploaded to '{collection_name}'.")
         except Exception as e:
-            logging.error(f"Failed to add document {file_name}: {str(e)}")
+            logging.error(f"Failed to upload document {file_path}: {str(e)}")
             raise
 
     def delete_document(self, collection_name: str, file_name: str) -> bool:
@@ -114,7 +112,7 @@ class RemoteRagVectorStore(VectorStore):
         logging.info("Calling obsolete function to retrieve top chunks.")
         return []
 
-    def is_doc_up_to_date_in_list(self, file_hast: str, collection_name: str) -> bool:
+    def is_doc_up_to_date_in_list(self, file_hash: str, collection_name: str) -> bool:
         """
         Checks if a document is up to date in the list.
 
@@ -127,7 +125,7 @@ class RemoteRagVectorStore(VectorStore):
         """
         response = self._get(
             "is_doc_up_to_date",
-            {"file_hash": file_hast, "collection_name": collection_name},
+            {"file_hash": file_hash, "collection_name": collection_name},
         )
         if response.status_code != 200:
             raise Exception(f"Failed to check document status: {response.text}")
