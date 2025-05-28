@@ -1,6 +1,5 @@
 from services import blob_service
 import re
-import logging
 from typing import List, Tuple, Union
 
 

@@ -1,5 +1,4 @@
 import os
-from string import Template
 
 # Pad naar de prompt template bestanden
 PROMPT_DIR = os.path.join(

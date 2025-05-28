@@ -4,7 +4,6 @@ import pandas as pd
 import requests
 import os
 
-from services.abstractclasses.vectorstore import VectorStore
 from langchain_core.documents import Document
 
 

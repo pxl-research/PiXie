@@ -1,5 +1,18 @@
-# Use a Python image with uv pre-installed
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+
+WORKDIR /app
+
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+
+RUN --mount=type=cache,target=/home/appuser/.cache/uv \
+    uv lock && \
+    uv sync --no-dev
+
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS final
 
 WORKDIR /app
 # Enable bytecode compilation
@@ -21,25 +34,12 @@ RUN apt-get update && \
     nodejs \
     gcc \
     python3-dev \
-    libpq-dev \
     build-essential \
-    libreoffice \
-    pandoc \
     docker.io && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy required files for package installation
-COPY pyproject.toml README.md ./
-COPY src/ ./src/
-
-# Generate lockfile and install dependencies
-RUN --mount=type=cache,target=/home/appuser/.cache/uv \
-    uv lock && \
-    uv sync --no-dev
-
-# Then, add the rest of the project source code and install it
-COPY  . /app
+COPY --from=builder /app /app
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
