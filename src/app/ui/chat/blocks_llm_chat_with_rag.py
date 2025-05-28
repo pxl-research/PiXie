@@ -1,4 +1,3 @@
-import gradio as gr
 from typing import List, Dict, Tuple, Optional, Any, AsyncGenerator
 from services.chat_history import chat_history_manager
 from services.agent_service import execute_agent
@@ -21,7 +20,7 @@ def append_user(
       and the AI response (or None if no response yet).
     """
     user_id = user_info["id"] if user_info else 0
-    session_id = user_info.get("session_id", 0) if user_info else 0
+    session_id = user_info.get("session_id", "0") if user_info else "0"
     chat_history = chat_history_manager.get_chat_history(
         user_id, limit=10, session_id=session_id
     )
@@ -70,7 +69,7 @@ async def append_ai(
     then updates and saves the chat history with the AI's response.
     """
     user_id = user_info["id"] if user_info else 0  # Default to 0 for anonymous users
-    session_id = user_info.get("session_id", 0) if user_info else 0
+    session_id = user_info.get("session_id", "0") if user_info else "0"
 
     chat_history = chat_history_manager.get_chat_history(
         user_id, limit=9, session_id=session_id
@@ -107,7 +106,7 @@ def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
     - List[str]: An empty list containing two empty strings, used to reset the chat interface.
     """
     user_id = user_info["id"] if user_info else 0
-    session_id = user_info.get("session_id", 0) if user_info else 0
+    session_id = user_info.get("session_id", "0") if user_info else "0"
     chat_history_manager.delete_chat_history(str(user_id), session_id=session_id)
     return ["", ""]
 
@@ -119,7 +118,7 @@ async def append_ai_for_api(
     API-gebruik: geef alleen het eindantwoord van de AI terug als tekst.
     """
     user_id = user_info["id"] if user_info else 0
-    session_id = user_info.get("session_id", 0) if user_info else 0
+    session_id = user_info.get("session_id", "0") if user_info else "0"
     chat_history = chat_history_manager.get_chat_history(
         user_id, limit=9, session_id=session_id
     )
@@ -128,12 +127,10 @@ async def append_ai_for_api(
     )
 
     final_answer = ""
-    last_metadata = None
     async for content, metadata_title in execute_agent(
         message, formatted_history, collection_name
     ):
         final_answer = content
-        last_metadata = metadata_title
         chat_history = chat_history_manager.replace_last_message_in_chat_history(
             chat_history, "assistant", content, {"title": metadata_title}
         )

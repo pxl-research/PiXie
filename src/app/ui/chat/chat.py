@@ -33,7 +33,7 @@ def load_chat_history(user_info: Optional[Dict[str, Any]]) -> List[Dict[str, str
     """
     if user_info and "id" in user_info:
         user_id = user_info["id"]
-        session_id = user_info.get("session_id", 0)
+        session_id = user_info.get("session_id", "0")
         chat_history = get_chat_history(user_id, session_id, limit=10)
         return chat_history
     return []
@@ -58,7 +58,7 @@ def login(request: gr.Request) -> Tuple[List[Dict[str, str]], Optional[Dict[str,
     username = request.username
     user_info = get_user_by_username(username)
     user_id = user_info["id"] if user_info else None
-    session_id = user_info.get("session_id", 0) if user_info else 0
+    session_id = user_info.get("session_id", "0") if user_info else "0"
     chat_history = (
         get_chat_history(user_id, session_id, limit=10) if user_id is not None else []
     )

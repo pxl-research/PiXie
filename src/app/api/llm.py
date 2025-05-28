@@ -8,7 +8,7 @@ import logging
 # Pydantic modellen
 class UserInput(BaseModel):
     user_question: str
-    session_id: int = 0
+    session_id: str = "0"
     collection: str = "pixie"
 
 

@@ -127,7 +127,7 @@ def custom_auth(username: str, password: str) -> Optional[Dict[str, Any]]:
             "id": user["id"],
             "username": user["username"],
             "role": user["role"],
-            "session_id": 0,
+            "session_id": "0",
         }
     else:
         logging.warning(f"Authentication failed for user '{username}'.")

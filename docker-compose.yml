@@ -1,17 +1,16 @@
 services:
-  app:
+  pixie-agent:
     build:
       context: .
       dockerfile: Dockerfile
     depends_on:
-      - db
+      - pixie-db
     volumes:
-      - embeddings_cache:/app/embeddings_cache
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
-      - app-network
+      - pixie-network
 
-  db:
+  pixie-db:
     image: pgvector/pgvector:pg17
     ports:
       - "5432:5432"
@@ -20,11 +19,12 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - app-network
+      - pixie-network
 
 volumes:
-  embeddings_cache:
   postgres_data:
 
 networks:
-  app-network:
+  pixie-network:
+    name: pixie-network
+    driver: bridge
