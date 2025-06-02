@@ -14,10 +14,7 @@ PiXie is een implementatie van Retrieval-Augmented Generation (RAG) in Python. H
 
 ## Voorbereiding
 
-Voordat je de applicatie kunt starten, zorg ervoor dat de juiste `.env` bestanden aanwezig zijn in de hoofdmap van het project. Dit project maakt gebruik van:
-
-- `.env.dev` voor de ontwikkelomgeving
-- `.env.prod` voor de productieomgeving
+Voordat je de applicatie kunt starten, zorg ervoor dat het `.env.dev` bestand aanwezig is in de hoofdmap van het project. Kopieer `.env.example` naar `.env.dev` en vul de juiste waarden in.
 
 Deze bestanden bevatten belangrijke configuraties zoals:
 
@@ -27,47 +24,31 @@ Deze bestanden bevatten belangrijke configuraties zoals:
 
 ## Installatie
 
-Gebruikers kunnen de Docker-containers opzetten en starten met Docker Compose. Dit project maakt gebruik van twee configuratiebestanden voor ontwikkel- en productieomgevingen:
+Gebruikers kunnen de Docker-containers opzetten en starten met Docker Compose:
 
-- **Voor de ontwikkelomgeving:**
 ```bash
 git clone https://github.com/pxl-research/PiXie.git
 cd PiXie
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d # Start de ontwikkelomgeving
-```
-
-- **Voor de ontwikkelomgeving:**
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d  # Start de productieomgeving
+cp .env.example .env.dev
+# Vul de juiste waarden in .env.dev
+docker compose up --build -d
 ```
 
 ## Gebruik
 
-### Ontwikkelomgeving
+Na het starten van de containers zijn de volgende interfaces automatisch beschikbaar:
 
-In de ontwikkelomgeving wordt de hele workspace gekopieerd, zodat live code aangepast kan worden. Gebruik de volgende stappen:
+- **Admin interface** (document upload en beheer): http://localhost:8111/admin
+- **Chat interface** (vraag-en-antwoord systeem): http://localhost:8111/chat
+- **API endpoints**: http://localhost:8111/docs (FastAPI documentatie)
 
-1. Open een bash-sessie in de Docker-container:
+### Development
+
+De workspace wordt automatisch gemount in de container, zodat code wijzigingen direct zichtbaar zijn. Voor debugging kun je een bash-sessie openen:
+
 ```bash
-docker exec -it pixie-web-1 /bin/bash
+docker exec -it pixie-agent-1 /bin/bash
 ```
-
-2.	Om het uploadsysteem te starten (draait op poort 7861):
-```bash
-uv run src/app/upload.py
-```
-
-3.	Om het vraag-en-antwoord systeem te starten (draait op poort 7860):
-```bash
-uv run src/app/chat.py
-```
-
-### Productieomgeving
-
-In de productieomgeving worden de scripts automatisch uitgevoerd tijdens het opstarten van de Docker-container. Na het starten van de containers kun je direct naar de pagina’s surfen:
-
-- Het uploadsysteem is toegankelijk op http://localhost:24026
-- Het vraag-en-antwoord systeem is toegankelijk op http://localhost:24027
 
 ## Afhankelijkheden
 

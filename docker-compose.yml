@@ -7,8 +7,15 @@ services:
       - pixie-db
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - .:/app  # Mount voor live code wijzigingen tijdens development
     networks:
       - pixie-network
+    command: uv run python -m uvicorn src.startup:app --host 0.0.0.0 --port 8111
+    ports:
+      - "8111:8111"  # API server met admin (/admin) en chat (/chat) interfaces
+    env_file:
+      - .env.dev
+    restart: unless-stopped
 
   pixie-db:
     image: pgvector/pgvector:pg17
@@ -20,6 +27,8 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - pixie-network
+    env_file:
+      - .env.dev
 
 volumes:
   postgres_data:
