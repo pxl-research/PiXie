@@ -1,5 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from datetime import timedelta
 from services.authentication.authentication_manager import (
     create_access_token,
@@ -25,11 +28,14 @@ class RegisterUser(BaseModel):
     role: str = "user"
 
 
+# Rate limiter configuratie (wordt geconfigureerd in startup.py)
+limiter = Limiter(key_func=get_remote_address)
 auth_router = APIRouter()
 
 
 @auth_router.post("/token")
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("5/minute")  # Max 5 login attempts per minute
+def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     """
     Login route die een JWT access token retourneert.
 
@@ -56,7 +62,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 
 @auth_router.post("/register")
-def register(user_data: RegisterUser):
+@limiter.limit("3/minute")  # Max 3 registrations per minute
+def register(request: Request, user_data: RegisterUser):
     """
     Registreer een nieuwe gebruiker.
 

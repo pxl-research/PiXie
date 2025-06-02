@@ -1,9 +1,13 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import gradio as gr
 from app.ui.admin.admin_page import create_admin_ui
 from app.ui.chat.chat import create_chat_ui
 from services.authentication.authentication_manager import custom_auth, admin_auth
-from app.api.auth import auth_router
+from app.api.auth import auth_router, limiter as auth_limiter
 from app.api.llm import chat_router
 from services.agent_service import init_mcp_agent
 
@@ -27,6 +31,19 @@ CSS_STYLES = """
 
 app = FastAPI()
 
+# Rate limiter configuratie
+app.state.limiter = auth_limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS configuratie voor security
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8111", "http://127.0.0.1:8111"],  # Alleen lokale toegang
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],  # Beperkte HTTP methods
+    allow_headers=["*"],
+)
+
 
 @app.on_event("startup")
 async def on_startup():
@@ -41,11 +58,6 @@ app.include_router(chat_router, prefix="/api/v1", tags=["AI"])
 # Admin interface
 with gr.Blocks(css=CSS_STYLES, fill_height=True, title="PiXie Admin") as admin_ui:
     create_admin_ui(admin_ui)
-    print("DEBUG - API info admin:")
-    try:
-        print(admin_ui.get_api_info())
-    except Exception as e:
-        print("Fout bij ophalen van API info voor admin:", e)
 
 # Chat interface
 with gr.Blocks(css=CSS_STYLES, fill_height=True, title="PiXie Chat") as chat_ui:
