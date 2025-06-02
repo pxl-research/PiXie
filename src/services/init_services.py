@@ -3,7 +3,6 @@ from src.services.vectorstores.remote_tabular_vectorstore import (
     RemoteTabularVectorStore,
 )
 from services.llms.azure_openai_llm import AzureOpenAILLM
-from services.llms.tabular_summarizer_llm import TabularSummarizerLLM
 
 
 import os
@@ -48,13 +47,6 @@ def create_llm():
     )
 
 
-def create_tabular_summarizer(llm):
-    """
-    Create and return the Tabular Summarizer.
-    """
-    return TabularSummarizerLLM(llm=llm)
-
-
 def initialize_document_services():
     """
     Initialize and return all services needed for document processing.
@@ -64,7 +56,6 @@ def initialize_document_services():
     return {
         "llm": llm,
         "vector_store": create_rag_vector_store(),
-        "tabular_summarizer": create_tabular_summarizer(llm),
         "tabular_vector_store": create_tabular_vector_store(),
     }
 

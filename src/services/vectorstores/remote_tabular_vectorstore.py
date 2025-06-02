@@ -5,6 +5,7 @@ import requests
 import os
 
 from langchain_core.documents import Document
+from pathlib import Path
 
 
 class RemoteTabularVectorStore:
@@ -16,42 +17,34 @@ class RemoteTabularVectorStore:
         self.url = url
 
     def add_document(
-        self,
-        collection_name: str,
-        file_name: str,
-        file_hash: str,
-        file_description: Optional[str],
-        language: str,
-        df: pd.DataFrame,
+        self, collection_name: str, file_path: str, file_hash: str
     ) -> None:
         """
-        Adds a tabular document to the database,
-        associates it with a collection, and processes its rows.
-
+        Uploads a document file to the remote tabular vector store via the /upload_raw endpoint.
         Args:
-            collection_name (str): The name of the collection to associate the document with.
-            file_name (str): Unique name of the file.
-            file_hash (str): A unique hash of the file for identification.
-            file_description (Optional[str]): Summary of the file's content. Can be None.
-            df (pd.DataFrame): A DataFrame containing the tabular data to be added.
+            collection_name (str): The name of the collection to upload to.
+            file_path (str): The path to the file to upload.
+            file_hash (str): The hash of the file.
         """
         try:
-            response = self._post(
-                "add_document",
-                {
+            file_name = Path(file_path).name
+            with open(file_path, "rb") as f:
+                files = {"file": (file_name, f)}
+                data = {
                     "collection_name": collection_name,
-                    "file_name": file_name,
                     "file_hash": file_hash,
-                    "file_description": file_description,
-                    "language": language,
-                    "rows": df.to_dict(orient="records"),
-                },
-            )
+                }
+                response = requests.post(
+                    f"{self.url}/upload_raw",
+                    headers={"x-api-key": os.getenv("RAG_API_KEY")},
+                    files=files,
+                    data=data,
+                )
             if response.status_code != 200:
-                raise Exception(f"Failed to add document: {response.text}")
-            logging.info(f"Document {file_name} added to {collection_name}.")
+                raise Exception(f"Failed to upload document: {response.text}")
+            logging.info(f"Document '{file_name}' uploaded to '{collection_name}'.")
         except Exception as e:
-            logging.error(f"Failed to add document {file_name}: {str(e)}")
+            logging.error(f"Failed to upload document {file_path}: {str(e)}")
             raise
 
     def delete_document(self, collection_name: str, file_name: str) -> bool:
