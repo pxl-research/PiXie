@@ -21,6 +21,7 @@ _services = get_services()
 _persistent_client = None
 _agent = None
 
+
 async def wait_for_agent_initialization(
     timeout: float = 15.0, poll_interval: float = 0.5
 ):
@@ -116,11 +117,11 @@ async def execute_agent(
 
     yield "De AI wordt klaargemaakt om je vraag te verwerken.", "🔄 Voorbereiding"
 
-    summaries = get_summaries_by_collection(collection_name)
-    tabular_summaries = _services["tabular_vector_store"].get_summaries_by_collection(
-        collection_name
+    summaries = _services["vector_store"].get_summaries(collection_name)
+    tabular_summaries = _services["tabular_vector_store"].get_summaries(collection_name)
+    custom_prompt = get_agent_system_prompt(
+        summaries, tabular_summaries, collection_name
     )
-    custom_prompt = get_agent_system_prompt(summaries, tabular_summaries)
     input_data = {
         "messages": (
             [{"role": "system", "content": custom_prompt}]

@@ -1,10 +1,9 @@
 import logging
 from typing import Optional, List
+
+import os
 import pandas as pd
 import requests
-import os
-
-from langchain_core.documents import Document
 from pathlib import Path
 
 
@@ -20,7 +19,7 @@ class RemoteTabularVectorStore:
         self, collection_name: str, file_path: str, file_hash: str
     ) -> None:
         """
-        Uploads a document file to the remote tabular vector store via the /upload_raw endpoint.
+        Uploads a document file to the remote tabular vector store via the /collections/{collection_name}/documents endpoint.
         Args:
             collection_name (str): The name of the collection to upload to.
             file_path (str): The path to the file to upload.
@@ -30,13 +29,10 @@ class RemoteTabularVectorStore:
             file_name = Path(file_path).name
             with open(file_path, "rb") as f:
                 files = {"file": (file_name, f)}
-                data = {
-                    "collection_name": collection_name,
-                    "file_hash": file_hash,
-                }
+                data = {"file_hash": file_hash}
                 response = requests.post(
-                    f"{self.url}/upload_raw",
-                    headers={"x-api-key": os.getenv("RAG_API_KEY")},
+                    f"{self.url}/collections/{collection_name}/documents",
+                    headers=self._get_file_headers(),
                     files=files,
                     data=data,
                 )
@@ -60,22 +56,82 @@ class RemoteTabularVectorStore:
             bool: True if at least one document was deleted, False otherwise.
         """
         try:
-            response = self._get(
-                "delete_document",
-                {
-                    "collection_name": collection_name,
-                    "file_name": file_name,
-                },
+            response = self._delete(
+                f"collections/{collection_name}/documents",
+                {"file_name": file_name}
             )
             if response.status_code != 200:
-                raise Exception(f"Failed to delete document: {response.text}")
+                return False
             data = response.json()
             if data["success"]:
                 logging.info(f"Document {file_name} deleted from {collection_name}.")
-                return True
+            return data["success"]
         except Exception as e:
             logging.error(f"Failed to delete document {file_name}: {str(e)}")
-        return False
+            return False
+
+    def get_documents(self, collection_name: str) -> List[str]:
+        """Retrieves a list of document file names in a collection."""
+        response = self._get(f"collections/{collection_name}/documents")
+        data = self._handle_response(response, error_message="Failed to list documents")
+        return data.get("items", [])
+
+    def document_version_exists(self, file_hash: str, collection_name: str) -> bool:
+        """Check if a document version (hash) is up-to-date in the collection."""
+        response = self._get(
+            f"collections/{collection_name}/documents/version-exists",
+            {"file_hash": file_hash},
+        )
+        data = self._handle_response(response, error_message="Failed to check document status")
+        return data.get("success", False)
+
+    def get_collections(self) -> List[str]:
+        """Lists all collections in the tabular pgvector vector store."""
+        response = self._get("collections")
+        data = self._handle_response(response, error_message="Failed to list collections")
+        return data.get("items", [])
+
+    def add_collection(self, collection_name: str) -> None:
+        """Adds a collection to the tabular pgvector vector store."""
+        try:
+            # Send collection_name as query parameter instead of JSON body
+            response = self._post("collections", data=None, params={"collection_name": collection_name})
+            data = self._handle_response(
+                response, 
+                f"Collection {collection_name} added successfully.",
+                "Failed to add collection"
+            )
+            if not data.get("success"):
+                logging.info(f"Collection {collection_name} already exists.")
+        except Exception as e:
+            logging.error(f"Failed to add collection {collection_name}: {str(e)}")
+            raise
+
+    def delete_collection(self, collection_name: str) -> None:
+        """
+        Deletes a collection and its associated relations from the tabular pgvector vector store.
+
+        Args:
+            collection_name (str): The name of the collection to delete.
+        """
+        try:
+            response = self._delete("collections", {"collection_name": collection_name})
+            data = self._handle_response(
+                response,
+                f"Collection {collection_name} deleted successfully.",
+                "Failed to delete collection"
+            )
+            if not data.get("success"):
+                logging.info(f"Collection {collection_name} does not exist.")
+        except Exception as e:
+            logging.error(f"Failed to delete collection {collection_name}: {str(e)}")
+            raise
+
+    def get_summaries(self, collection_name: str) -> List[str]:
+        """Retrieves file descriptions for a collection."""
+        response = self._get(f"collections/{collection_name}/summaries")
+        data = self._handle_response(response, error_message="Failed to get summaries")
+        return data.get("items", [])
 
     def retrieve_top_rows(
         self,
@@ -95,8 +151,6 @@ class RemoteTabularVectorStore:
             question (str): The query or question for which relevant rows are retrieved.
             top_k (int, optional): Number of top rows to return. Default is 10.
             k_rrf (int, optional): Reciprocal rank fusion parameter. Default is 60.
-            weight_row_vs_file_based (float, optional): Weight to balance
-                row-level vs. file-level relevance scores. Default is 0.8.
             max_file_count (int, optional): Maximum number of files to consider
                 based on schema matching. Default is 3.
 
@@ -104,10 +158,10 @@ class RemoteTabularVectorStore:
             pd.DataFrame: DataFrame containing the attributes of the top matching rows.
         """
         try:
-            response = self._get(
-                "retrieve_top_rows",
-                {
-                    "collection_name": collection_name,
+            response = requests.get(
+                f"{self.url}/collections/{collection_name}/search",
+                headers={"x-api-key": os.getenv("RAG_API_KEY")},
+                params={
                     "question": question,
                     "top_k": top_k,
                     "k_rrf": k_rrf,
@@ -119,205 +173,57 @@ class RemoteTabularVectorStore:
             if response.status_code != 200:
                 raise Exception(f"Failed to retrieve top rows: {response.text}")
             data = response.json()
-            if "rows" not in data:
-                raise Exception("Invalid response format: 'rows' key missing.")
-            return pd.DataFrame(pd.DataFrame(data["rows"]))
+            if "data" not in data:
+                raise Exception("Invalid response format: 'data' key missing.")
+            return pd.DataFrame(data["data"])
         except Exception as e:
             logging.error(f"Failed to retrieve top rows: {str(e)}")
             raise
 
-    def list_documents(self, collection_name: str) -> List[str]:
-        """
-        Retrieves a list of document file names associated with a specific collection.
-
-        Args:
-            collection_name (str): The name of the collection.
-
-        Returns:
-            list[str]: A list of document file names in the collection.
-        """
-        try:
-            response = self._get(
-                "list_documents",
-                {
-                    "collection_name": collection_name,
-                },
-            )
-            if response.status_code != 200:
-                raise Exception(f"Failed to list documents: {response.text}")
-            data = response.json()
-            if "items" not in data:
-                raise Exception("Invalid response format: 'documents' key missing.")
-            return data["items"]
-        except Exception as e:
-            logging.error(f"Failed to list documents: {str(e)}")
-            raise
-
-    def is_doc_up_to_date_in_list(self, file_hash: str, collection_name: str) -> bool:
-        """
-        Check if a tabular document with a given hash is up-to-date
-        in the tabular document list for a specific collection.
-
-        Args:
-            file_hash (str): The hash of the tabular document to check.
-            collection (str): The collection the tabular document belongs to.
-
-        Returns:
-            bool: True if the document is up-to-date, False otherwise.
-        """
-        try:
-            response = self._get(
-                "is_doc_up_to_date",
-                {
-                    "file_hash": file_hash,
-                    "collection_name": collection_name,
-                },
-            )
-            if response.status_code != 200:
-                raise Exception(f"Failed to check document status: {response.text}")
-            data = response.json()
-            if data["success"]:
-                logging.info(
-                    f"Document with hash {file_hash} is up-to-date in collection {collection_name}."
-                )
-                return True
-            else:
-                logging.info(
-                    f"Document with hash {file_hash} is NOT up-to-date in collection {collection_name}."
-                )
-                return False
-        except Exception as e:
-            logging.error(f"Failed to check document status: {str(e)}")
-            return False
-
-    def list_collections(self) -> list[str]:
-        """
-        Lists all collections in the tabular pgvector vector store.
-
-        Returns:
-            list[str]: A list of collection names.
-        """
-        try:
-            response = self._get("list_collections")
-            if response.status_code != 200:
-                raise Exception(f"Failed to list collections: {response.text}")
-            data = response.json()
-            if "items" not in data:
-                raise Exception("Invalid response format: 'collections' key missing.")
-            return data["items"]
-        except Exception as e:
-            logging.error(f"Failed to list collections: {str(e)}")
-            raise
-
-    def add_collection(self, collection_name: str) -> None:
-        """
-        Adds a collection to the tabular pgvector vector store.
-
-        Args:
-            collection_name (str): The name of the collection to add.
-        """
-        try:
-            response = self._get(
-                "add_collection",
-                {
-                    "collection_name": collection_name,
-                },
-            )
-            if response.status_code != 200:
-                raise Exception(f"Failed to add collection: {response.text}")
-            data = response.json()
-            if data["success"]:
-                logging.info(f"Collection {collection_name} added successfully.")
-            else:
-                logging.info(f"Collection {collection_name} already exists.")
-        except Exception as e:
-            logging.error(f"Failed to add collection {collection_name}: {str(e)}")
-            raise
-
-    def remove_collection(self, collection_name: str) -> None:
-        """
-        Deletes a collection and its associated relations from the tabular pgvector vector store.
-
-        Args:
-            collection_name (str): The name of the collection to delete.
-        """
-        try:
-            response = self._get(
-                "remove_collection",
-                {
-                    "collection_name": collection_name,
-                },
-            )
-            if response.status_code != 200:
-                raise Exception(f"Failed to remove collection: {response.text}")
-            data = response.json()
-            if data["success"]:
-                logging.info(f"Collection {collection_name} removed successfully.")
-            else:
-                logging.info(f"Collection {collection_name} does not exist.")
-        except Exception as e:
-            logging.error(f"Failed to remove collection {collection_name}: {str(e)}")
-            raise
-
-    def get_summaries_by_collection(self, collection_name: str) -> list[str]:
-        """
-        Retrieves a list of file_descriptions associated with a specific collection.
-
-        Args:
-            collection_name (str): The name of the collection.
-
-        Returns:
-            list[str]: A list of file descriptions in the collection.
-        """
-        try:
-            response = self._get(
-                "get_summaries",
-                {
-                    "collection_name": collection_name,
-                },
-            )
-            if response.status_code != 200:
-                raise Exception(f"Failed to get summaries: {response.text}")
-            data = response.json()
-            if "items" not in data:
-                raise Exception("Invalid response format: 'summaries' key missing.")
-            return data["items"]
-        except Exception as e:
-            logging.error(f"Failed to get summaries: {str(e)}")
-            raise
-
-    def retrieve_top_chunks(
-        self, collection_name: str, question: str, k: int
-    ) -> List[Document]:
-        """
-        Retrieves the top K most similar document chunks to the given question.
-
-        Args:
-            question (str): The query to search for.
-            k (int): The number of top results to return.
-
-        Returns:
-            List[Document]: A list of the top K similar documents.
-        """
-        logging.info("Calling obsolete function to retrieve top chunks.")
-        return []
+    # Helper methods
+    def _handle_response(self, response, success_message: str = None, error_message: str = "Request failed"):
+        """Common response handling logic."""
+        if response.status_code != 200:
+            raise Exception(f"{error_message}: {response.text}")
+        
+        data = response.json()
+        if success_message and data.get("success"):
+            logging.info(success_message)
+        
+        return data
 
     def _get(self, call: str, data: Optional[dict] = None):
         return requests.get(
             f"{self.url}/{call}",
-            headers={
-                "Content-Type": "application/json",
-                "x-api-key": os.getenv("RAG_API_KEY"),
-            },
+            headers=self._get_headers(),
             params=data,
         )
 
-    def _post(self, call: str, data: dict):
+    def _post(self, call: str, data: dict = None, params: dict = None):
+        """Updated _post method to support both JSON body and query params."""
         return requests.post(
             f"{self.url}/{call}",
-            headers={
-                "Content-Type": "application/json",
-                "x-api-key": os.getenv("RAG_API_KEY"),
-            },
-            json=data,
+            headers=self._get_headers(),
+            json=data if data is not None else None,
+            params=params,
         )
+
+    def _delete(self, call: str, data: Optional[dict] = None):
+        return requests.delete(
+            f"{self.url}/{call}",
+            headers=self._get_headers(),
+            params=data,
+        )
+
+    def _get_headers(self) -> dict:
+        """Returns common headers for API requests."""
+        return {
+            "Content-Type": "application/json",
+            "x-api-key": os.getenv("RAG_API_KEY"),
+        }
+
+    def _get_file_headers(self) -> dict:
+        """Returns headers for file upload requests (no Content-Type)."""
+        return {
+            "x-api-key": os.getenv("RAG_API_KEY"),
+        }

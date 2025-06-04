@@ -9,42 +9,63 @@ ROUTE = "rag"
 
 
 mcp = FastMCP(
-    name="PiXie Rag Tool",
+    name="PiXie RAG Tool",
     description=(
-        "Provides access to internal document segments most relevant to a given query. Useful for retrieving contextual information to assist in answering user questions.",
+        "Provides access to internal document segments most relevant to a given query. Retrieves contextual information from stored documents to assist in answering questions.",
     ),
 )
 
 
 @mcp.tool()
-def search(question: str, collection_name: str) -> str:
+def rag_search(question: str, collection_name: str) -> str:
     """
-    This MCP tool allows the LLM to retrieve the most relevant document chunks from an internal vector store,
-    based on a given question. The tool is typically used after the LLM has reviewed available document summaries
-    and wants to search for detailed content.
+    Retrieves the most relevant document chunks from an internal vector store based on a given question.
 
-    It connects to a remote FastAPI server that exposes a `/search` endpoint. The response includes the top-matching
-    chunks ranked by semantic similarity, intended to support evidence-based answering within internal document contexts.
+    This tool connects to a remote search service that finds semantically similar content from stored documents.
+    The available content and topics are described in your system prompt - refer to that for guidance on 
+    when this tool will be most useful.
 
-    Use this tool when the summaries alone are insufficient to answer the user's question.
+    Args:
+        question: The search query to find relevant information
+        collection_name: The collection to search within (use the collection specified in your instructions)
+
+    Returns:
+        JSON formatted search results with relevant document chunks and metadata
     """
 
-    response = requests.get(
-        f"{BASE_URL}/{ROUTE}/search",
-        headers={
-            "Content-Type": "application/json",
-            "x-api-key": os.getenv("RAG_API_KEY"),
-        },
-        params={
-            "question": question,
-            "collection_name": "pixie",
-        },
-        timeout=10,
-    )
-    if response.status_code != 200:
-        return f"Something went wrong: {response.status_code} - {response.text}"
-    data = response.json()
-    return json.dumps(data, indent=2, default=str)
+    try:
+        response = requests.get(
+            f"{BASE_URL}/{ROUTE}/collections/{collection_name}/search",
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": os.getenv("RAG_API_KEY"),
+            },
+            params={
+                "question": question,
+            },
+            timeout=15,
+        )
+        
+        if response.status_code == 404:
+            return f"No information found for collection '{collection_name}'. Please verify the collection name is correct."
+        
+        if response.status_code != 200:
+            return f"Search failed with status {response.status_code}: {response.text}"
+            
+        data = response.json()
+        
+        # Check if we got meaningful results
+        if not data or (isinstance(data, dict) and not data.get("chunks")):
+            return f"No relevant information found for your question: {question}"
+            
+        return json.dumps(data, indent=2, default=str)
+        
+    except requests.exceptions.Timeout:
+        return "Search request timed out. Please try again with a more specific question."
+    except requests.exceptions.ConnectionError:
+        return "Unable to connect to search service. Please try again later."
+    except Exception as e:
+        return f"Search error: {str(e)}"
 
 
 if __name__ == "__main__":

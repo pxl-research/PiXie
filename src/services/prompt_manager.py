@@ -13,7 +13,7 @@ def load_prompt(filename):
         return file.read()
 
 
-def get_agent_system_prompt(summaries, tabular_summaries):
+def get_agent_system_prompt(summaries, tabular_summaries, collection_name):
     """Formatteer de system prompt voor de agent met de juiste waarden."""
     system_prompt_template = load_prompt("agent_system_prompt.txt")
     citation_guidelines = load_prompt("citation_guidelines.txt")
@@ -22,6 +22,7 @@ def get_agent_system_prompt(summaries, tabular_summaries):
         summaries=summaries,
         tabular_summaries=tabular_summaries,
         citation_guidelines=citation_guidelines,
+        collection_name=collection_name,
     )
 
 

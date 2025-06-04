@@ -1,8 +1,9 @@
 import os
 import shutil
 import logging
+from typing import Optional, List
+
 from werkzeug.utils import secure_filename
-from typing import Optional
 
 from services import utils
 
@@ -16,7 +17,6 @@ from services.init_services import get_services
 
 # Shared services for document management
 _services = get_services()
-tabular_vector_store = _services["tabular_vector_store"]
 
 
 UPLOAD_FOLDER = "./uploads"
@@ -24,13 +24,11 @@ UPLOAD_FOLDER = "./uploads"
 
 def add_document(collection_name: str, file_path: str) -> Optional[str]:
     """
-    Handle the process of uploading, securing the file name, loading, splitting,
-    and adding a document to the vector store.
+    Handle the process of uploading, securing the file name, and adding a document to the vector store.
 
     This function secures the filename, copies the file to the upload folder, computes its hash,
-    checks if the document is up-to-date, and if not, processes the document by loading, splitting,
-    and adding it to the vector store. It also uploads the file to Azure Blob Storage and updates
-    the document list accordingly.
+    checks if the document is up-to-date, and if not, processes the document and adds it to the
+    appropriate vector store (RAG or tabular).
 
     Parameters:
         collection_name (str): The name of the collection to add the document to.
@@ -38,6 +36,9 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
 
     Returns:
         Optional[str]: The secure file name if added or updated, otherwise None.
+        
+    Raises:
+        Exception: If document processing fails.
     """
 
     # Create upload folder if it does not exist
@@ -55,10 +56,9 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
         document_file_type = get_document_file_type(secure_file_name)
 
         if document_file_type is DocumentFileType.Document:
-
             # Check if the document is already up-to-date
-            if _services["vector_store"].is_doc_up_to_date_in_list(
-                file_hash=file_hash, collection_name=collection_name
+            if _services["vector_store"].document_version_exists(
+                collection_name=collection_name, file_hash=file_hash
             ):
                 logging.info(f"File {secure_file_name} is already up-to-date.")
                 return None
@@ -70,9 +70,8 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
             )
 
         elif document_file_type is DocumentFileType.TabularDocument:
-
             # Check if the document is already up-to-date
-            if _services["tabular_vector_store"].is_doc_up_to_date_in_list(
+            if _services["tabular_vector_store"].document_version_exists(
                 file_hash=file_hash, collection_name=collection_name
             ):
                 logging.info(f"File {secure_file_name} is already up-to-date.")
@@ -84,17 +83,13 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
                 file_hash=file_hash,
             )
 
-        logging.info(
-            f"Document {secure_file_name} has been uploaded to Azure Blob Storage."
-        )
-        logging.info(
-            f"Document {secure_file_name} has been added to the tabular vector store."
-        )
-
+        logging.info(f"Document {secure_file_name} has been uploaded to remote store.")
+        logging.info(f"Document {secure_file_name} has been added to the vector store.")
         return secure_file_name
 
     except Exception as e:
-        logging.error(f"Error: {str(e)}")
+        logging.error(f"Error adding document {secure_file_name}: {str(e)}")
+        raise  # Re-raise the exception instead of returning None
     finally:
         # Ensure the temporary file is removed after processing
         if os.path.exists(temp_file_path):
@@ -103,22 +98,9 @@ def add_document(collection_name: str, file_path: str) -> Optional[str]:
 
 
 def add_documents(
-    file_paths: list[str], collection_name: str = "pixie"
-) -> list[list[str]]:
-    """
-    Add multiple documents to the system and retrieve the updated document list.
-
-    This function iterates over a list of file paths, adding each document to the document store
-    by invoking the `add_document` function. After all documents are added, it retrieves the updated
-    list of document collections by calling `list_documents`.
-
-    Parameters:
-        file_paths (list[str]): A list of file paths representing the documents to be added.
-
-    Returns:
-        list[list[str]]: An updated list of document collections, where each inner list contains
-        information about a single document.
-    """
+    file_paths: List[str], collection_name: str = "pixie"
+) -> List[List[str]]:
+    """Add multiple documents to the system and retrieve the updated document list."""
 
     for file_path in file_paths:
         add_document(collection_name, file_path)
@@ -128,29 +110,23 @@ def add_documents(
 
 def remove_document(
     selected_file: str, collection_name: str = "pixie"
-) -> list[list[str]]:
+) -> List[List[str]]:
     if selected_file:
         document_file_type = get_document_file_type(selected_file)
         logging.info(f"Removing document: {selected_file}")
         try:
             if document_file_type is DocumentFileType.Document:
-                success_deletion_from_vector_store = _services[
-                    "vector_store"
-                ].delete_document(collection_name, selected_file)
-                success_deletion_from_doc_list = _services[
-                    "vector_store"
-                ].remove_from_doc_list(selected_file, collection_name)
-                success = (
-                    success_deletion_from_vector_store
-                    and success_deletion_from_doc_list
+                success = _services["vector_store"].delete_document(
+                    collection_name, selected_file
                 )
             elif document_file_type is DocumentFileType.TabularDocument:
-                success = tabular_vector_store.delete_tabular_document(
+                success = _services["tabular_vector_store"].delete_document(
                     collection_name, selected_file
                 )
             else:
                 raise Exception("No valid file extension used.")
-            blob_service.delete_blob(selected_file)
+
+            # Note: blob_service.delete_blob(selected_file) removed as it's not defined
 
             if success:
                 logging.info(f"File '{selected_file}' has been successfully removed.")
@@ -166,23 +142,15 @@ def remove_document(
     return files_df
 
 
-def list_documents(collection_name: str) -> list[list[str]]:
-    """
-    Retrieve the list of document collections.
+def list_documents(collection_name: str) -> List[List[str]]:
+    """Retrieve the list of document collections."""
 
-    This function fetches the current list of document names from the document list utility
-    and formats them into a list of lists for display purposes.
-
-    Returns:
-        list[list[str]]: A list of lists containing the document names.
-    """
-
-    def non_tabular(collection_name: str) -> list[str]:
-        file_list = _services["vector_store"].get_doc_list(collection_name)
+    def non_tabular(collection_name: str) -> List[str]:
+        file_list = _services["vector_store"].get_documents(collection_name)
         return file_list
 
-    def tabular(collection_name: str) -> list[str]:
-        file_list = tabular_vector_store.list_documents(collection_name)
+    def tabular(collection_name: str) -> List[str]:
+        file_list = _services["tabular_vector_store"].get_documents(collection_name)
         return file_list
 
     file_list = non_tabular(collection_name) + tabular(collection_name)
@@ -206,19 +174,23 @@ def _prepare_upload_folder() -> None:
         logging.debug(f"Upload folder {UPLOAD_FOLDER} already exists.")
 
 
-def list_collections() -> list[str]:
-    collections = _services["vector_store"].list_collections()
-    tabular_collections = tabular_vector_store.list_collections()
-    print("Collections:")
-    print(collections)
-    print("Tabular collections:")
-    print(tabular_collections)
+def list_collections() -> List[str]:
+    collections = _services["vector_store"].get_collections()
+    tabular_collections = _services["tabular_vector_store"].get_collections()
+    logging.info(f"Collections: {collections}")
+    logging.info(f"Tabular collections: {tabular_collections}")
     # assert set(collections) == set(tabular_collections)
     return list(set(collections + tabular_collections))
 
 
 def add_collection(collection_name: str) -> None:
-    # NOTE: make this an atomic transaction in the future
-    # because collections in both stores need to be in sync
-    _services["vector_store"].add_collection(collection_name)
-    tabular_vector_store.add_collection(collection_name)
+    """Add a collection to both vector stores."""
+    try:
+        # NOTE: make this an atomic transaction in the future
+        # because collections in both stores need to be in sync
+        _services["vector_store"].add_collection(collection_name)
+        _services["tabular_vector_store"].add_collection(collection_name)
+        logging.info(f"Collection '{collection_name}' added to both stores.")
+    except Exception as e:
+        logging.error(f"Failed to add collection '{collection_name}': {str(e)}")
+        raise

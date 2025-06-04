@@ -1,6 +1,5 @@
 from services.abstractclasses.vectorstore import VectorStore
-from langchain_core.documents import Document
-from typing import List
+from typing import List, Optional
 import requests
 import os
 import logging
@@ -15,23 +14,16 @@ class RemoteRagVectorStore(VectorStore):
         self, collection_name: str, file_path: str, file_hash: str
     ) -> None:
         """
-        Uploads a document file to the remote vector store via the /upload_raw endpoint.
-        Args:
-            collection_name (str): The name of the collection to upload to.
-            file_path (str): The path to the file to upload.
-            file_hash (str): The hash of the file.
+        Uploads a document file to the remote vector store.
         """
         try:
             file_name = Path(file_path).name
             with open(file_path, "rb") as f:
                 files = {"file": (file_name, f)}
-                data = {
-                    "collection_name": collection_name,
-                    "file_hash": file_hash,
-                }
+                data = {"file_hash": file_hash}
                 response = requests.post(
-                    f"{self.url}/upload_raw",
-                    headers={"x-api-key": os.getenv("RAG_API_KEY")},
+                    f"{self.url}/collections/{collection_name}/documents",
+                    headers=self._get_file_headers(),
                     files=files,
                     data=data,
                 )
@@ -47,16 +39,15 @@ class RemoteRagVectorStore(VectorStore):
         Deletes a document from the remote vector store.
 
         Args:
-            doc_title (str): The title of the document to delete.
-        """
+            collection_name (str): The name of the collection.
+            file_name (str): The name of the document to delete.
 
+        Returns:
+            bool: True if the document was successfully deleted, False otherwise.
+        """
         try:
-            response = self._get(
-                "delete_document",
-                {
-                    "collection_name": collection_name,
-                    "document_name": file_name,
-                },
+            response = self._delete(
+                f"collections/{collection_name}/documents", {"document_name": file_name}
             )
             if response.status_code != 200:
                 return False
@@ -68,157 +59,129 @@ class RemoteRagVectorStore(VectorStore):
             logging.error(f"Failed to delete document {file_name}: {str(e)}")
             return False
 
-    def list_collections(self) -> List[str]:
-        """
-        Lists all collections in the remote vector store.
+    def get_documents(self, collection_name: str) -> List[str]:
+        """Retrieves the list of documents in a collection."""
+        response = self._get(f"collections/{collection_name}/documents")
+        data = self._handle_response(
+            response, error_message="Failed to get document list"
+        )
+        return data.get("items", [])
 
-        Returns:
-            List[str]: A list of collection names.
-        """
-        response = self._get("list_collections")
-        if response.status_code != 200:
-            raise Exception(f"Failed to list collections: {response.text}")
+    def get_summaries(self, collection_name: str) -> List[str]:
+        """Retrieves file summaries/descriptions for a collection."""
+        response = self._get(f"collections/{collection_name}/summary")
+        data = self._handle_response(response, error_message="Failed to get summaries")
+        return data.get("items", [])
 
-        data = response.json()
+    def document_exists(self, collection_name: str, file_name: str) -> bool:
+        """Checks if a document exists in the collection."""
+        response = self._get(
+            f"collections/{collection_name}/documents/exists",
+            {"file_name": file_name},
+        )
+        data = self._handle_response(
+            response, error_message="Failed to check document status"
+        )
+        return data.get("success", False)
+
+    def document_version_exists(self, collection_name: str, file_hash: str) -> bool:
+        """Checks if a document version (hash) exists in the collection."""
+        response = self._get(
+            f"collections/{collection_name}/documents/version-exists",
+            {"file_hash": file_hash},
+        )
+        data = self._handle_response(
+            response, error_message="Failed to check document status"
+        )
+        return data.get("success", False)
+
+    def add_collection(self, collection_name: str) -> None:
+        """Adds a collection to the remote vector store."""
+        try:
+            # Send collection_name as query parameter instead of JSON body
+            response = self._post("collections", data=None, params={"collection_name": collection_name})
+            self._handle_response(
+                response,
+                f"Collection {collection_name} added successfully.",
+                "Failed to add collection",
+            )
+        except Exception as e:
+            logging.error(f"Failed to add collection {collection_name}: {str(e)}")
+            raise
+
+    def delete_collection(self, collection_name: str) -> None:
+        """Deletes a collection from the remote vector store."""
+        try:
+            # This one is already correct - uses params
+            response = self._delete("collections", {"collection_name": collection_name})
+            self._handle_response(
+                response,
+                f"Collection {collection_name} deleted successfully.",
+                "Failed to delete collection",
+            )
+        except Exception as e:
+            logging.error(f"Failed to delete collection {collection_name}: {str(e)}")
+            raise
+
+    def get_collections(self) -> List[str]:
+        """Lists all collections in the remote vector store."""
+        response = self._get("collections")
+        data = self._handle_response(
+            response, error_message="Failed to list collections"
+        )
         if "items" not in data:
-            raise Exception("Invalid response format: 'collections' key missing.")
+            raise Exception("Invalid response format: 'items' key missing.")
         return data["items"]
 
-    def add_collection(self, collection_name):
-        """
-        Adds a collection to the remote vector store.
-
-        Args:
-            collection_name (str): The name of the collection to add.
-        """
-        response = self._get("add_collection", {"collection_name": collection_name})
+    # Helper methods remain the same
+    def _handle_response(
+        self,
+        response,
+        success_message: str = None,
+        error_message: str = "Request failed",
+    ):
+        """Common response handling logic."""
         if response.status_code != 200:
-            raise Exception(f"Failed to add collection: {response.text}")
-        logging.info(f"Collection {collection_name} added.")
+            raise Exception(f"{error_message}: {response.text}")
 
-    def retrieve_top_chunks(
-        self, collection_name: str, question: str, k: int
-    ) -> List[Document]:
-        """
-        Retrieves the top K most similar document chunks to the given question.
+        data = response.json()
+        if success_message and data.get("success"):
+            logging.info(success_message)
 
-        Args:
-            question (str): The query to search for.
-            k (int): The number of top results to return.
+        return data
 
-        Returns:
-            List[Document]: A list of the top K similar documents.
-        """
-        logging.info("Calling obsolete function to retrieve top chunks.")
-        return []
-
-    def is_doc_up_to_date_in_list(self, file_hash: str, collection_name: str) -> bool:
-        """
-        Checks if a document is up to date in the list.
-
-        Args:
-            collection_name (str): The name of the collection.
-            file_name (str): The name of the document.
-
-        Returns:
-            bool: True if the document is up to date, False otherwise.
-        """
-        response = self._get(
-            "is_doc_up_to_date",
-            {"file_hash": file_hash, "collection_name": collection_name},
-        )
-        if response.status_code != 200:
-            raise Exception(f"Failed to check document status: {response.text}")
-        return response.json().get("success", False)
-
-    def is_doc_in_list(self, file_name: str, collection_name: str) -> bool:
-        """
-        Checks if a document is in the list.
-
-        Args:
-            collection_name (str): The name of the collection.
-            file_name (str): The name of the document.
-
-        Returns:
-            bool: True if the document is in the list, False otherwise.
-        """
-        response = self._get(
-            "is_doc_in_list",
-            {"file_name": file_name, "collection_name": collection_name},
-        )
-        if response.status_code != 200:
-            raise Exception(f"Failed to check document status: {response.text}")
-        return response.json().get("success", False)
-
-    def get_doc_list(self, collection_name: str) -> List[str]:
-        """
-        Retrieves the list of documents in a collection.
-
-        Args:
-            collection_name (str): The name of the collection.
-
-        Returns:
-            List[str]: A list of document names.
-        """
-        response = self._get("get_doc_list", {"collection_name": collection_name})
-        if response.status_code != 200:
-            raise Exception(f"Failed to get document list: {response.text}")
-        return response.json().get("items", [])
-
-    def add_to_doc_list(self, file_name: str, collection_name: str) -> bool:
-        """
-        Adds a document to the list.
-
-        Args:
-            file_name (str): The name of the document.
-            collection_name (str): The name of the collection.
-
-        Returns:
-            bool: True if the document was added successfully, False otherwise.
-        """
-        response = self._get(
-            "add_to_doc_list",
-            {"file_name": file_name, "collection_name": collection_name},
-        )
-        if response.status_code != 200:
-            raise Exception(f"Failed to add document to list: {response.text}")
-        return response.json().get("success", False)
-
-    def remove_from_doc_list(self, file_name: str, collection_name: str) -> bool:
-        """
-        Deletes a document from the list.
-
-        Args:
-            file_name (str): The name of the document.
-            collection_name (str): The name of the collection.
-
-        Returns:
-            bool: True if the document was deleted successfully, False otherwise.
-        """
-        response = self._get(
-            "remove_from_doc_list",
-            {"file_name": file_name, "collection_name": collection_name},
-        )
-        if response.status_code != 200:
-            raise Exception(f"Failed to delete document from list: {response.text}")
-        return response.json().get("success", False)
-
-    def _get(self, call: str, data: dict | None = None):
+    def _get(self, call: str, data: Optional[dict] = None):
         return requests.get(
             f"{self.url}/{call}",
-            headers={
-                "Content-Type": "application/json",
-                "x-api-key": os.getenv("RAG_API_KEY"),
-            },
+            headers=self._get_headers(),
             params=data,
         )
 
-    def _post(self, call: str, data: dict):
+    def _post(self, call: str, data: dict = None, params: dict = None):
+        """Updated _post method to support both JSON body and query params."""
         return requests.post(
             f"{self.url}/{call}",
-            headers={
-                "Content-Type": "application/json",
-                "x-api-key": os.getenv("RAG_API_KEY"),
-            },
-            json=data,
+            headers=self._get_headers(),
+            json=data if data is not None else None,
+            params=params,
         )
+
+    def _delete(self, call: str, data: Optional[dict] = None):
+        return requests.delete(
+            f"{self.url}/{call}",
+            headers=self._get_headers(),
+            params=data,
+        )
+
+    def _get_headers(self) -> dict:
+        """Returns common headers for API requests."""
+        return {
+            "Content-Type": "application/json",
+            "x-api-key": os.getenv("RAG_API_KEY"),
+        }
+
+    def _get_file_headers(self) -> dict:
+        """Returns headers for file upload requests (no Content-Type)."""
+        return {
+            "x-api-key": os.getenv("RAG_API_KEY"),
+        }
