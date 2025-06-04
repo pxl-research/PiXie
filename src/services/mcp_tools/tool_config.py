@@ -38,24 +38,10 @@ def get_mcp_tool_configurations():
               including command, args, env, disabled, and autoApprove if applicable.
     """
     return {
-        "tavily-mcp": {
-            "transport": "stdio",
-            "command": "npx",
-            "args": ["-y", "tavily-mcp@0.1.4"],
-            "env": load_env_vars("TAVILY_API_KEY"),
-            "disabled": False,
-            "autoApprove": [],
-        },
         "sequentialthinking": {
             "transport": "stdio",
             "command": "docker",
             "args": ["run", "--rm", "-i", "mcp/sequentialthinking"],
-        },
-        "rag": {
-            "transport": "stdio",
-            "command": "python",
-            "args": ["src/services/mcp_tools/mcp_rag_tool.py"],
-            "env": {**load_env_vars("RAG_API_KEY")},
         },
         "tabular": {
             "transport": "stdio",
