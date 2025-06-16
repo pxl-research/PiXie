@@ -51,6 +51,7 @@ import time
 # --- Configuration ---
 RESOURCE_GROUP_NAME = "pixie_instore_ai"  # "azurevmtest"
 VM_NAME = "pixie_vm"  # "hellovm"
+VM_PUBLIC_PORTS = [3001]
 LOCATION = "westeurope"
 ADMIN_USERNAME = "azureuser"  # NOTE: is this okay for Pixie?
 ADMIN_PASSWORD = (
@@ -69,7 +70,7 @@ def az_run_command(
     Args:
         command_parts (list): A list of strings representing the command and its arguments.
         success_message (str): Message to print if the command succeeds.
-        error_message (str): Message to print if the command fails.
+        error_message (str): Message to print if the command fails. Pxl!20252025
 
     Returns:
         tuple[bool, str | None]: A tuple where the first element is True for success, False for failure,
@@ -291,40 +292,53 @@ def az_create_vm(
 
 
 def az_open_vm_port(
-    resource_group: str, vm_name: str, port: int, priority: int
+    resource_group: str, vm_name: str, ports: list[int], initial_priority: int
 ) -> bool:
     """
-    Opens a port on the VM's Network Security Group.
+    Opens multiple ports on the VM's Network Security Group.
 
     Args:
         resource_group (str): The name of the resource group.
         vm_name (str): The name of the VM.
-        port (int): The port number to open (e.g., 80).
-        priority (int): The priority of the NSG rule (lower number means higher priority).
+        ports (list[int]): A list of port numbers to open (e.g., [80, 443]).
+        initial_priority (int): The starting priority for the NSG rules.
+                                Priorities will increment for each port.
 
     Returns:
-        bool: True if the port was opened successfully, False otherwise.
+        bool: True if all ports were opened successfully, False otherwise.
     """
-    print(f"Attempting to open port '{port}' on VM '{vm_name}'...")
-    command = [
-        "az",
-        "vm",
-        "open-port",
-        "--resource-group",
-        resource_group,
-        "--name",
-        vm_name,
-        "--port",
-        str(port),
-        "--priority",
-        str(priority),
-    ]
-    success, _ = az_run_command(
-        command,
-        f"Port '{port}' opened successfully on VM '{vm_name}'.",
-        f"Failed to open port '{port}' on VM '{vm_name}'.",
-    )
-    return success
+    all_successful = True
+    current_priority = initial_priority
+    for port in ports:
+        print(
+            f"Attempting to open port '{port}' with priority '{current_priority}' on VM '{vm_name}'..."
+        )
+        command = [
+            "az",
+            "vm",
+            "open-port",
+            "--resource-group",
+            resource_group,
+            "--name",
+            vm_name,
+            "--port",
+            str(port),
+            "--priority",
+            str(current_priority),
+        ]
+        success, _ = az_run_command(
+            command,
+            f"Port '{port}' opened successfully on VM '{vm_name}'.",
+            f"Failed to open port '{port}' on VM '{vm_name}'.",
+        )
+        if not success:
+            all_successful = False
+            print(f"Error: Not all ports could be opened. Failed on port {port}.")
+            # Continue to try other ports or break, depending on desired behavior.
+            # For this example, we continue to attempt other ports but record the failure.
+        current_priority += 1  # Increment priority for the next rule
+
+    return all_successful
 
 
 def az_get_vm_public_ip(resource_group: str, vm_name: str) -> str | None:
@@ -723,14 +737,10 @@ def main() -> None:
     else:
         print("Virtual Machine already exists, skipping creation.")
 
-    # Open Port 80 on the VM's NSG
-    if not az_open_vm_port(RESOURCE_GROUP_NAME, VM_NAME, 80, 100):
-        print(
-            "Warning: Failed to open port 80. VM might not be accessible on this port."
-        )
+    # Open ports of VM for public access
+    if not az_open_vm_port(RESOURCE_GROUP_NAME, VM_NAME, VM_PUBLIC_PORTS, 100):
+        print("Warning: One or more ports could not be opened. VM might not be fully accessible on all desired ports.")
         sys.exit(1)
-        # We might not want to exit here, as the VM still exists.
-        # This decision depends on whether an open port is a critical requirement.
 
     # Get the Public IP Address
     vm_public_ip_address = az_get_vm_public_ip(RESOURCE_GROUP_NAME, VM_NAME)
