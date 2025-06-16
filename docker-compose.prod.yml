@@ -1,0 +1,34 @@
+services:
+  pixie-agent:
+    image: ghcr.io/philippehaldermans/pixie_pxl:latest
+    depends_on:
+      - pixie-db
+    networks:
+      - pixie-network
+    command: uv run python -m uvicorn src.startup:app --host 0.0.0.0 --port 8111
+    ports:
+      - "8111:8111"
+    env_file:
+      - .env.agent
+    restart: unless-stopped
+
+  pixie-db:
+    image: pgvector/pgvector:pg17
+    ports:
+      - "5432:5432"
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - pixie-network
+    env_file:
+      - .env.agent
+
+volumes:
+  postgres_data:
+
+networks:
+  pixie-network:
+    name: pixie-network
+    driver: bridge
