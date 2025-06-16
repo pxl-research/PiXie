@@ -4,7 +4,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - main  # De workflow wordt geactiveerd bij een push naar de 'main' branch
+      - auva  # De workflow wordt geactiveerd bij een push naar de 'main' branch
 
 permissions:
   contents: read
@@ -13,7 +13,7 @@ permissions:
 # 2. Definieer de jobs
 jobs:
   build-and-push:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       # 2.1 Checkout de repository
       - name: Checkout repository
@@ -32,6 +32,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .  # Context is de root van de repository
-          file: Dockerfile.gpu  # Specificeer de GPU Dockerfile
+          file: Dockerfile  # Specificeer de GPU Dockerfile
           push: true  # Image wordt gepusht naar de registry
           tags: ghcr.io/philippehaldermans/pixie_pxl:latest  # Vervang door je eigen gegevens
