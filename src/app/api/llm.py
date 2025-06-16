@@ -51,7 +51,7 @@ async def chat(input_data: UserInput, current_user: dict = Depends(get_current_u
 
         # Genereer een AI-antwoord en voeg dit toe aan de chatgeschiedenis
         response: str = await append_ai_for_api(
-            input_data.collection, input_data.user_question, current_user
+            input_data.user_question, current_user, input_data.collection
         )
 
         return {"response": response}

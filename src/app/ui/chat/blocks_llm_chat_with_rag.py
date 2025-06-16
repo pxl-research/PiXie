@@ -1,6 +1,6 @@
 from typing import List, Dict, Tuple, Optional, Any, AsyncGenerator
 from services.chat_history import chat_history_manager
-from services.agent_service import execute_agent
+from services.agent_service import execute_agent_for_avatar
 
 
 def append_user(
@@ -79,7 +79,7 @@ async def append_ai(
     )
 
     final_answer = ""
-    async for content, metadata_title in execute_agent(
+    async for content, metadata_title in execute_agent_for_avatar(
         message, formatted_history, collection_name
     ):
         final_answer = content
@@ -112,30 +112,45 @@ def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
 
 
 async def append_ai_for_api(
-    collection_name: str, message: str, user_info: Optional[Dict[str, Any]]
+    message: str,
+    user_info: Optional[Dict[str, Any]],
+    collection_name: str,
 ) -> str:
     """
-    API-gebruik: geef alleen het eindantwoord van de AI terug als tekst.
+    Process message for API use and return final answer with chat history support.
     """
-    user_id = user_info["id"] if user_info else 0
-    session_id = user_info.get("session_id", "0") if user_info else "0"
-    chat_history = chat_history_manager.get_chat_history(
-        user_id, limit=9, session_id=session_id
-    )
-    formatted_history = chat_history_manager.format_chat_history_for_llm(
-        chat_history[-5:] if len(chat_history) > 5 else chat_history
-    )
+    try:
+        import logging
 
-    final_answer = ""
-    async for content, metadata_title in execute_agent(
-        message, formatted_history, collection_name
-    ):
-        final_answer = content
-        chat_history = chat_history_manager.replace_last_message_in_chat_history(
-            chat_history, "assistant", content, {"title": metadata_title}
+        logger = logging.getLogger(__name__)
+
+        # Get user info like in append_ai
+        user_id = user_info["id"] if user_info else 0
+        session_id = user_info.get("session_id", "0") if user_info else "0"
+
+        # Get and format chat history like in append_ai
+        chat_history = chat_history_manager.get_chat_history(
+            user_id, limit=19, session_id=session_id
+        )
+        formatted_history = chat_history_manager.format_chat_history_for_llm(
+            chat_history[-10:] if len(chat_history) > 10 else chat_history
         )
 
-    chat_history_manager.save_chat_history(
-        user_id, None, final_answer, session_id=session_id
-    )
-    return final_answer
+        logger.debug(f"Chat history retrieved: {len(chat_history)} messages")
+        logger.debug(f"Formatted history: {formatted_history}")
+
+        # Call the avatar function
+        response = await execute_agent_for_avatar(
+            message, formatted_history, collection_name
+        )
+
+        # Save the AI response to chat history like in append_ai
+        chat_history_manager.save_chat_history(
+            user_id, None, response, session_id=session_id
+        )
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error in append_ai_for_api: {e}", exc_info=True)
+        return "Er ging iets mis bij het verwerken van je vraag. Probeer het opnieuw."

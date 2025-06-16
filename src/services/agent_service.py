@@ -133,10 +133,26 @@ async def execute_agent(
 
     thread_config = {
         "configurable": {"thread_id": 1},
-        "recursion_limit": 5,
+        "recursion_limit": 20,
     }
 
     try:
+        # Debugging output
+        logger.debug(f"formatted_history type: {type(formatted_history)}")
+        logger.debug(f"formatted_history content: {formatted_history}")
+
+        # Ensure formatted_history is a list
+        if isinstance(formatted_history, str):
+            logger.warning("formatted_history is a string, converting to empty list")
+            formatted_history = []
+        elif formatted_history is None:
+            formatted_history = []
+        elif not isinstance(formatted_history, list):
+            logger.warning(
+                f"formatted_history is {type(formatted_history)}, converting to empty list"
+            )
+            formatted_history = []
+
         out = None
         async for step in _agent.astream(input_data, thread_config):
             if "agent" in step and step["agent"]["messages"]:
@@ -181,3 +197,126 @@ async def execute_agent(
     except Exception as e:
         logger.error(f"Error in agent execution: {str(e)}", exc_info=True)
         yield f"Er is een interne fout opgetreden: {str(e)}", "🚨 Interne fout"
+
+
+async def execute_agent_for_avatar(
+    message: str,
+    formatted_history: List[Dict[str, str]],
+    collection_name: str,
+) -> str:
+    """
+    Execute agent for avatar use - returns only final answer without intermediate updates.
+    All errors are handled gracefully and never shown to the user.
+    """
+    global _agent
+
+    try:
+        # Debug logging
+        logger.debug(f"execute_agent_for_avatar called with:")
+        logger.debug(f"  message: {message}")
+        logger.debug(f"  formatted_history type: {type(formatted_history)}")
+        logger.debug(f"  formatted_history content: {formatted_history}")
+        logger.debug(f"  collection_name: {collection_name}")
+
+        # Wait for agent initialization without showing status
+        ready = await wait_for_agent_initialization()
+        if not ready:
+            logger.error("[Agent] MCP agent was not ready even after waiting.")
+            return "Ik ben nog bezig met opstarten. Geef me nog een momentje en probeer dan opnieuw."
+
+        # Ensure formatted_history is a list of dicts
+        if isinstance(formatted_history, str):
+            logger.warning("formatted_history is a string, converting to empty list")
+            formatted_history = []
+        elif formatted_history is None:
+            logger.warning("formatted_history is None, converting to empty list")
+            formatted_history = []
+        elif not isinstance(formatted_history, list):
+            logger.warning(
+                f"formatted_history is {type(formatted_history)}, converting to empty list"
+            )
+            formatted_history = []
+
+        # Validate collection_name is a string, not a dict
+        if isinstance(collection_name, dict):
+            logger.error(f"collection_name is a dict: {collection_name}")
+            return (
+                "Er is een probleem met de collectie configuratie. Probeer het opnieuw."
+            )
+
+        summaries = _services["vector_store"].get_summaries(collection_name)
+        tabular_summaries = _services["tabular_vector_store"].get_summaries(
+            collection_name
+        )
+        custom_prompt = get_agent_system_prompt(
+            summaries, tabular_summaries, collection_name
+        )
+
+        input_data = {
+            "messages": (
+                [{"role": "system", "content": custom_prompt}]
+                + formatted_history
+                + [{"role": "user", "content": message}]
+            ),
+            "collection_name": collection_name,
+        }
+
+        thread_config = {
+            "configurable": {"thread_id": 1},
+            "recursion_limit": 20,
+        }
+
+        out = None
+        user_input_required = False
+
+        async for step in _agent.astream(input_data, thread_config):
+            if "tools" in step and step["tools"]["messages"]:
+                content = step["tools"]["messages"][0].content
+                if content.startswith("__user_input_required__::"):
+                    question = content.replace("__user_input_required__::", "").strip()
+                    user_input_required = True
+                    return question  # Return the question directly for avatar to ask
+
+            out = step
+
+        # Check if we got a user input request
+        if user_input_required:
+            return "Ik heb nog wat meer informatie nodig om je goed te kunnen helpen."
+
+        # Process final answer
+        if out and out.get("agent") and out["agent"]["messages"]:
+            final_msg = out["agent"]["messages"][0].content
+            answer, sources = source_processing.split_answer_and_sources(final_msg)
+
+            # For avatar, we want a clean answer without source formatting
+            if answer:
+                return answer.strip()
+            else:
+                return "Ik kan je vraag helaas niet beantwoorden op basis van de beschikbare informatie. Kan ik je op een andere manier helpen?"
+
+    except Exception as e:
+        # Handle different types of errors gracefully
+        error_str = str(e).lower()
+
+        if "content_filter" in error_str or "responsibleai" in error_str:
+            logger.warning(f"Content filter triggered: {e}")
+            return "Ik kan je daarmee niet helpen, maar ik kan je wel helpen met het vinden van producten! Waar ben je naar op zoek?"
+
+        elif "timeout" in error_str:
+            logger.error(f"Timeout in agent execution: {e}")
+            return "Het duurt wat langer dan verwacht. Probeer het even opnieuw."
+
+        elif "connection" in error_str or "network" in error_str:
+            logger.error(f"Connection error in agent execution: {e}")
+            return "Er is een verbindingsprobleem. Probeer het over een moment opnieuw."
+
+        elif "recursion" in error_str:
+            logger.error(f"RecursionError in agent execution: {e}")
+            return "De vraag is te complex voor me om te beantwoorden. Kun je het anders formuleren?"
+
+        else:
+            logger.error(f"Unexpected error in agent execution: {e}", exc_info=True)
+            return "Er ging iets mis. Kan ik je op een andere manier helpen?"
+
+    # Fallback if nothing was returned
+    return "Ik begrijp je vraag niet helemaal. Kun je het anders proberen?"
