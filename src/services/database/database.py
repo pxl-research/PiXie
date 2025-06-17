@@ -16,5 +16,5 @@ def get_db_connection() -> psycopg2.extensions.connection:
         user=os.getenv("POSTGRES_USER"),
         password=os.getenv("POSTGRES_PASSWORD"),
         host="pixie-db",
-        port="5433",
+        port="5432",
     )
