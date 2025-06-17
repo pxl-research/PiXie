@@ -20,7 +20,7 @@ services:
   pixie-db:
     image: pgvector/pgvector:pg17
     ports:
-      - "5432:5432"
+      - "5433:5432"
     restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data
