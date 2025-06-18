@@ -78,11 +78,15 @@ class PersistentMCPClient:
         except Exception as e:
             logger.error(f"Error disconnecting PersistentMCPClient: {e}", exc_info=True)
 
-    def get_tools(self):
+    async def get_tools(self):
         try:
-            tools = self.client.get_tools() if self.client else []
-            logger.debug(f"Retrieved tools from client - tool_count: {len(tools)}")
-            return tools
+            if self.client:
+                tools = await self.client.get_tools()
+                logger.debug(f"Retrieved tools from client - tool_count: {len(tools)}")
+                return tools
+            else:
+                logger.debug("No client available - returning empty tools list")
+                return []
         except Exception as e:
             logger.error(f"Error retrieving tools from client: {e}", exc_info=True)
             return []
