@@ -3,6 +3,9 @@ import logging
 from typing import List, Optional, Tuple
 
 
+logger = logging.getLogger(__name__)
+
+
 def is_doc_up_to_date_in_list(file_hash: str, collection: str) -> bool:
     """
     Check if a document with a given hash is up-to-date in the document list for a specific collection.
@@ -16,13 +19,26 @@ def is_doc_up_to_date_in_list(file_hash: str, collection: str) -> bool:
     """
     conn = get_db_connection()
     try:
+        logger.debug(
+            f"Checking document up-to-date status - collection: {collection}, hash: {file_hash}"
+        )
         with conn.cursor() as cursor:
             cursor.execute(
                 "SELECT file_hash FROM documents WHERE file_hash = %s AND collection = %s",
                 (file_hash, collection),
             )
             result = cursor.fetchone()
-            return result is not None
+            is_up_to_date = result is not None
+            logger.debug(
+                f"Document up-to-date check result - collection: {collection}, up_to_date: {is_up_to_date}"
+            )
+            return is_up_to_date
+    except Exception as e:
+        logger.error(
+            f"Error checking document up-to-date status - collection: {collection}, hash: {file_hash}: {e}",
+            exc_info=True,
+        )
+        return False
     finally:
         conn.close()
 
@@ -40,13 +56,26 @@ def is_doc_in_list(file_name: str, collection: str) -> bool:
     """
     conn = get_db_connection()
     try:
+        logger.debug(
+            f"Checking document existence in list - collection: {collection}, file: {file_name}"
+        )
         with conn.cursor() as cursor:
             cursor.execute(
                 "SELECT file_name FROM documents WHERE file_name = %s AND collection = %s",
                 (file_name, collection),
             )
             result = cursor.fetchone()
-            return result is not None
+            exists = result is not None
+            logger.debug(
+                f"Document existence check result - collection: {collection}, file: {file_name}, exists: {exists}"
+            )
+            return exists
+    except Exception as e:
+        logger.error(
+            f"Error checking document existence - collection: {collection}, file: {file_name}: {e}",
+            exc_info=True,
+        )
+        return False
     finally:
         conn.close()
 
@@ -70,11 +99,17 @@ def add_to_doc_list(
     """
     conn = get_db_connection()
     try:
+        logger.debug(
+            f"Adding document to list - collection: {collection}, file: {file_name}, delete_first: {delete}"
+        )
         with conn.cursor() as cursor:
             if delete:
                 cursor.execute(
                     "DELETE FROM documents WHERE file_name = %s AND collection = %s",
                     (file_name, collection),
+                )
+                logger.debug(
+                    f"Deleted existing document entry - collection: {collection}, file: {file_name}"
                 )
             cursor.execute(
                 """
@@ -88,9 +123,15 @@ def add_to_doc_list(
                 (file_name, file_hash, collection, summary),
             )
         conn.commit()
-        logging.info(
-            f"Document '{file_name}' added/updated in collection '{collection}'."
+        logger.info(
+            f"Document added/updated in list - collection: {collection}, file: {file_name}"
         )
+    except Exception as e:
+        logger.error(
+            f"Error adding document to list - collection: {collection}, file: {file_name}: {e}",
+            exc_info=True,
+        )
+        raise
     finally:
         conn.close()
 
@@ -108,19 +149,23 @@ def remove_from_doc_list(file_name: str, collection: str) -> bool:
     """
     conn = get_db_connection()
     try:
+        logger.debug(
+            f"Removing document from list - collection: {collection}, file: {file_name}"
+        )
         with conn.cursor() as cursor:
             cursor.execute(
                 "DELETE FROM documents WHERE file_name = %s AND collection = %s",
                 (file_name, collection),
             )
             conn.commit()
-            logging.info(
-                f"Document '{file_name}' removed from collection '{collection}'."
+            logger.info(
+                f"Document removed from list - collection: {collection}, file: {file_name}"
             )
             return True
     except Exception as e:
-        logging.error(
-            f"Error removing document '{file_name}' from collection '{collection}': {e}"
+        logger.error(
+            f"Error removing document from list - collection: {collection}, file: {file_name}: {e}",
+            exc_info=True,
         )
         return False
     finally:
@@ -139,13 +184,23 @@ def get_doc_list(collection: str) -> List[str]:
     """
     conn = get_db_connection()
     try:
+        logger.debug(f"Retrieving document list - collection: {collection}")
         with conn.cursor() as cursor:
             cursor.execute(
                 "SELECT file_name FROM documents WHERE collection = %s", (collection,)
             )
             filenames = cursor.fetchall()
-            logging.info(f"Document list for collection '{collection}' retrieved.")
-            return [[file_name[0]] for file_name in filenames]
+            file_list = [[file_name[0]] for file_name in filenames]
+            logger.info(
+                f"Document list retrieved - collection: {collection}, count: {len(file_list)}"
+            )
+            return file_list
+    except Exception as e:
+        logger.error(
+            f"Error retrieving document list - collection: {collection}: {e}",
+            exc_info=True,
+        )
+        return []
     finally:
         conn.close()
 
@@ -164,6 +219,7 @@ def get_summaries_by_collection(collection_name: str) -> List[str]:
     conn = get_db_connection()
 
     try:
+        logger.debug(f"Retrieving summaries - collection: {collection_name}")
         with conn.cursor() as cursor:
             # Execute the query
             cursor.execute(
@@ -173,8 +229,16 @@ def get_summaries_by_collection(collection_name: str) -> List[str]:
 
             # Fetch all results and extract summaries
             summaries = [row[0] for row in cursor.fetchall()]
-
+            logger.info(
+                f"Summaries retrieved - collection: {collection_name}, count: {len(summaries)}"
+            )
             return summaries
+    except Exception as e:
+        logger.error(
+            f"Error retrieving summaries - collection: {collection_name}: {e}",
+            exc_info=True,
+        )
+        return []
     finally:
         # Close the connection
         conn.close()

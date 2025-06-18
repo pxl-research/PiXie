@@ -1,6 +1,10 @@
 from typing import List, Dict, Tuple, Optional, Any, AsyncGenerator
 from services.chat_history import chat_history_manager
 from services.agent_service import execute_agent_for_avatar
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def append_user(
@@ -19,18 +23,37 @@ def append_user(
     - List[Tuple[str, str]]: The updated chat history list of tuples, where each tuple contains the user's message
       and the AI response (or None if no response yet).
     """
-    user_id = user_info["id"] if user_info else 0
-    session_id = user_info.get("session_id", "0") if user_info else "0"
-    chat_history = chat_history_manager.get_chat_history(
-        user_id, limit=10, session_id=session_id
-    )
-    chat_history_manager.save_chat_history(
-        user_id, message, None, session_id=session_id
-    )
-    chat_history = chat_history_manager.add_message_to_chat_history(
-        chat_history, "user", message
-    )
-    return chat_history
+    try:
+        user_id = user_info["id"] if user_info else 0
+        session_id = user_info.get("session_id", "0") if user_info else "0"
+
+        logger.debug(
+            f"Appending user message - user_id: {user_id}, session_id: {session_id}"
+        )
+
+        chat_history = chat_history_manager.get_chat_history(
+            user_id, limit=10, session_id=session_id
+        )
+
+        chat_history_manager.save_chat_history(
+            user_id, message, None, session_id=session_id
+        )
+
+        chat_history = chat_history_manager.add_message_to_chat_history(
+            chat_history, "user", message
+        )
+
+        logger.info(
+            f"User message appended successfully - user_id: {user_id}, message_length: {len(message)}"
+        )
+        return chat_history
+
+    except Exception as e:
+        logger.error(
+            f"Error appending user message - user_id: {user_id if 'user_id' in locals() else 'unknown'}: {e}",
+            exc_info=True,
+        )
+        raise
 
 
 async def append_ai(
@@ -68,30 +91,52 @@ async def append_ai(
     uses execute_agent to generate a response with RAG capabilities,
     then updates and saves the chat history with the AI's response.
     """
-    user_id = user_info["id"] if user_info else 0  # Default to 0 for anonymous users
-    session_id = user_info.get("session_id", "0") if user_info else "0"
+    try:
+        user_id = (
+            user_info["id"] if user_info else 0
+        )  # Default to 0 for anonymous users
+        session_id = user_info.get("session_id", "0") if user_info else "0"
 
-    chat_history = chat_history_manager.get_chat_history(
-        user_id, limit=9, session_id=session_id
-    )
-    formatted_history = chat_history_manager.format_chat_history_for_llm(
-        chat_history[-5:] if len(chat_history) > 5 else chat_history
-    )
+        logger.debug(
+            f"Starting AI response generation - user_id: {user_id}, session_id: {session_id}, collection: {collection_name}"
+        )
 
-    final_answer = ""
-    async for content, metadata_title in execute_agent_for_avatar(
-        message, formatted_history, collection_name
-    ):
-        final_answer = content
-        chat_history = chat_history_manager.replace_last_message_in_chat_history(
-            chat_history, "assistant", content, {"title": metadata_title}
+        chat_history = chat_history_manager.get_chat_history(
+            user_id, limit=9, session_id=session_id
+        )
+        formatted_history = chat_history_manager.format_chat_history_for_llm(
+            chat_history[-5:] if len(chat_history) > 5 else chat_history
+        )
+
+        logger.debug(
+            f"Chat history retrieved - user_id: {user_id}, history_length: {len(chat_history)}"
+        )
+
+        final_answer = ""
+        async for content, metadata_title in execute_agent_for_avatar(
+            message, formatted_history, collection_name
+        ):
+            final_answer = content
+            chat_history = chat_history_manager.replace_last_message_in_chat_history(
+                chat_history, "assistant", content, {"title": metadata_title}
+            )
+            yield "", chat_history
+
+        chat_history_manager.save_chat_history(
+            user_id, None, final_answer, session_id=session_id
+        )
+
+        logger.info(
+            f"AI response generated successfully - user_id: {user_id}, response_length: {len(final_answer)}"
         )
         yield "", chat_history
 
-    chat_history_manager.save_chat_history(
-        user_id, None, final_answer, session_id=session_id
-    )
-    yield "", chat_history
+    except Exception as e:
+        logger.error(
+            f"Error generating AI response - user_id: {user_id if 'user_id' in locals() else 'unknown'}, collection: {collection_name}: {e}",
+            exc_info=True,
+        )
+        raise
 
 
 def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
@@ -105,10 +150,27 @@ def clear_log(user_info: Optional[Dict[str, Any]]) -> List[str]:
     Returns:
     - List[str]: An empty list containing two empty strings, used to reset the chat interface.
     """
-    user_id = user_info["id"] if user_info else 0
-    session_id = user_info.get("session_id", "0") if user_info else "0"
-    chat_history_manager.delete_chat_history(str(user_id), session_id=session_id)
-    return ["", ""]
+    try:
+        user_id = user_info["id"] if user_info else 0
+        session_id = user_info.get("session_id", "0") if user_info else "0"
+
+        logger.debug(
+            f"Clearing chat history - user_id: {user_id}, session_id: {session_id}"
+        )
+
+        chat_history_manager.delete_chat_history(str(user_id), session_id=session_id)
+
+        logger.info(
+            f"Chat history cleared successfully - user_id: {user_id}, session_id: {session_id}"
+        )
+        return ["", ""]
+
+    except Exception as e:
+        logger.error(
+            f"Error clearing chat history - user_id: {user_id if 'user_id' in locals() else 'unknown'}: {e}",
+            exc_info=True,
+        )
+        raise
 
 
 async def append_ai_for_api(
@@ -120,13 +182,13 @@ async def append_ai_for_api(
     Process message for API use and return final answer with chat history support.
     """
     try:
-        import logging
-
-        logger = logging.getLogger(__name__)
-
         # Get user info like in append_ai
         user_id = user_info["id"] if user_info else 0
         session_id = user_info.get("session_id", "0") if user_info else "0"
+
+        logger.debug(
+            f"Processing API message - user_id: {user_id}, session_id: {session_id}, collection: {collection_name}"
+        )
 
         # Get and format chat history like in append_ai
         chat_history = chat_history_manager.get_chat_history(
@@ -136,8 +198,9 @@ async def append_ai_for_api(
             chat_history[-10:] if len(chat_history) > 10 else chat_history
         )
 
-        logger.debug(f"Chat history retrieved: {len(chat_history)} messages")
-        logger.debug(f"Formatted history: {formatted_history}")
+        logger.debug(
+            f"Chat history retrieved for API - user_id: {user_id}, history_length: {len(chat_history)}"
+        )
 
         # Call the avatar function
         response = await execute_agent_for_avatar(
@@ -149,8 +212,14 @@ async def append_ai_for_api(
             user_id, None, response, session_id=session_id
         )
 
+        logger.info(
+            f"API response generated successfully - user_id: {user_id}, response_length: {len(response)}"
+        )
         return response
 
     except Exception as e:
-        logger.error(f"Error in append_ai_for_api: {e}", exc_info=True)
+        logger.error(
+            f"Error in API message processing - user_id: {user_id if 'user_id' in locals() else 'unknown'}, collection: {collection_name}: {e}",
+            exc_info=True,
+        )
         return "Er ging iets mis bij het verwerken van je vraag. Probeer het opnieuw."

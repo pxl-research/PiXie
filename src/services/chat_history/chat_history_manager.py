@@ -3,6 +3,9 @@ from services.database.database import get_db_connection
 from typing import List, Optional, Dict, Any
 
 
+logger = logging.getLogger(__name__)
+
+
 def get_chat_history(
     user_id: int, session_id: str = "0", limit: Optional[int] = None
 ) -> List[Dict[str, str]]:
@@ -19,6 +22,9 @@ def get_chat_history(
     """
     conn = get_db_connection()
     try:
+        logger.debug(
+            f"Retrieving chat history - user_id: {user_id}, session_id: {session_id}, limit: {limit}"
+        )
         with conn.cursor() as cursor:
             query = """
                 SELECT role, content, timestamp
@@ -33,13 +39,14 @@ def get_chat_history(
                 messages.append({"role": role, "content": content})
             if limit is not None:
                 messages = messages[-limit:]
-            logging.info(
-                f"Retrieved {len(messages)} messages for user_id {user_id} and session_id {session_id}."
+            logger.info(
+                f"Chat history retrieved - user_id: {user_id}, session_id: {session_id}, count: {len(messages)}"
             )
             return messages
     except Exception as e:
-        logging.error(
-            f"Error retrieving chat history for user_id {user_id} and session_id {session_id}: {e}"
+        logger.error(
+            f"Error retrieving chat history - user_id: {user_id}, session_id: {session_id}: {e}",
+            exc_info=True,
         )
         return []
     finally:
@@ -66,6 +73,9 @@ def save_chat_history(
     """
     conn = get_db_connection()
     try:
+        logger.debug(
+            f"Saving chat history - user_id: {user_id}, session_id: {session_id}, has_question: {question is not None}, has_response: {response is not None}"
+        )
         with conn.cursor() as cursor:
             # Insert the user's question
             if question:
@@ -76,6 +86,9 @@ def save_chat_history(
                     """,
                     (user_id, "user", question, session_id),
                 )
+                logger.debug(
+                    f"User question saved - user_id: {user_id}, session_id: {session_id}"
+                )
             # Insert the AI's response
             if response:
                 cursor.execute(
@@ -85,15 +98,20 @@ def save_chat_history(
                     """,
                     (user_id, "assistant", response, session_id),
                 )
+                logger.debug(
+                    f"AI response saved - user_id: {user_id}, session_id: {session_id}"
+                )
         conn.commit()
-        logging.info(
-            f"Saved chat history for user_id {user_id} and session_id {session_id}."
+        logger.info(
+            f"Chat history saved successfully - user_id: {user_id}, session_id: {session_id}"
         )
     except Exception as e:
-        logging.error(
-            f"Error saving chat history for user_id {user_id} and session_id {session_id}: {e}"
+        logger.error(
+            f"Error saving chat history - user_id: {user_id}, session_id: {session_id}: {e}",
+            exc_info=True,
         )
         conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -112,12 +130,20 @@ def strip_sources(text: str) -> str:
     Returns:
     - str: The text with any content after 'Bronnen:' removed. If 'Bronnen:' is not found, the original text is returned, stripped of any leading or trailing whitespace.
     """
-    if not isinstance(text, str):
-        logging.warning("strip_sources received a non-string type")
-        return ""
+    try:
+        if not isinstance(text, str):
+            logger.warning(f"strip_sources received non-string input: {type(text)}")
+            return ""
 
-    keyword_position = text.find("Bronnen:")
-    return text[:keyword_position] if keyword_position != -1 else text
+        keyword_position = text.find("Bronnen:")
+        result = text[:keyword_position] if keyword_position != -1 else text
+        logger.debug(
+            f"Sources stripped - original_length: {len(text)}, result_length: {len(result)}, sources_found: {keyword_position != -1}"
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error stripping sources from text: {e}", exc_info=True)
+        return text if isinstance(text, str) else ""
 
 
 def format_chat_history_for_llm(chat_history):
@@ -137,18 +163,28 @@ def format_chat_history_for_llm(chat_history):
           - 'role': str, specifying either 'user' or 'assistant'
           - 'content': str, containing the message content with sources removed for AI responses.
     """
-    formatted_history = [
-        (
-            message
-            if message.get("role") == "user"
-            else {
-                "role": message.get("role"),
-                "content": strip_sources(message.get("content")),
-            }
+    try:
+        logger.debug(
+            f"Formatting chat history for LLM - input_count: {len(chat_history) if chat_history else 0}"
         )
-        for message in chat_history
-    ]
-    return formatted_history
+        formatted_history = [
+            (
+                message
+                if message.get("role") == "user"
+                else {
+                    "role": message.get("role"),
+                    "content": strip_sources(message.get("content")),
+                }
+            )
+            for message in chat_history
+        ]
+        logger.debug(
+            f"Chat history formatted for LLM - output_count: {len(formatted_history)}"
+        )
+        return formatted_history
+    except Exception as e:
+        logger.error(f"Error formatting chat history for LLM: {e}", exc_info=True)
+        return []
 
 
 def add_message_to_chat_history(
@@ -171,11 +207,25 @@ def add_message_to_chat_history(
     Returns:
     - List[Dict[str, str]]: The updated chat history.
     """
-    if metadata is None:
-        chat_history.append({"role": role, "content": content})
-    else:
-        chat_history.append({"role": role, "content": content, "metadata": metadata})
-    return chat_history
+    try:
+        logger.debug(
+            f"Adding message to chat history - role: {role}, content_length: {len(content) if content else 0}, has_metadata: {metadata is not None}"
+        )
+        if metadata is None:
+            chat_history.append({"role": role, "content": content})
+        else:
+            chat_history.append(
+                {"role": role, "content": content, "metadata": metadata}
+            )
+        logger.debug(
+            f"Message added to chat history - total_messages: {len(chat_history)}"
+        )
+        return chat_history
+    except Exception as e:
+        logger.error(
+            f"Error adding message to chat history - role: {role}: {e}", exc_info=True
+        )
+        return chat_history
 
 
 def replace_last_message_in_chat_history(
@@ -198,15 +248,28 @@ def replace_last_message_in_chat_history(
     Returns:
     - List[Dict[str, str]]: The updated chat history.
     """
-    new_message: dict[str, Any] = {"role": role, "content": content}
-    if metadata is not None:
-        new_message["metadata"] = metadata
+    try:
+        logger.debug(
+            f"Replacing last message in chat history - role: {role}, content_length: {len(content) if content else 0}, has_metadata: {metadata is not None}"
+        )
+        new_message: dict[str, Any] = {"role": role, "content": content}
+        if metadata is not None:
+            new_message["metadata"] = metadata
 
-    if chat_history and chat_history[-1]["role"] == role:
-        chat_history[-1] = new_message
-    else:
-        chat_history.append(new_message)
-    return chat_history
+        if chat_history and chat_history[-1]["role"] == role:
+            chat_history[-1] = new_message
+            logger.debug("Last message replaced in chat history")
+        else:
+            chat_history.append(new_message)
+            logger.debug("New message appended to chat history")
+        logger.debug(f"Chat history updated - total_messages: {len(chat_history)}")
+        return chat_history
+    except Exception as e:
+        logger.error(
+            f"Error replacing last message in chat history - role: {role}: {e}",
+            exc_info=True,
+        )
+        return chat_history
 
 
 def delete_chat_history(user_id: str, session_id: str = "0"):
@@ -224,6 +287,9 @@ def delete_chat_history(user_id: str, session_id: str = "0"):
     """
     conn = get_db_connection()
     try:
+        logger.debug(
+            f"Deleting chat history - user_id: {user_id}, session_id: {session_id}"
+        )
         with conn.cursor() as cursor:
             cursor.execute(
                 """
@@ -233,13 +299,15 @@ def delete_chat_history(user_id: str, session_id: str = "0"):
                 (user_id, session_id),
             )
         conn.commit()
-        logging.info(
-            f"Deleted chat history for user_id {user_id} and session_id {session_id}."
+        logger.info(
+            f"Chat history deleted successfully - user_id: {user_id}, session_id: {session_id}"
         )
     except Exception as e:
-        logging.error(
-            f"Error deleting chat history for user_id {user_id} and session_id {session_id}: {e}"
+        logger.error(
+            f"Error deleting chat history - user_id: {user_id}, session_id: {session_id}: {e}",
+            exc_info=True,
         )
         conn.rollback()
+        raise
     finally:
         conn.close()
