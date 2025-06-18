@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 from urllib.parse import quote
 
 
-BASE_URL = os.getenv("TABULAR_URL")
+BASE_URL = os.getenv("RAG_API_URL")
 ROUTE = "tabular"
 
 
@@ -21,6 +21,7 @@ mcp = FastMCP(
 
 def make_request(endpoint: str, params: Optional[Dict[str, Any]] = None) -> str:
     """Helper function to make HTTP requests with consistent error handling"""
+
     try:
         response = requests.get(
             f"{BASE_URL}/{ROUTE}{endpoint}",
