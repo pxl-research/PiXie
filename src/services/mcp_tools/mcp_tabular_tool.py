@@ -24,6 +24,12 @@ if not logger.handlers:
 logger.info("=== MCP Tabular Tool initializing ===")
 
 BASE_URL = os.getenv("RAG_API_URL")
+
+if not BASE_URL:
+    BASE_URL = "http://rag-api-service:8000"
+    logger.warning(f"RAG_API_URL not found in environment, using fallback: {BASE_URL}")
+
+
 ROUTE = "tabular"
 
 logger.info(f"BASE_URL from env: {BASE_URL}")
