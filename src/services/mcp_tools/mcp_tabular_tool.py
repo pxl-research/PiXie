@@ -5,13 +5,29 @@ import json
 from typing import Dict, Any, Optional
 from urllib.parse import quote
 import logging
+import sys
 
-
+# Ensure MCP tool logging is visible
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
+# Add console handler if not already present
+if not logger.handlers:
+    console_handler = logging.StreamHandler(sys.stderr)
+    console_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        "%(asctime)s [MCP-TABULAR] %(levelname)s - %(message)s"
+    )
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+logger.info("=== MCP Tabular Tool initializing ===")
 
 BASE_URL = os.getenv("RAG_API_URL")
 ROUTE = "tabular"
+
+logger.info(f"BASE_URL from env: {BASE_URL}")
+logger.info(f"RAG_API_KEY present: {bool(os.getenv('RAG_API_KEY'))}")
 
 
 mcp = FastMCP(
@@ -35,7 +51,7 @@ def make_request(endpoint: str, params: Optional[Dict[str, Any]] = None) -> str:
                 "x-api-key": os.getenv("RAG_API_KEY"),
             },
             params=params or {},
-            timeout=15,
+            timeout=60,
         )
 
         if response.status_code == 404:
@@ -111,10 +127,15 @@ def tabular_list_tables(collection_name: str) -> str:
     List all tables/files available in a collection.
     This shows the exact table names you must use in other function calls.
     """
+    logger.info(f"tabular_list_tables called with collection_name: {collection_name}")
+    logger.info(f"BASE_URL: {BASE_URL}")
+    logger.info(f"RAG_API_KEY present: {bool(os.getenv('RAG_API_KEY'))}")
+
     if collection_name in ["products", "inventory", "database"]:
         return f"ERROR: '{collection_name}' is not a valid collection name. Use the collection name provided in your system prompt."
 
     result = make_request(f"/collections/{collection_name}/tables")
+    logger.info(f"Result: {result[:200]}...")  # Log first 200 chars
 
     # Add helper information
     try:
