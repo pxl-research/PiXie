@@ -1,6 +1,6 @@
 from typing import List, Dict, Tuple, Optional, Any, AsyncGenerator
 from services.chat_history import chat_history_manager
-from services.agent_service import execute_agent_for_avatar
+from services.agent_service import execute_agent_for_avatar, execute_agent
 import logging
 
 
@@ -113,7 +113,7 @@ async def append_ai(
         )
 
         final_answer = ""
-        async for content, metadata_title in execute_agent_for_avatar(
+        async for content, metadata_title in execute_agent(
             message, formatted_history, collection_name
         ):
             final_answer = content

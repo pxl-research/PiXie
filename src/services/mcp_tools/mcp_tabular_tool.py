@@ -2,10 +2,11 @@ from fastmcp import FastMCP
 import requests
 import os
 import json
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
+from urllib.parse import quote
 
 
-BASE_URL = "http://10.125.101.11:24031"
+BASE_URL = os.getenv("TABULAR_URL")
 ROUTE = "tabular"
 
 
@@ -40,7 +41,7 @@ def make_request(endpoint: str, params: Optional[Dict[str, Any]] = None) -> str:
                     and "Available tables:" in error_data["detail"]
                 ):
                     return f"Table not found. {error_data['detail']}"
-            except:
+            except Exception:
                 pass
             return f"Resource not found: {endpoint}. Use tabular_list_tables() to see available table names."
 
@@ -120,7 +121,7 @@ def tabular_list_tables(collection_name: str) -> str:
                 "url_encoding_note": "The MCP tool handles URL encoding automatically - just use the exact names shown above.",
             }
             return json.dumps(helper_info, indent=2)
-    except:
+    except Exception:
         pass
 
     return result
@@ -138,9 +139,8 @@ def tabular_get_table_schema(collection_name: str, file_name: str) -> str:
     """
     if collection_name in ["products", "inventory", "database"]:
         return f"ERROR: '{collection_name}' is not a valid collection name."
-
     # URL encode the file name properly
-    encoded_file_name = requests.utils.quote(file_name, safe="")
+    encoded_file_name = quote(file_name, safe="")
 
     return make_request(
         f"/collections/{collection_name}/tables/{encoded_file_name}/columns"
@@ -186,9 +186,8 @@ def tabular_count_matching_rows(
     """
     if collection_name in ["products", "inventory", "database"]:
         return f"ERROR: '{collection_name}' is not a valid collection name."
-
     # URL encode the file name properly
-    encoded_file_name = requests.utils.quote(file_name, safe="")
+    encoded_file_name = quote(file_name, safe="")
 
     params = {
         "question": question,
@@ -235,7 +234,7 @@ def tabular_search_with_count(
             return json.dumps(result_data, indent=2, default=str)
         else:
             return search_result
-    except:
+    except Exception:
         return search_result
 
 
