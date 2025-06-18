@@ -4,6 +4,10 @@ import os
 import json
 from typing import Dict, Any, Optional
 from urllib.parse import quote
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 BASE_URL = os.getenv("RAG_API_URL")
@@ -21,7 +25,8 @@ mcp = FastMCP(
 
 def make_request(endpoint: str, params: Optional[Dict[str, Any]] = None) -> str:
     """Helper function to make HTTP requests with consistent error handling"""
-
+    logger.info("Making request to endpoint: %s with params: %s", endpoint, params)
+    logger.info(f"{BASE_URL}/{ROUTE}{endpoint}")
     try:
         response = requests.get(
             f"{BASE_URL}/{ROUTE}{endpoint}",
