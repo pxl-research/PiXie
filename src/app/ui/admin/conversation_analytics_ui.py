@@ -78,12 +78,12 @@ def get_period_statistics(days: int = 7) -> Tuple[str, str]:
         return f"❌ Error bij ophalen statistieken: {str(e)}", ""
 
 
-def get_user_list() -> List[List]:
+def get_user_list() -> List[str]:
     """
     Haal lijst van gebruikers op voor dropdown.
 
     Returns:
-        List van [user_id, username] paren
+        List van user strings in format "user_id: username (sessions, last_activity)"
     """
     try:
         conn = get_db_connection()
@@ -106,17 +106,13 @@ def get_user_list() -> List[List]:
                 last_activity_str = (
                     last_activity.strftime("%Y-%m-%d") if last_activity else "Nooit"
                 )
-                users.append(
-                    [
-                        user_id,
-                        f"{username} ({session_count} sessies, laatst: {last_activity_str})",
-                    ]
-                )
+                user_string = f"{user_id}: {username} ({session_count} sessies, laatst: {last_activity_str})"
+                users.append(user_string)
 
             return users
 
     except Exception as e:
-        return [[0, f"Error: {str(e)}"]]
+        return [f"Error: {str(e)}"]
     finally:
         if "conn" in locals():
             conn.close()
@@ -136,8 +132,8 @@ def get_user_analytics_display(user_selection: str) -> str:
         if not user_selection or user_selection.startswith("Error"):
             return "❓ Selecteer een gebruiker om analytics te bekijken."
 
-        # Extract user_id from selection (eerste waarde voor spatie)
-        user_id = int(user_selection.split()[0])
+        # Extract user_id from selection (eerste waarde voor dubbele punt)
+        user_id = int(user_selection.split(":")[0])
 
         analytics = conversation_analytics.get_user_analytics(user_id)
 
@@ -312,15 +308,24 @@ def create_conversation_analytics_ui():
 
                     user_dropdown = gr.Dropdown(
                         choices=[],
+                        value=None,
                         label="Selecteer Gebruiker",
                         info="Kies een gebruiker om analytics te bekijken",
+                        allow_custom_value=False,
+                        interactive=True,
                     )
 
                     user_analytics_output = gr.Markdown(
                         "Selecteer een gebruiker om analytics te bekijken..."
                     )
 
-                    refresh_users_btn.click(fn=get_user_list, outputs=[user_dropdown])
+                    def update_user_dropdown():
+                        users = get_user_list()
+                        return gr.update(choices=users, value=None)
+
+                    refresh_users_btn.click(
+                        fn=update_user_dropdown, outputs=[user_dropdown]
+                    )
 
                     user_dropdown.change(
                         fn=get_user_analytics_display,

@@ -119,7 +119,7 @@ class ConversationAnalytics:
                 cursor.execute(
                     f"""
                     SELECT 
-                        COUNT(CASE WHEN error_occurred THEN 1 END)::float / COUNT(*) as error_rate
+                        COUNT(CASE WHEN error_occurred THEN 1 END)::float / NULLIF(COUNT(*), 0) as error_rate
                     FROM conversation_logs cl
                     JOIN conversation_sessions cs ON cl.session_id = cs.session_id
                     WHERE cs.start_time BETWEEN %s AND %s {user_filter}

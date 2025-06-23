@@ -355,49 +355,57 @@ class ConversationLogger:
                     (session_id, user_id),
                 )
 
-                # Update statistieken
-                updates = []
-                params = []
-
+                # Update basic counts
                 if increment_questions:
-                    updates.append("total_messages = total_messages + 1")
-                    updates.append("total_user_questions = total_user_questions + 1")
+                    cursor.execute(
+                        """
+                        UPDATE conversation_sessions 
+                        SET total_messages = total_messages + 1,
+                            total_user_questions = total_user_questions + 1
+                        WHERE session_id = %s
+                        """,
+                        (session_id,),
+                    )
 
                 if increment_responses:
-                    updates.append("total_messages = total_messages + 1")
-                    updates.append("total_ai_responses = total_ai_responses + 1")
+                    cursor.execute(
+                        """
+                        UPDATE conversation_sessions 
+                        SET total_messages = total_messages + 1,
+                            total_ai_responses = total_ai_responses + 1
+                        WHERE session_id = %s
+                        """,
+                        (session_id,),
+                    )
 
+                    # Update average response time separately
                     if processing_time_ms is not None:
-                        updates.append(
+                        cursor.execute(
                             """
-                            avg_response_time_ms = CASE 
+                            UPDATE conversation_sessions 
+                            SET avg_response_time_ms = CASE 
                                 WHEN total_ai_responses = 1 THEN %s
                                 ELSE (COALESCE(avg_response_time_ms, 0) * (total_ai_responses - 1) + %s) / total_ai_responses
                             END
-                        """
+                            WHERE session_id = %s
+                            """,
+                            (processing_time_ms, processing_time_ms, session_id),
                         )
-                        params.extend([processing_time_ms, processing_time_ms])
 
+                # Update collections array
                 if collection_used:
-                    updates.append(
+                    cursor.execute(
                         """
-                        collections_used = CASE
+                        UPDATE conversation_sessions 
+                        SET collections_used = CASE
                             WHEN collections_used IS NULL THEN ARRAY[%s]
                             WHEN NOT (%s = ANY(collections_used)) THEN array_append(collections_used, %s)
                             ELSE collections_used
                         END
-                    """
-                    )
-                    params.extend([collection_used, collection_used, collection_used])
-
-                if updates:
-                    query = f"""
-                        UPDATE conversation_sessions 
-                        SET {', '.join(updates)}
                         WHERE session_id = %s
-                    """
-                    params.append(session_id)
-                    cursor.execute(query, params)
+                        """,
+                        (collection_used, collection_used, collection_used, session_id),
+                    )
 
                 conn.commit()
                 return True
