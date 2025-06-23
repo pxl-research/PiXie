@@ -169,21 +169,88 @@ def get_user_analytics_display(user_selection: str) -> str:
         return f"❌ Error bij ophalen gebruiker analytics: {str(e)}"
 
 
-def get_session_details_display(session_id: str) -> str:
+def get_session_list() -> List[str]:
     """
-    Haal en format sessie details.
+    Haal lijst van recente sessies op voor dropdown.
+
+    Returns:
+        List van session strings in format "session_id: username - datum/tijd (X berichten)"
+    """
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT 
+                    cs.session_id,
+                    u.username,
+                    cs.start_time,
+                    cs.total_messages,
+                    cs.total_user_questions,
+                    cs.total_ai_responses,
+                    cs.session_duration_minutes
+                FROM conversation_sessions cs
+                JOIN users u ON cs.user_id = u.id
+                ORDER BY cs.start_time DESC
+                LIMIT 50
+            """
+            )
+
+            sessions = []
+            for row in cursor.fetchall():
+                (
+                    session_id,
+                    username,
+                    start_time,
+                    total_messages,
+                    questions,
+                    responses,
+                    duration,
+                ) = row
+
+                # Format datum/tijd
+                if start_time:
+                    time_str = start_time.strftime("%Y-%m-%d %H:%M")
+                else:
+                    time_str = "Onbekend"
+
+                # Format duur
+                if duration and duration > 0:
+                    duration_str = f", {duration:.1f}min"
+                else:
+                    duration_str = ""
+
+                # Maak beschrijvende string
+                session_string = f"{session_id}: {username} - {time_str} ({total_messages or 0} berichten{duration_str})"
+                sessions.append(session_string)
+
+            return sessions
+
+    except Exception as e:
+        return [f"Error: {str(e)}"]
+    finally:
+        if "conn" in locals():
+            conn.close()
+
+
+def get_session_details_from_dropdown(session_selection: str) -> str:
+    """
+    Haal sessie details op vanuit dropdown selectie.
 
     Args:
-        session_id: Sessie ID
+        session_selection: Geselecteerde sessie string
 
     Returns:
         Geformatteerde sessie details
     """
     try:
-        if not session_id.strip():
-            return "❓ Voer een sessie ID in om details te bekijken."
+        if not session_selection or session_selection.startswith("Error"):
+            return "❓ Selecteer een sessie om details te bekijken."
 
-        details = conversation_analytics.get_session_details(session_id.strip())
+        # Extract session_id from selection (eerste deel voor dubbele punt)
+        session_id = session_selection.split(":")[0].strip()
+
+        details = conversation_analytics.get_session_details(session_id)
 
         if details:
             messages_count = len(details["messages"])
@@ -233,6 +300,19 @@ def get_session_details_display(session_id: str) -> str:
 
     except Exception as e:
         return f"❌ Error bij ophalen sessie details: {str(e)}"
+
+
+def get_session_details_display(session_id: str) -> str:
+    """
+    Legacy functie voor directe sessie ID input (behouden voor backwards compatibility).
+
+    Args:
+        session_id: Sessie ID
+
+    Returns:
+        Geformatteerde sessie details
+    """
+    return get_session_details_from_dropdown(session_id)
 
 
 def get_popular_questions_display(days: int = 30, limit: int = 10) -> str:
@@ -335,16 +415,50 @@ def create_conversation_analytics_ui():
 
                 # Tab 3: Sessie Details
                 with gr.Tab("🎯 Sessies"):
-                    session_id_input = gr.Textbox(
-                        label="Sessie ID", placeholder="Voer sessie ID in..."
-                    )
+                    with gr.Row():
+                        with gr.Column(scale=1):
+                            gr.Markdown("### 📋 Selecteer uit Recente Sessies")
 
-                    get_session_btn = gr.Button(
-                        "🔍 Haal Sessie Details Op", variant="primary"
-                    )
+                            refresh_sessions_btn = gr.Button("🔄 Ververs Sessielijst")
+
+                            session_dropdown = gr.Dropdown(
+                                choices=[],
+                                value=None,
+                                label="Selecteer Sessie",
+                                info="Kies een sessie om details te bekijken (meest recent bovenaan)",
+                                allow_custom_value=False,
+                                interactive=True,
+                            )
+
+                        with gr.Column(scale=1):
+                            gr.Markdown("### ✏️ Of Voer Sessie ID Handmatig In")
+
+                            session_id_input = gr.Textbox(
+                                label="Sessie ID",
+                                placeholder="Voer sessie ID in...",
+                                info="Voor als je een specifieke sessie ID hebt",
+                            )
+
+                            get_session_btn = gr.Button(
+                                "🔍 Haal Sessie Details Op", variant="secondary"
+                            )
 
                     session_details_output = gr.Markdown(
-                        "Voer een sessie ID in en klik op 'Haal Sessie Details Op'..."
+                        "Selecteer een sessie uit de lijst of voer een sessie ID in..."
+                    )
+
+                    def update_session_dropdown():
+                        sessions = get_session_list()
+                        return gr.update(choices=sessions, value=None)
+
+                    refresh_sessions_btn.click(
+                        fn=update_session_dropdown, outputs=[session_dropdown]
+                    )
+
+                    session_dropdown.change(
+                        fn=get_session_details_from_dropdown,
+                        inputs=[session_dropdown],
+                        outputs=[session_details_output],
                     )
 
                     get_session_btn.click(
@@ -401,8 +515,9 @@ def create_conversation_analytics_ui():
             - Bekijk activiteitspatronen en voorkeuren
             
             **Sessies Tab:**
-            - Voer een specifieke sessie ID in
-            - Bekijk volledige conversatie geschiedenis
+            - Selecteer een sessie uit de dropdown lijst (meest recent bovenaan)
+            - Of voer een specifieke sessie ID handmatig in
+            - Bekijk volledige conversatie geschiedenis met tijdstempels
             
             **Trends Tab:**
             - Ontdek populaire vragen en onderwerpen
@@ -412,7 +527,8 @@ def create_conversation_analytics_ui():
             
             ⚡ **Tips:**
             - Gebruik de ververs knoppen om data bij te werken
-            - Sessie IDs vind je in de logs of database
+            - De sessielijst toont de 50 meest recente sessies
+            - Sessie info bevat gebruiker, datum/tijd en aantal berichten
             - Langere periodes kunnen langzamer laden
             """
             )
