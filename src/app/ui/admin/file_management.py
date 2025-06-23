@@ -94,20 +94,29 @@ def file_upload_interface():
                 label="Click to Upload (a) File(s)", file_count="multiple", visible=True
             )
 
-            default_files_list = (
-                load_files_list(collection_choices[0]) if collection_choices else None
-            )
+            # Wrapper voor scrollbare documentenlijst
+            with gr.Column():
+                gr.Markdown("### Geüploade documenten")
 
-            files_list = gr.Dataframe(
-                headers=["Naam"],
-                datatype=["str"],
-                value=default_files_list,  # Laad documenten voor de eerste collectie
-                interactive=False,
-            )
+                default_files_list = (
+                    load_files_list(collection_choices[0])
+                    if collection_choices
+                    else None
+                )
 
-            delete_file_button = gr.Button(
-                "Delete", interactive=False, elem_classes="red_bg"
-            )
+                files_list = gr.Dataframe(
+                    headers=["Naam"],
+                    datatype=["str"],
+                    value=default_files_list,  # Laad documenten voor de eerste collectie
+                    interactive=False,
+                    max_rows=10,  # Beperk het aantal zichtbare rijen
+                    height=300,  # Vaste hoogte voor de tabel
+                    overflow_row_behaviour="paginate",  # Voeg paginering toe voor lange lijsten
+                )
+
+                delete_file_button = gr.Button(
+                    "Delete", interactive=False, elem_classes="red_bg"
+                )
 
             # Define interactions
             files_list.select(
