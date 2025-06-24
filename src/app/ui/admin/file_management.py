@@ -109,7 +109,6 @@ def file_upload_interface():
                     datatype=["str"],
                     value=default_files_list,  # Laad documenten voor de eerste collectie
                     interactive=False,
-                    height=300,  # Vaste hoogte voor de tabel
                 )
 
                 delete_file_button = gr.Button(
