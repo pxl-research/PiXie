@@ -109,9 +109,7 @@ def file_upload_interface():
                     datatype=["str"],
                     value=default_files_list,  # Laad documenten voor de eerste collectie
                     interactive=False,
-                    max_rows=10,  # Beperk het aantal zichtbare rijen
                     height=300,  # Vaste hoogte voor de tabel
-                    overflow_row_behaviour="paginate",  # Voeg paginering toe voor lange lijsten
                 )
 
                 delete_file_button = gr.Button(
