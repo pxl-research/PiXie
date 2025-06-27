@@ -1,66 +1,33 @@
-# -----------------------------------------------------------------
-# LLM
-# -----------------------------------------------------------------
-from abc import ABC, abstractmethod
+# Example of usage code:
+'''
+llm = AzureOpenAILLM(
+    api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+    api_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    model_version=os.getenv("AZURE_OPENAI_MODEL_VERSION")
+)
 
+# Create conversation_loop per new session
+conversation_loop = ConversationLoop(llm=llm)
+wait_for_user_input = True
 
-class LLM(ABC):
-    """
-    Abstract base class for language models.
-    """
+while True:
+    if not wait_for_user_input:
+        break
 
-    def __init__(self, model_name: str):
-        """
-        Initialize the LLM with a model name.
+    user_input = input("You: ").strip()
 
-        Args:
-            model_name (str): The name of the model.
-        """
-        self.model_name = model_name
+    if user_input.lower() == "stop":
+        wait_for_user_input, ai_response = conversation_loop.send("stop")
+        print("AI: " + ai_response)
+        break
 
+    wait_for_user_input, ai_response = conversation_loop.send(user_input)
+    print("AI: " + ai_response)
+'''
 
-# -----------------------------------------------------------------
-# AzureOpenAILLM
-# -----------------------------------------------------------------
-import os
-from langchain_openai import AzureChatOpenAI
-
-# from services.abstractclasses.llm import LLM
-
-
-class AzureOpenAILLM(LLM):
-    """
-    Azure OpenAI implementation of the LLM class, supporting different GPT models.
-    """
-
-    def __init__(
-        self,
-        api_version: str,
-        api_endpoint: str,
-        api_key: str,
-        model_version: str,
-        temperature: float = 0.0,
-    ):
-        """
-        Initialize the AzureOpenAILLM with the specified API parameters, model version, and temperature.
-
-        Args:
-            api_version (str): The version of the Azure OpenAI API to use.
-            api_endpoint (str): The Azure OpenAI endpoint.
-            api_key (str): The API key for authentication with Azure OpenAI.
-            model_version (str): The version of GPT to use (e.g., "gpt-3.5-turbo", "gpt-4").
-            temperature (float, optional): The temperature setting for the model. Defaults to 0.0.
-        """
-        super().__init__(model_version)
-
-        self.model = AzureChatOpenAI(
-            openai_api_version=api_version,
-            azure_endpoint=api_endpoint,
-            openai_api_key=api_key,
-            azure_deployment=model_version,
-            temperature=temperature,
-            verbose=True,
-        )
+from services.abstractclasses.llm import LLM
+from services.llms.azure_openai_llm import AzureOpenAILLM
 
 
 # -----------------------------------------------------------------
@@ -70,11 +37,6 @@ from typing import Optional
 import json
 import logging
 from langchain.schema import SystemMessage
-
-# TODO: Uncomment when doing integration into Pixie
-"""
-from services.abstractclasses.llm import LLM
-"""
 
 
 class ConversationTopicsCheckerLLM:
@@ -142,12 +104,6 @@ import json
 import logging
 from langchain.schema import SystemMessage
 
-# TODO: Uncomment when doing integration into Pixie
-"""
-from services.abstractclasses.llm import LLM
-"""
-
-
 class TaskDecomposerLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
@@ -196,12 +152,6 @@ from typing import Optional
 import json
 import logging
 from langchain.schema import SystemMessage
-
-# TODO: Uncomment when doing integration into Pixie
-"""
-from services.abstractclasses.llm import LLM
-"""
-
 
 class TopSpecsSelectorLLM:
     def __init__(self, llm: LLM, recommendation_system: bool = True):
@@ -362,13 +312,6 @@ from enum import Enum, auto
 import json
 import logging
 from langchain.schema import SystemMessage
-
-# TODO: Uncomment when doing integration into Pixie
-"""
-from services.abstractclasses.llm import LLM
-"""
-# (op basis van decomposed_task en (bijvraag, antwoord) koppels 1 geformuleerde vraag samenstellen)
-
 
 class RAGQueryGeneratorLLM:
     def __init__(self, llm: LLM):
