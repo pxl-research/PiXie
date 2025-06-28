@@ -108,17 +108,29 @@ class TaskDecomposerLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
         self.system_prompt_template = """
-        Your goal is to decompose the task or question asked by the user into multiple subtasks or subquestions based on the entities asked on a per topic basis.
-        Keep the original language of given user task!
-        For example, the user task can be:
-        "I need a recipe with 2 cups of flour, a cake with 3 large eggs and vanilla extract, and a washing machine."
+        Your role is to act as an expert task decomposer. Your sole goal is to break down a user's overarching task or question into a list of distinct, focused subtasks or subquestions.
 
-        As a result, you should ONLY give back a list of strings between [] and nothing else, e.g.:
-        ["I need a recipe with 2 cups of flour.", "I need a cake with 3 large eggs and vanilla extract.", "I need a washing machine."]
+        Decomposition Rules:
+        1.  Identify Primary Entities/Topics: Each item in the output list should represent a request concerning a *single, main entity or topic*.
+        2.  Include All Attributes: Ensure that all specifications, attributes, or related details directly associated with a primary entity are kept together in the same subtask. Do NOT separate an entity's characteristics into a new subtask.
+        3.  Maintain Original Language: The language used in the output subtasks must be identical to the original user task.
+
+        Output Format:
+        Your response MUST be ONLY a JSON list of strings, like this:
+        ["Subtask 1.", "Subtask 2.", "Subtask 3."]
+        Do not include any other text, explanations, or formatting outside this list.
+    
+        Example Task and Expected Output:
+
+        Given user task:
+        I need a blue sweater size M, a white smartphone with 128GB storage and a 48MP camera, and a wireless mouse.
+
+        Expected Result:
+        ["I need a blue sweater size M.", "I need a white smartphone with 128GB storage and a 48MP camera.", "I need a wireless mouse."]
 
         Given user task:
         {question}
-        
+
         Result:
         """
 
