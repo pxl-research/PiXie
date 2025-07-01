@@ -120,7 +120,8 @@ class TaskDecomposerLLM:
         Your role is to act as an expert task decomposer. Your sole goal is to break down a user's overarching task or question into a list of distinct, focused subtasks or subquestions.
 
         Decomposition Rules:
-        1.  Identify Primary Entities/Topics: Each item in the output list should represent a request concerning a *single, main entity or topic*.
+        1.  Identify Primary Subjects: Each item in the output list should represent a request concerning a *single, main subject*.
+        Do not split in distinct subtasks for subclauses, only for main clauses. 
         2.  Include All Attributes: Ensure that all specifications, attributes, or related details directly associated with a primary entity are kept together in the same subtask. Do NOT separate an entity's characteristics into a new subtask.
         3.  Maintain Original Language: The language used in the output subtasks must be identical to the original user task.
 
@@ -136,6 +137,21 @@ class TaskDecomposerLLM:
 
         Expected Result:
         ["I need a blue sweater size M.", "I need a white smartphone with 128GB storage and a 48MP camera.", "I need a wireless mouse."]
+
+        Given user task:
+        I need a device which I can use to cut carrots.
+
+        Expected Result:
+        ["I need a device which I can use to cut carrots."]
+
+        Given user task:
+        I'm looking for a new smartphone for myself. I'd like an Android phone, if possible, not too expensive—definitely not above 500 euros. 
+        And preferably one with a good camera.  I'm trying to find a good recipe for vegetarian lasagna. I prefer one that's relatively easy to make and uses fresh vegetables.
+        
+        Expected Result:
+        ["I'm looking for a new smartphone for myself. I'd like an Android phone, if possible, not too expensive—definitely not above 500 euros. And preferably one with a good camera.", "I'm trying to find a good recipe for vegetarian lasagna. I prefer one that's relatively easy to make and uses fresh vegetables."]
+
+        See how conservatively I keep things of the same subject together as one piece. Only if the main topic changes I make a split!
 
         Given user task:
         {question}
