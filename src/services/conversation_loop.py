@@ -415,6 +415,7 @@ class TopSpecsSelectorLLM:
 # -----------------------------------------------------------------
 # AdditionalQuestionLLM
 # -----------------------------------------------------------------
+from typing import Any, Union
 class AdditionalQuestionLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
@@ -422,9 +423,11 @@ class AdditionalQuestionLLM:
         Your goal is to formulate a polite question for the given task about a given specification.
         Always mention the given task!
         The question should be in the same language as the given task.
-        Give a few short examples of possible values tied to example use cases and always give as a last example that the user does not not know. 
-        When the column description contains a list of possible values, always mention them in the question and do not add extra examples.
-        Reformulate this question so it contains the same information and explicitly mentions the spec, no rewording.
+        Give as examples the possible values in the given meta information and always give as a last example that the user does not not know.
+        
+        Reformulate this question so it contains the same information and explicitly mentions the specification, no rewording.
+        Make this question grammatically pleasing without changing key information but make it as non-verbose as possible.
+        
         If the task already contains the information of the given specification, just say this and nothing else:
         None
         
@@ -433,20 +436,24 @@ class AdditionalQuestionLLM:
 
         Given specification:
         {spec}
+
+        Given meta information for specification:
+        {spec_dict}
         
         Question to ask to user (after reformulation):
         """
 
-    def generate(self, task: str, spec: str) -> Optional[str]:
+    def generate(self, task: str, spec: str, spec_dict: dict[str, Union[str, list[Any]]]) -> Optional[str]:
         def remove_digits(input_string: str) -> str:
             translator = str.maketrans("", "", "0123456789")
             return input_string.translate(translator)
 
         spec_processed = remove_digits(spec)
-        print(spec_processed)
-
+        
         system_prompt = self.system_prompt_template.format(
-            task=task, spec=spec_processed
+            task=task,
+            spec=spec_processed,
+            spec_dict=spec_dict
         )
         system_message = SystemMessage(content=system_prompt)
         try:
@@ -458,6 +465,33 @@ class AdditionalQuestionLLM:
             print(f"Error: {str(e)}")
         return None
 
+# -----------------------------------------------------------------
+# QuestionRephraserLLM
+# -----------------------------------------------------------------
+class QuestionRephraserLLM:
+    def __init__(self, llm: LLM):
+        self.llm = llm
+        self.system_prompt_template = """
+        Rephrase the given question to be more decent, natural and grammatically correct.
+        Keep the original language!
+        
+        Given question:
+        {question}
+
+        Rephrased question:
+        """
+
+    def generate(self, question: str) -> Optional[str]:
+        system_prompt = self.system_prompt_template.format(
+            question=question
+        )
+        system_message = SystemMessage(content=system_prompt)
+        try:
+            response = self.llm.model.invoke([system_message])
+            return response.content
+        except Exception as e:
+            print(f"Error: {str(e)}")
+        return None
 
 # -----------------------------------------------------------------
 # SimilarQuestionRemoverLLM
@@ -949,6 +983,7 @@ class ConversationLoop:
         self.task_decomposer_llm = TaskDecomposerLLM(llm=llm)
         self.top_specs_selector_llm = TopSpecsSelectorLLM(llm=llm)
         self.additional_question_llm = AdditionalQuestionLLM(llm=llm)
+        self.question_rephraser_llm = QuestionRephraserLLM(llm=llm)
         self.similar_question_remover_llm = SimilarQuestionRemoverLLM(llm=llm)
         self.rag_query_generator_llm = RAGQueryGeneratorLLM(llm=llm)
         self.conversation_ending_decider_llm = ConversationEndingDeciderLLM(llm=llm)
@@ -1145,15 +1180,19 @@ class ConversationLoop:
                     if not additional_question:
                         continue
                     additional_questions.append(additional_question)
-                print(f">>>ADDITIONAL QUESTIONS: {additional_questions}")
                 additional_questions = (
                     self.similar_question_remover_llm.remove_similar_questions(
                         questions=additional_questions
                     )
                 )
-                print(f">>>ADDITIONAL QUESTIONS AFTER REMOVAL: {additional_questions}")
+                
+                additional_questions_rephrased = []
                 for additional_question in additional_questions:
-                    ai_text += additional_question
+                    rephrasing = self.question_rephraser_llm.generate(question=additional_question)
+                    additional_questions_rephrased.append(rephrasing)
+                
+                for additional_question, additional_question_rephrased in zip(additional_questions, additional_questions_rephrased):
+                    ai_text += additional_question_rephrased #additional_question
                     user_answer = yield (True, ai_text)
                     ai_text = ""
                     user_answer = user_answer.strip()
