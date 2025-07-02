@@ -38,37 +38,41 @@ while True:
 """
 
 
-class InitialSentenceAnalyserLLM:
+class AttributeFinderLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
         self.system_prompt_template = """
-        Your goal is to analyze the initial sentence of a user and convert it to a more sql-like type of sentence.
+        Your goal is to identify the main entity of a sentence and the attributes of this entity based on the provided sentence.
         Follow these rules:
         1. Identify the main entity or topic of the sentence. You can choose from the following allowed entities:
         {allowed_entities}
         2. Identify the main attributes or specifications of the entity. Use the information about the possible attributes of the entity to help you. Values in euro are indications of price (prijs).
         {spec_list}
-        3. Reformulate the sentence in the following format:
-        Ik zoek een <main entity> met <attribute 1> is <value 1> en <attribute 2> is <value 2> en ... en <attribute n> is <value n>.
 
-        Note: When the value type is continuous, q1 and q3 are given. Small is smaller than q1, large is larger than q3, and medium is between q1 and q3. 
+        Given initial sentence:
+        {task}
 
         Example:
+
         User sentence:
         Ik wil een blauwe trui maat M van niet meer dan 50 euro.
 
-        Reformulated sentence:
-        Ik zoek een trui met kleur is blauw en maat is M en prijs is kleiner dan 50.
-
-        Given initial sentence:
-        {sentence}
+        Output:
+        {{
+            "entity": "trui",
+            "attributes": {{
+                "kleur": "blauw",
+                "maat": "M",
+                "prijs": "kleiner dan 50"
+            }}
+        }}
 
         Result:
         """
 
     def generate(
-        self, sentence: str, allowed_entities: list[str], spec_list: dict[str, Any]
-    ) -> str | None:
+        self, task: str, allowed_entities: list[str], spec_list: dict[str, Any]
+    ):
         allowed_entities_str = "\n".join([f"- {entity}" for entity in allowed_entities])
         spec_list_str = ""
         for key, value in spec_list.items():
@@ -89,9 +93,61 @@ class InitialSentenceAnalyserLLM:
                 spec_list_str += f"- {key}: {value}\n"
 
         system_prompt = self.system_prompt_template.format(
-            sentence=sentence,
+            task=task,
             allowed_entities=allowed_entities_str,
             spec_list=spec_list_str,
+        )
+
+        system_message = SystemMessage(content=system_prompt)
+        try:
+            response = self.llm.model.invoke([system_message])
+            return response.content.strip()
+        except Exception as e:
+            print(f"Error: {str(e)}")
+        return None
+
+
+class InitialSentenceAnalyserLLM:
+    def __init__(self, llm: LLM):
+        self.llm = llm
+        self.system_prompt_template = """
+        Your goal is to analyze the initial sentence of a user and convert it to a more sql-like type of sentence.
+
+        You will be given a JSON object with the following structure:
+        {{
+            "entity": "<main entity>",
+            "attributes": {{
+                "<attribute 1>": "<value 1>",
+                "<attribute 2>": "<value 2>",
+                ...
+                "<attribute n>": "<value n>"
+            }}
+        }}
+        
+
+        Follow these rules:
+        1. Reformulate the sentence in the following format:
+        Ik zoek een <main entity> met <attribute 1> is <value 1> en <attribute 2> is <value 2> en ... en <attribute n> is <value n>.
+
+        Example:
+        User sentence:
+        Ik wil een blauwe trui maat M van niet meer dan 50 euro.
+
+        Reformulated sentence:
+        Ik zoek een trui met kleur is blauw en maat is M en prijs is kleiner dan 50.
+
+        Given initial sentence:
+        {sentence}
+        Given found attributes:
+        {found_attributes}
+
+        Result:
+        """
+
+    def generate(self, sentence: str, found_attributes) -> str | None:
+
+        system_prompt = self.system_prompt_template.format(
+            sentence=sentence, found_attributes=found_attributes
         )
 
         system_message = SystemMessage(content=system_prompt)
@@ -264,24 +320,22 @@ class TopSpecsSelectorLLM:
         You are skilled at mapping user needs to the most relevant and prioritized information within a given context.
 
         Your task is:  
-        For a given domain or category, and a list of attributes (features, fields, or parameters), rank the attributes from most likely to be asked or needed by a user to least likely.
+        For a given domain or category, and a list of attributes (features, fields, or parameters), rank the attributes from most likely to be asked or needed by a user to least likely. Some attributes were already given in the task, never ask about them again. You get a list of attributes found in the initial task, you should not ask about them again.
 
         Instructions:
         - Always **preserve the original attribute names** as-is, even if they are in another language.
         - Always **place general or vague fields** (e.g. 'barcode', 'name', 'description', 'available', 'category') at the **end** of the list.
         - Always **prioritize critical or high-impact fields first**, especially those typically involved in decision-making 
-        (e.g. "price", "brand" or the key functional traits), but if they are already in the example: leave them out!
+        (e.g. "price", "brand" or the key functional traits), but only if they are given in the specs.
         
         - Consider what a user would ask **first** when trying to achieve a goal or make a decision in this category.
         - The result must only be a reordered list of strings between square brackets `[]`, with no additional text.
-        - Leave out attributes which are already mentioned in the initial given task.
 
         Example task:
         I want Nike running shoes.
 
         Example output format list of attributes:
         ["price", "size", "material"]
-        See how "brand" (Nike) is already part of the task and should not be listed.
 
         Initial given task:
         {task}
@@ -292,11 +346,15 @@ class TopSpecsSelectorLLM:
         Given dict of attributes and meta information:
         {specs}
 
+        Already found attributes in the task. Don't ask about them again:
+        {found_attributes}
+
         Reordered list of attributes based on user priority:
         """
 
-
-    def generate(self, task: str, category: str, specs) -> Optional[str]:
+    def generate(
+        self, task: str, category: str, specs, found_attributes
+    ) -> Optional[str]:
         spec_list = specs
         spec_list_str = ""
         for key, value in spec_list.items():
@@ -315,12 +373,12 @@ class TopSpecsSelectorLLM:
                     spec_list_str += f"- {key}: {str(value)}\n"
             else:
                 spec_list_str += f"- {key}: {value}\n"
-        
-        
+
         system_prompt = self.system_prompt_template.format(
             task=task,
             category=category,
-            specs=spec_list_str
+            specs=spec_list_str,
+            found_attributes=found_attributes,
         )
         system_message = SystemMessage(content=system_prompt)
         try:
@@ -330,13 +388,22 @@ class TopSpecsSelectorLLM:
             print(f"Error: {str(e)}")
         return None
 
-    def top_specs(self, task: str, category: str, specs: dict[str, Union[str, list[Any]]], top_count: int = 4) -> list[str]:
-        top_str = self.generate(task=task, category=category, specs=specs)
+    def top_specs(
+        self,
+        task: str,
+        category: str,
+        specs: dict[str, Union[str, list[Any]]],
+        found_attributes: list[str] = [],
+        top_count: int = 4,
+    ) -> list[str]:
+        top_str = self.generate(
+            task=task, category=category, specs=specs, found_attributes=found_attributes
+        )
         if top_str:
             try:
                 if self.recommendation_system:
                     top_specs_list = ast.literal_eval(top_str)[:top_count]
-                    #top_specs_list = ["description"] + top_specs_list
+                    # top_specs_list = ["description"] + top_specs_list
                 else:
                     top_specs_list = ast.literal_eval(top_str)[:top_count]
             except Exception:
@@ -888,6 +955,7 @@ class ConversationLoop:
         self.ending_conversation_llm = EndingConversationLLM(llm=llm)
         self.final_answer_llm = FinalAnswerLLM(llm=llm)
         self.initial_sentence_analyser_llm = InitialSentenceAnalyserLLM(llm=llm)
+        self.attribute_finder_llm = AttributeFinderLLM(llm=llm)
         # TODO: LLM which transforms answers in the preferred style
 
         # Constants
@@ -1031,20 +1099,44 @@ class ConversationLoop:
                     llm=self.llm, task=current_task
                 )
 
-                reformulated_query = self.initial_sentence_analyser_llm.generate(
-                    sentence=current_task,
-                    allowed_entities=[category],
+                found_attributes = self.attribute_finder_llm.generate(
+                    task=current_task,
+                    allowed_entities=allowed_entities,
                     spec_list=specs_and_descriptions,
                 )
 
+                print(found_attributes)
+
+                reformulated_query = self.initial_sentence_analyser_llm.generate(
+                    sentence=current_task,
+                    found_attributes=found_attributes,
+                )
+
                 print(reformulated_query)
+                print(self.max_additional_questions)
+
+                found_attributes = json.loads(found_attributes)
+                attributes_dict = found_attributes["attributes"]
+                remove_these_keys = attributes_dict.keys()
+
+                reduced_specs = {}
+
+                for key, value in specs_and_descriptions.items():
+                    if key not in remove_these_keys:
+                        reduced_specs[key] = value
+
+                print(f">>>SPECIFICATIONS AND DESCRIPTIONS: {reduced_specs}")
 
                 top_specs = self.top_specs_selector_llm.top_specs(
                     task=reformulated_query,
                     category=category,
-                    specs=specs_and_descriptions,
+                    specs=reduced_specs,
+                    found_attributes=remove_these_keys,
                     top_count=self.max_additional_questions,
                 )
+
+                print(f">>>TOP SPECS: {top_specs}")
+
                 additional_questions = []
                 for spec in top_specs:
                     additional_question = self.additional_question_llm.generate(
@@ -1053,12 +1145,13 @@ class ConversationLoop:
                     if not additional_question:
                         continue
                     additional_questions.append(additional_question)
+                print(f">>>ADDITIONAL QUESTIONS: {additional_questions}")
                 additional_questions = (
                     self.similar_question_remover_llm.remove_similar_questions(
                         questions=additional_questions
                     )
                 )
-
+                print(f">>>ADDITIONAL QUESTIONS AFTER REMOVAL: {additional_questions}")
                 for additional_question in additional_questions:
                     ai_text += additional_question
                     user_answer = yield (True, ai_text)
