@@ -264,19 +264,24 @@ class TopSpecsSelectorLLM:
         You are skilled at mapping user needs to the most relevant and prioritized information within a given context.
 
         Your task is:  
-        For a given domain or category, and a list of attributes (features, fields, or parameters), rank the attributes from most likely to be asked or needed by a user to least likely. Omit the attributes that are already mentioned in the initial given task.
+        For a given domain or category, and a list of attributes (features, fields, or parameters), rank the attributes from most likely to be asked or needed by a user to least likely.
 
         Instructions:
         - Always **preserve the original attribute names** as-is, even if they are in another language.
         - Always **place general or vague fields** (e.g. 'barcode', 'name', 'description', 'available', 'category') at the **end** of the list.
-        - Always **prioritize critical or high-impact fields first**, especially those typically involved in decision-making (e.g. "price" or the key functional traits).
+        - Always **prioritize critical or high-impact fields first**, especially those typically involved in decision-making 
+        (e.g. "price", "brand" or the key functional traits), but if they are already in the example: leave them out!
         
         - Consider what a user would ask **first** when trying to achieve a goal or make a decision in this category.
         - The result must only be a reordered list of strings between square brackets `[]`, with no additional text.
         - Leave out attributes which are already mentioned in the initial given task.
 
-        Example output format:
-        ["price", "duration_days", "service_level"]
+        Example task:
+        I want Nike running shoes.
+
+        Example output format list of attributes:
+        ["price", "size", "material"]
+        See how "brand" (Nike) is already part of the task and should not be listed.
 
         Initial given task:
         {task}
@@ -284,15 +289,38 @@ class TopSpecsSelectorLLM:
         Given category or domain:
         {category}
 
-        Given list of attributes with their descriptions:
+        Given dict of attributes and meta information:
         {specs}
 
         Reordered list of attributes based on user priority:
         """
 
-    def generate(self, task: str, category: str, specs: list[str]) -> Optional[str]:
+
+    def generate(self, task: str, category: str, specs) -> Optional[str]:
+        spec_list = specs
+        spec_list_str = ""
+        for key, value in spec_list.items():
+            if isinstance(value, dict):
+                if "description" in value:
+                    spec_list_str += f"- {key}: {value['description']}\n"
+                    if "values" in value:
+                        spec_list_str += f"  Possible values: {', '.join(map(str, value['values']))}\n"
+                    elif (
+                        value.get("type") == "continuous"
+                        and "q1" in value
+                        and "q3" in value
+                    ):
+                        spec_list_str += f"  Range: {value['q1']} - {value['q3']}\n"
+                else:
+                    spec_list_str += f"- {key}: {str(value)}\n"
+            else:
+                spec_list_str += f"- {key}: {value}\n"
+        
+        
         system_prompt = self.system_prompt_template.format(
-            task=task, category=category, specs=specs
+            task=task,
+            category=category,
+            specs=spec_list_str
         )
         system_message = SystemMessage(content=system_prompt)
         try:
@@ -302,15 +330,13 @@ class TopSpecsSelectorLLM:
             print(f"Error: {str(e)}")
         return None
 
-    def top_specs(
-        self, task: str, category: str, specs: list[str], top_count: int = 4
-    ) -> list[str]:
+    def top_specs(self, task: str, category: str, specs: dict[str, Union[str, list[Any]]], top_count: int = 4) -> list[str]:
         top_str = self.generate(task=task, category=category, specs=specs)
         if top_str:
             try:
                 if self.recommendation_system:
-                    top_specs_list = ast.literal_eval(top_str)[: top_count - 1]
-                    # top_specs_list = ["description"] + top_specs_list
+                    top_specs_list = ast.literal_eval(top_str)[:top_count]
+                    #top_specs_list = ["description"] + top_specs_list
                 else:
                     top_specs_list = ast.literal_eval(top_str)[:top_count]
             except Exception:
