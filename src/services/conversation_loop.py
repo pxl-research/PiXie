@@ -115,30 +115,39 @@ from langchain.schema import SystemMessage
 class ConversationTopicsCheckerLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
-
         self.system_prompt_template = """
-        You are an AI classifier. Your task is to determine whether a user's question is suitable for a dialogue with an AI assistant about specific allowed topics, including their close synonyms and the broader category they fall under.
+        Your role is to act as an expert task decomposer. Your sole goal is to break down a user's overarching task or question into a list of distinct, focused subtasks or subquestions.
 
-        Allowed topics (including all close synonyms and related terminology):
-        {allowed_entities}
+        Decomposition Rules:
+        1.  Identify Primary Subjects: Each item in the output list should represent a request concerning a *single, main subject*.
+        Do not split in distinct subtasks for subclauses, only for main clauses. 
+        2.  Include All Attributes: Ensure that all specifications, attributes, or related details directly associated with a primary entity are kept together in the same subtask. Do NOT separate an entity's characteristics into a new subtask.
+        3.  Maintain Original Language: The language used in the output subtasks must be identical to the original user task.
 
-        Your job:
-        1. Internally generalize these allowed topics into a broader concept or domain.
-        2. Consider synonyms, hyponyms, and hypernyms (e.g., if "running shoes" is allowed, then "sneakers", "athletic shoes", and the broader term "footwear" are also acceptable).
-        3. Determine if the user's text is clearly related to any of:
-           - the explicitly listed topics,
-           - the general category encompassing those topics,
-           - or typical subtopics such as: specifications, prices, work-relatance to these topics, or practical usage.
+        Output Format:
+        Your response MUST be ONLY a JSON list of strings, like this:
+        ["Subtask 1.", "Subtask 2.", "Subtask 3."]
+        Do not include any other text, explanations, or formatting outside this list.
+    
+        Example Task and Expected Output:
 
-        Rules:
-        - Return True if the user text is about the allowed topics, their synonyms, or the general category (even loosely).
-        - Return False if it's not meaningfully related.
+        Given user task:
+        I need a blue sweater size M, a white smartphone with 128GB storage and a 48MP camera, and a wireless mouse.
 
-        Given user text:
+        Expected Result:
+        ["I need a blue sweater size M.", "I need a white smartphone with 128GB storage and a 48MP camera.", "I need a wireless mouse."]
+
+        Given user task:
+        I need a knife which I can use to cut meat.
+
+        Expected Result:
+        ["I need a knife which I can use to cut meat."]
+
+        Given user task:
         {question}
 
         Result:
-        """
+        """   
 
     def allowed_entities_str(self, entities: list[str]) -> str:
         return "\n".join([f"- {entity}" for entity in entities])
@@ -185,7 +194,8 @@ class TaskDecomposerLLM:
         Your role is to act as an expert task decomposer. Your sole goal is to break down a user's overarching task or question into a list of distinct, focused subtasks or subquestions.
 
         Decomposition Rules:
-        1.  Identify Primary Entities/Topics: Each item in the output list should represent a request concerning a *single, main entity or topic*.
+        1.  Identify Primary Subjects: Each item in the output list should represent a request concerning a *single, main subject*.
+        Do not split in distinct subtasks for subclauses, only for main clauses. 
         2.  Include All Attributes: Ensure that all specifications, attributes, or related details directly associated with a primary entity are kept together in the same subtask. Do NOT separate an entity's characteristics into a new subtask.
         3.  Maintain Original Language: The language used in the output subtasks must be identical to the original user task.
 
@@ -201,6 +211,21 @@ class TaskDecomposerLLM:
 
         Expected Result:
         ["I need a blue sweater size M.", "I need a white smartphone with 128GB storage and a 48MP camera.", "I need a wireless mouse."]
+
+        Given user task:
+        I need a device which I can use to cut carrots.
+
+        Expected Result:
+        ["I need a device which I can use to cut carrots."]
+
+        Given user task:
+        I'm looking for a new smartphone for myself. I'd like an Android phone, if possible, not too expensive—definitely not above 500 euros. 
+        And preferably one with a good camera.  I'm trying to find a good recipe for vegetarian lasagna. I prefer one that's relatively easy to make and uses fresh vegetables.
+        
+        Expected Result:
+        ["I'm looking for a new smartphone for myself. I'd like an Android phone, if possible, not too expensive—definitely not above 500 euros. And preferably one with a good camera.", "I'm trying to find a good recipe for vegetarian lasagna. I prefer one that's relatively easy to make and uses fresh vegetables."]
+
+        See how conservatively I keep things of the same subject together as one piece. Only if the main topic changes I make a split!
 
         Given user task:
         {question}
