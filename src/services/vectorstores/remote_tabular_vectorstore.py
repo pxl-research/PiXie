@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import requests
 from pathlib import Path
+from typing import Any
 
 
 logger = logging.getLogger(__name__)
@@ -342,3 +343,85 @@ class RemoteTabularVectorStore:
         return {
             "x-api-key": os.getenv("RAG_API_KEY"),
         }
+
+    def get_allowed_entities(self, collection_name: str) -> list[str]:
+        """
+        Returns a list of allowed entities for the tabular vector store.
+        This is a placeholder method and should be implemented based on actual requirements.
+        """
+        response = requests.get(
+            f"{self.url}/collections/{collection_name}/products",
+            headers=self._get_headers(),
+        )
+
+        data = self._handle_response(
+            response,
+            error_message="Failed to retrieve allowed entities",
+        )
+        products = data.get("items", [])
+
+        return products
+
+    def get_recommended_table(
+        self, question: str, collection_name: str
+    ) -> tuple[str, list[str]]:
+        """
+        Retrieves a recommended table based on the question and collection name.
+        This is a placeholder method and should be implemented based on actual requirements.
+        """
+        response = requests.post(
+            f"{self.url}/recommend-table",
+            headers=self._get_headers(),
+            params={"question": question, "collection_name": collection_name},
+        )
+
+        data = self._handle_response(
+            response,
+            error_message="Failed to retrieve recommended table",
+        )
+        table_name = data.get("table_name", "")
+        columns = data.get("column_names", [])
+
+        return table_name, columns
+
+    def product_search(
+        self, collection_name: str, product_name: str, question: str, top_k: int = 3
+    ) -> list[dict[str, dict[str, Any]]]:
+        """
+        Searches for products in the specified collection based on the product name and question.
+
+        Args:
+            collection_name (str): The name of the collection to search within.
+            product_name (str): The name of the product to search for.
+            question (str): The question related to the product.
+            top_k (int, optional): Number of top results to return. Default is 3.
+
+        Returns:
+            list[dict[str, dict[str, Any]]]: List of products with their attributes.
+        """
+        print(
+            f">>>DEBUG>>> Searching for product: {product_name} in collection: {collection_name} with question: {question}"
+        )
+        print(
+            f"{self.url}/collections/{collection_name}/products/{product_name}/search"
+        )
+        if "#" in product_name:
+            # Excel file with sheet name: extract part after #
+            product = product_name.split("#")[-1]
+        else:
+            # Regular product name: use as is
+            product = product_name
+        print(f">>>DEBUG>>> Cleaned product name: {product}")
+        response = requests.get(
+            f"{self.url}/collections/{collection_name}/products/{product}/search",
+            headers=self._get_headers(),
+            params={
+                "question": question,
+                "top_k": top_k,
+            },
+        )
+
+        data = self._handle_response(
+            response, error_message="Failed to search products"
+        )
+        return data.get("data", [])

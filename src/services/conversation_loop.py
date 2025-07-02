@@ -1,5 +1,16 @@
+from typing import Any
+from services.abstractclasses.llm import LLM
+from services.llms.azure_openai_llm import AzureOpenAILLM
+
+# Import shared services for document management
+from services.init_services import get_services
+
+# Shared services for document management
+_services = get_services()
+
+
 # Example of usage code:
-'''
+"""
 llm = AzureOpenAILLM(
     api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
     api_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
@@ -24,10 +35,72 @@ while True:
 
     wait_for_user_input, ai_response = conversation_loop.send(user_input)
     print("AI: " + ai_response)
-'''
+"""
 
-from services.abstractclasses.llm import LLM
-from services.llms.azure_openai_llm import AzureOpenAILLM
+
+class InitialSentenceAnalyserLLM:
+    def __init__(self, llm: LLM):
+        self.llm = llm
+        self.system_prompt_template = """
+        Your goal is to analyze the initial sentence of a user and convert it to a more sql-like type of sentence.
+        Follow these rules:
+        1. Identify the main entity or topic of the sentence. You can choose from the following allowed entities:
+        {allowed_entities}
+        2. Identify the main attributes or specifications of the entity. Use the information about the possible attributes of the entity to help you. Values in euro are indications of price (prijs).
+        {spec_list}
+        3. Reformulate the sentence in the following format:
+        Ik zoek een <main entity> met <attribute 1> is <value 1> en <attribute 2> is <value 2> en ... en <attribute n> is <value n>.
+
+        Note: When the value type is continuous, q1 and q3 are given. Small is smaller than q1, large is larger than q3, and medium is between q1 and q3. 
+
+        Example:
+        User sentence:
+        Ik wil een blauwe trui maat M van niet meer dan 50 euro.
+
+        Reformulated sentence:
+        Ik zoek een trui met kleur is blauw en maat is M en prijs is kleiner dan 50.
+
+        Given initial sentence:
+        {sentence}
+
+        Result:
+        """
+
+    def generate(
+        self, sentence: str, allowed_entities: list[str], spec_list: dict[str, Any]
+    ) -> str | None:
+        allowed_entities_str = "\n".join([f"- {entity}" for entity in allowed_entities])
+        spec_list_str = ""
+        for key, value in spec_list.items():
+            if isinstance(value, dict):
+                if "description" in value:
+                    spec_list_str += f"- {key}: {value['description']}\n"
+                    if "values" in value:
+                        spec_list_str += f"  Possible values: {', '.join(map(str, value['values']))}\n"
+                    elif (
+                        value.get("type") == "continuous"
+                        and "q1" in value
+                        and "q3" in value
+                    ):
+                        spec_list_str += f"  Range: {value['q1']} - {value['q3']}\n"
+                else:
+                    spec_list_str += f"- {key}: {str(value)}\n"
+            else:
+                spec_list_str += f"- {key}: {value}\n"
+
+        system_prompt = self.system_prompt_template.format(
+            sentence=sentence,
+            allowed_entities=allowed_entities_str,
+            spec_list=spec_list_str,
+        )
+
+        system_message = SystemMessage(content=system_prompt)
+        try:
+            response = self.llm.model.invoke([system_message])
+            return response.content.strip()
+        except Exception as e:
+            print(f"Error: {str(e)}")
+        return None
 
 
 # -----------------------------------------------------------------
@@ -104,6 +177,7 @@ import json
 import logging
 from langchain.schema import SystemMessage
 
+
 class TaskDecomposerLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
@@ -165,6 +239,7 @@ import json
 import logging
 from langchain.schema import SystemMessage
 
+
 class TopSpecsSelectorLLM:
     def __init__(self, llm: LLM, recommendation_system: bool = True):
         self.llm = llm
@@ -173,7 +248,7 @@ class TopSpecsSelectorLLM:
         You are skilled at mapping user needs to the most relevant and prioritized information within a given context.
 
         Your task is:  
-        For a given domain or category, and a list of attributes (features, fields, or parameters), rank the attributes from most likely to be asked or needed by a user to least likely.
+        For a given domain or category, and a list of attributes (features, fields, or parameters), rank the attributes from most likely to be asked or needed by a user to least likely. Omit the attributes that are already mentioned in the initial given task.
 
         Instructions:
         - Always **preserve the original attribute names** as-is, even if they are in another language.
@@ -193,7 +268,7 @@ class TopSpecsSelectorLLM:
         Given category or domain:
         {category}
 
-        Given list of attributes:
+        Given list of attributes with their descriptions:
         {specs}
 
         Reordered list of attributes based on user priority:
@@ -219,7 +294,7 @@ class TopSpecsSelectorLLM:
             try:
                 if self.recommendation_system:
                     top_specs_list = ast.literal_eval(top_str)[: top_count - 1]
-                    top_specs_list = ["for_what_you_should_use_this"] + top_specs_list
+                    # top_specs_list = ["description"] + top_specs_list
                 else:
                     top_specs_list = ast.literal_eval(top_str)[:top_count]
             except Exception:
@@ -238,8 +313,9 @@ class AdditionalQuestionLLM:
         Your goal is to formulate a polite question for the given task about a given specification.
         Always mention the given task!
         The question should be in the same language as the given task.
-        Give a few short examples of possible values tied to example use cases and always give as a last example that the user does not not know.
-        Reformulate this question so it contains the same information but does not sound stiff, make it sound grammatically correct.
+        Give a few short examples of possible values tied to example use cases and always give as a last example that the user does not not know. 
+        When the column description contains a list of possible values, always mention them in the question and do not add extra examples.
+        Reformulate this question so it contains the same information and explicitly mentions the spec, no rewording.
         If the task already contains the information of the given specification, just say this and nothing else:
         None
         
@@ -258,6 +334,7 @@ class AdditionalQuestionLLM:
             return input_string.translate(translator)
 
         spec_processed = remove_digits(spec)
+        print(spec_processed)
 
         system_prompt = self.system_prompt_template.format(
             task=task, spec=spec_processed
@@ -324,6 +401,7 @@ from enum import Enum, auto
 import json
 import logging
 from langchain.schema import SystemMessage
+
 
 class RAGQueryGeneratorLLM:
     def __init__(self, llm: LLM):
@@ -407,6 +485,37 @@ class RAGQueryGeneratorLLM:
         return None
 
 
+# -----------------------------------------------------------------
+# FinalAnswerLLM
+# -----------------------------------------------------------------
+class FinalAnswerLLM:
+    def __init__(self, llm: LLM):
+        self.llm = llm
+        self.system_prompt_template = """
+        Your goal is to generate a final answer based on the given task and the data retrieved from the database.
+
+        Given task:
+        {task}
+
+        Given data:
+        {data}
+
+        Final answer:
+        """
+
+    def generate(self, task: str, data: list[dict[str, dict[str, Any]]]) -> str:
+
+        system_prompt = self.system_prompt_template.format(task=task, data=data)
+
+        system_message = SystemMessage(content=system_prompt)
+        try:
+            response = self.llm.model.invoke([system_message])
+            return response.content
+        except Exception as e:
+            print(f"Error: {str(e)}")
+        return "no answer found"
+
+
 # --------------------------------------------------
 # Mock stuff
 # TODO: delete and replace with actual functionality
@@ -456,168 +565,91 @@ class MockTableChooserLLM:
 # TODO: replace with actual MCP RAG tool functions
 def mock_tabular_rag_choose_table(
     llm: LLM, task: str
-) -> tuple[Optional[str], list[str]]:
+) -> tuple[str, dict[str, dict[str, dict[str, Any]]]]:
     mapping = {
-        "laptops": [
-            "barcode",
-            "naam",
-            "merk",
-            "categorie",
-            "prijs",
-            "beschikbaar",
-            "beschrijving",
-            "vormfactor",
-            "beeldschermdiagonaal_cm",
-            "touchscreen",
-            "processorfamilie",
-            "processorfabrikant",
-            "processormodel",
-            "aantal_processorkernen",
-            "intern_geheugen_GB",
-            "intern_geheugentype",
-            "totale_opslagcapaciteit_GB",
-            "opslagmedia",
-            "aparte_grafische_adapter",
-            "discreet_grafische_adapter_model",
-            "ingebouwde_microfoon",
-            "camera_voorzijde",
-            "aantal_usb_20_poorten",
-            "aantal_poorten_usb_32_gen_1_31_gen_1_typ",
-            "aantal_hdmi_poorten",
-            "numeriek_toetsenblok",
-            "aanwijsapparaat",
-            "inclusief_besturingssysteem",
-            "batterijcapaciteit_Wh",
-            "ac_adapter_vermogen_W",
-            "gewicht_kg",
-            "breedte_mm",
-            "diepte_mm",
-            "totale_opslagcapaciteit_TB",
-            "aantal_geinstalleerde_ssds",
-            "ssd_capaciteit_TB",
-            "ssd_capaciteit_GB",
-        ],
-        "pcs": [
-            "barcode",
-            "naam",
-            "merk",
-            "categorie",
-            "prijs",
-            "beschikbaar",
-            "beschrijving",
-            "processorfamilie",
-            "processorfabrikant",
-            "processormodel",
-            "processorgeneratie",
-            "aantal_processorkernen",
-            "processor_aantal_threads",
-            "maximale_turbofrequentie_van_processor_GHz",
-            "processor_cache_MB",
-            "processor_cache_type",
-            "intern_geheugen_GB",
-            "maximum_intern_geheugen_GB",
-            "intern_geheugentype",
-            "opslagmedia",
-            "aantal_geinstalleerde_ssds",
-            "aparte_grafische_adapter",
-            "ingebouwde_grafische_adapter",
-            "discreet_grafische_adapter_model",
-            "on_board_graphics_adapter_model",
-            "ethernet_lan_data_overdrachtsnelheden_Mbit",
-            "aantal_ethernet_lan_rj_45_poorten",
-            "type_behuizing",
-            "inclusief_besturingssysteem",
-            "netvoeding_W",
-            "breedte_mm",
-            "gewicht_kg",
-        ],
-        "printers": [
-            "barcode",
-            "naam",
-            "merk",
-            "categorie",
-            "prijs",
-            "beschikbaar",
-            "beschrijving",
-            "printtechnologie",
-            "duplex_printen",
-            "maximale_resolutie_0_dpi",
-            "maximale_resolutie_1_dpi",
-            "scannen",
-            "totale_invoercapaciteit",
-            "totale_uitvoercapaciteit",
-            "maximale_iso_a_series_papierformaat",
-            "printsnelheid_zwart_standaardkwaliteit_a_ppm",
-            "inclusief_besturingssysteem",
-            "netvoeding_W",
-            "breedte_mm",
-            "gewicht_kg",
-        ],
-        "inktpatronen": [
-            "barcode",
-            "naam",
-            "merk",
-            "categorie",
-            "prijs",
-            "beschikbaar",
-            "beschrijving",
-            "merkcompatibiliteit",
-            "compatibiliteit",
-            "aantal_per_verpakking",
-            "paginaopbrengst_gekleurde_inkt",
-            "paginaopbrengst_zwarte_inkt",
-            "type_zwarte_inkt",
-            "type_kleureninkt",
-            "inkjet_cartridge_type",
-            "oem_code",
-            "inkttype",
-        ],
-        "toners": [
-            "barcode",
-            "naam",
-            "merk",
-            "categorie",
-            "prijs",
-            "beschikbaar",
-            "beschrijving",
-            "printkleuren",
-            "merkcompatibiliteit",
-            "compatibiliteit",
-            "zwarte_toner_paginaopbrengst",
-            "kleurentoner_paginaopbrengst",
-            "type_verpakking",
-            "printtechnologie",
-        ],
-        "computermonitoren": [
-            "barcode",
-            "naam",
-            "merk",
-            "categorie",
-            "prijs",
-            "beschikbaar",
-            "beschrijving",
-            "beeldschermdiagonaal_cm",
-            "resolutie_0_pixels",
-            "resolutie_1_pixels",
-            "display_technologie",
-            "soort_paneel",
-            "responstijd_ms",
-            "typische_contrastverhouding_0_None",
-            "typische_contrastverhouding_1_None",
-            "maximale_refresh_snelheid_Hz",
-            "helderheid_typisch_cd",
-            "hdmi",
-            "aantal_hdmi_poorten",
-            "vesa_montage",
-            "paneelmontage_interface_0_mm",
-            "paneelmontage_interface_1_mm",
-        ],
+        "printers": {
+            "barcode": {
+                "type": "continuous",
+                "description": "This is the unique identifier for the printer.",
+                "q1": 4977766788861,
+                "q3": 4977766824644,
+            },
+            "merk": {
+                "type": "categorical",
+                "description": "This is the brand of the printer",
+                "values": ["HP", "Canon", "Epson", "Brother", "Kyocera"],
+            },
+            "categorie": {
+                "type": "categorical",
+                "description": "This is the internal path for the webshop.",
+                "values": [
+                    "All / Computer - Multimedia / Printers Scanners / Printers"
+                ],
+            },
+            "beschikbaar": {
+                "type": "boolean",
+                "description": "This boolean indicates if the printer is available in the store.",
+            },
+            "beschrijving": {
+                "type": "text",
+                "description": "This is the long description used in promotional material.",
+            },
+            "printtechnologie": {
+                "type": "categorical",
+                "description": "This is the print technology used by the printer.",
+                "values": ["inkjet", "laser", "LED", "thermal inkjet"],
+            },
+            "printen": {
+                "type": "categorical",
+                "description": "This string makes a distinction between colour and mono printers.",
+                "values": ["Colour printing", "Mono printing"],
+            },
+            "maximale_resolutie_0_dpi": {
+                "type": "categorical",
+                "description": "This is the maximum resolution of the printer in dots per inch (DPI) for the first colour channel.",
+                "values": [600, 1200, 2400, 4800, 5760],
+            },
+            "maximale_resolutie_1_dpi": {
+                "type": "categorical",
+                "description": "This is the maximum resolution of the printer in dots per inch (DPI) for the second colour channel.",
+                "values": [600, 1200, 1440, 2400, 4800, 6000],
+            },
+            "scannen": {
+                "type": "categorical",
+                "description": "This string indicates if the printer can scan and if so in color or not.",
+                "values": ["Colour scanning", "Mono scanning", "No"],
+            },
+            "optische_scanresolutie_0_dpi": {
+                "type": "categorical",
+                "description": "This is the maximum resolution of the printer in dots per inch (DPI) for the first colour channel when scanning.",
+                "values": [600, 1200],
+            },
+            "optische_scanresolutie_1_dpi": {
+                "type": "categorical",
+                "description": "This is the maximum resolution of the printer in dots per inch (DPI) for the second colour channel when scanning.",
+                "values": [600, 1200, 2400],
+            },
+            "wifi": {
+                "type": "categorical",
+                "description": "This string indicates whether the printer has Wi-Fi connectivity.",
+                "values": ["Yes", "No"],
+            },
+            "ethernet_lan": {
+                "type": "categorical",
+                "description": "This string indicates whether the printer has Ethernet LAN connectivity.",
+                "values": ["Yes", "No"],
+            },
+            "printsnelheid_zwart_standaardkwaliteit_a_ppm": {
+                "type": "continuous",
+                "description": "This is the print speed of the printer in pages per minute (PPM) for black and white standard quality.",
+                "q1": 10.0,
+                "q3": 20.0,
+            },
+        }
     }
-    mock_table_chooser_llm = MockTableChooserLLM(llm=llm)
-    chosen_key = mock_table_chooser_llm.generate(
-        task=task, table_list=list(mapping.keys())
-    )
-    spec_list = []
+
+    chosen_key = "printers"
+    spec_list = {}
     if chosen_key:
         spec_list = mapping[chosen_key]
 
@@ -806,6 +838,8 @@ class ConversationLoop:
         self.rag_query_generator_llm = RAGQueryGeneratorLLM(llm=llm)
         self.conversation_ending_decider_llm = ConversationEndingDeciderLLM(llm=llm)
         self.ending_conversation_llm = EndingConversationLLM(llm=llm)
+        self.final_answer_llm = FinalAnswerLLM(llm=llm)
+        self.initial_sentence_analyser_llm = InitialSentenceAnalyserLLM(llm=llm)
         # TODO: LLM which transforms answers in the preferred style
 
         # Constants
@@ -829,7 +863,9 @@ class ConversationLoop:
         Send `stop` to end the loop.
         """
         # TODO: replace mock in future
-        allowed_entities = mock_tabular_rag_allowed_entities()
+        allowed_entities = _services["tabular_vector_store"].get_allowed_entities(
+            collection_name="auva"
+        )  # mock_tabular_rag_allowed_entities()
 
         # Mutable state
         previous_state = ConversationState.WAITING_FOR_INITIAL_TASK
@@ -838,15 +874,17 @@ class ConversationLoop:
         additional_qna_couples = []
         decomposed_tasks_queue = []
         current_task_query_result = pd.DataFrame()
+        category = None
 
         def reset_state() -> None:
-            nonlocal previous_state, current_state, current_task, additional_qna_couples, decomposed_tasks_queue, current_task_query_result
+            nonlocal previous_state, current_state, current_task, additional_qna_couples, decomposed_tasks_queue, current_task_query_result, category
             previous_state = ConversationState.WAITING_FOR_INITIAL_TASK
             current_state = ConversationState.WAITING_FOR_INITIAL_TASK
             current_task = None
             additional_qna_couples = []
             decomposed_tasks_queue = []
             current_task_query_result = pd.DataFrame()
+            category = None
 
         def update_state(state: ConversationState) -> None:
             nonlocal previous_state, current_state
@@ -888,9 +926,11 @@ class ConversationLoop:
             # ConversationState.INITIAL_TASK_GIVEN
             # ------------------------------------------
             elif current_state == ConversationState.INITIAL_TASK_GIVEN:
-                decomposed_tasks_queue = self.task_decomposer_llm.decomposed_tasks(
-                    task=user_input
-                )
+                decomposed_tasks_queue = [user_input]
+
+                # self.task_decomposer_llm.decomposed_tasks(
+                #    task=user_input
+                # )
                 empty_task_queue_or_error = (
                     not decomposed_tasks_queue or decomposed_tasks_queue == [""]
                 )
@@ -918,6 +958,9 @@ class ConversationLoop:
             # ConversationState.INITIAL_TASK_DECOMPOSED
             # ------------------------------------------
             elif current_state == ConversationState.INITIAL_TASK_DECOMPOSED:
+                print(
+                    f">>>DECOMPOSED_TASKS_QUEUE in INITIAL_TASK_DECOMPOSED: {decomposed_tasks_queue}"
+                )
                 if decomposed_tasks_queue:
                     current_task = decomposed_tasks_queue.pop(
                         0
@@ -932,13 +975,26 @@ class ConversationLoop:
             # --------------------------------------------
             elif current_state == ConversationState.PROCESSING_DECOMPOSED_TASK:
                 # TODO: replace mock in future
-                category, specs = mock_tabular_rag_choose_table(
+                # category, specs = _services[
+                #    "tabular_vector_store"
+                # ].get_recommended_table(question=current_task, collection_name="auva")
+
+                category, specs_and_descriptions = mock_tabular_rag_choose_table(
                     llm=self.llm, task=current_task
                 )
+
+                reformulated_query = self.initial_sentence_analyser_llm.generate(
+                    sentence=current_task,
+                    allowed_entities=[category],
+                    spec_list=specs_and_descriptions,
+                )
+
+                print(reformulated_query)
+
                 top_specs = self.top_specs_selector_llm.top_specs(
-                    task=current_task,
+                    task=reformulated_query,
                     category=category,
-                    specs=specs,
+                    specs=specs_and_descriptions,
                     top_count=self.max_additional_questions,
                 )
                 additional_questions = []
@@ -971,16 +1027,24 @@ class ConversationLoop:
             elif (
                 current_state == ConversationState.ADDITIONAL_QUESTIONS_ASKED
             ):  # and previous_state == ConversationState.PROCESSING_DECOMPOSED_TASK:
-                rag_query_generator_llm = RAGQueryGeneratorLLM(llm=llm)
-                reformulated_query = rag_query_generator_llm.generate(
+                reformulated_query = self.rag_query_generator_llm.generate(
                     task=current_task, couple_list=additional_qna_couples
                 )
                 additional_qna_couples = []
                 # TODO: replace mock in future
-                current_task_query_result = mock_tabular_rag_toolcall(
-                    query=reformulated_query
+                current_task_query_result = _services[
+                    "tabular_vector_store"
+                ].product_search(
+                    collection_name="auva",
+                    product_name=category,
+                    question=reformulated_query,
+                    top_k=3,
                 )
-                if not current_task_query_result.empty:
+
+                # mock_tabular_rag_toolcall(
+                #    query=reformulated_query
+                # )
+                if current_task_query_result:
                     update_state(ConversationState.SEARCH_DATABASE_ENTITIES_RESULTS)
                 else:
                     update_state(ConversationState.SEARCH_DATABASE_ENTITIES_NO_RESULTS)
@@ -992,9 +1056,14 @@ class ConversationLoop:
             elif current_state == ConversationState.SEARCH_DATABASE_ENTITIES_RESULTS:
                 # TODO: replace mock in future
                 ai_text += (
-                    mock_final_answer(task=current_task, data=current_task_query_result)
+                    self.final_answer_llm.generate(
+                        task=current_task,
+                        data=current_task_query_result,
+                    )
+                    # mock_final_answer(task=current_task, data=current_task_query_result)
                     + "\n"
                 )
+                print(f">>>DECOMPOSED_TASKS_QUEUE: {decomposed_tasks_queue}")
                 if decomposed_tasks_queue:
                     current_task = decomposed_tasks_queue.pop(0)
                     update_state(ConversationState.PROCESSING_DECOMPOSED_TASK)

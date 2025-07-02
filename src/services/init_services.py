@@ -1,5 +1,5 @@
-from src.services.vectorstores.remote_rag_vectorstore import RemoteRagVectorStore
-from src.services.vectorstores.remote_tabular_vectorstore import (
+from services.vectorstores.remote_rag_vectorstore import RemoteRagVectorStore
+from services.vectorstores.remote_tabular_vectorstore import (
     RemoteTabularVectorStore,
 )
 from services.llms.azure_openai_llm import AzureOpenAILLM
