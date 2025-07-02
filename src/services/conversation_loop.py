@@ -1016,7 +1016,7 @@ class ConversationLoop:
                 additional_questions = []
                 for spec in top_specs:
                     additional_question = self.additional_question_llm.generate(
-                        task=current_task, spec=spec
+                        task=reformulated_query, spec=spec
                     )
                     if not additional_question:
                         continue
