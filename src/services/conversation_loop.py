@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Union
 from services.abstractclasses.llm import LLM
 from services.llms.azure_openai_llm import AzureOpenAILLM
 
@@ -627,6 +627,12 @@ def mock_tabular_rag_choose_table(
                 "values": [
                     "All / Computer - Multimedia / Printers Scanners / Printers"
                 ],
+            },
+            "prijs": {
+                "type": "continuous",
+                "description": "This is the price of the printer in euros.",
+                "q1": 145.45,
+                "q3": 440.68,
             },
             "beschikbaar": {
                 "type": "boolean",
