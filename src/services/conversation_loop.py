@@ -111,7 +111,7 @@ class InitialSentenceAnalyserLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
         self.system_prompt_template = """
-        Your goal is to analyze the initial sentence of a user and convert it to a more sql-like type of sentence.
+        Your goal is to analyze the found attributes and convert it to a sql-like type of sentence.
 
         You will be given a JSON object with the following structure:
         {{
@@ -126,28 +126,37 @@ class InitialSentenceAnalyserLLM:
         
 
         Follow these rules:
-        1. Reformulate the sentence in the following format:
+        1. Compare the values of the found attributes with the given spec list. When the type of the attribute is categorical, make sure the value is one of the possible values in the spec list. If no applicable value is found, remove the attribute from the found attributes list.
+        2. Formulate the sentence in the following format:
         Ik zoek een <main entity> met <attribute 1> is <value 1> en <attribute 2> is <value 2> en ... en <attribute n> is <value n>.
 
         Example:
-        User sentence:
-        Ik wil een blauwe trui maat M van niet meer dan 50 euro.
+        {{
+            "entity": "truien",
+            "attributes": {{
+                "kleur": "blauw",
+                "maat": "M",
+                "prijs": "Maximaal 50 euro"
+            }}
+        }}
+
 
         Reformulated sentence:
         Ik zoek een trui met kleur is blauw en maat is M en prijs is kleiner dan 50.
 
-        Given initial sentence:
-        {sentence}
         Given found attributes:
         {found_attributes}
+
+        Given spec list:
+        {spec_list}
 
         Result:
         """
 
-    def generate(self, sentence: str, found_attributes) -> str | None:
+    def generate(self, found_attributes, spec_list) -> str | None:
 
         system_prompt = self.system_prompt_template.format(
-            sentence=sentence, found_attributes=found_attributes
+            found_attributes=found_attributes, spec_list=spec_list
         )
 
         system_message = SystemMessage(content=system_prompt)
@@ -331,14 +340,9 @@ class TopSpecsSelectorLLM:
         - Consider what a user would ask **first** when trying to achieve a goal or make a decision in this category.
         - The result must only be a reordered list of strings between square brackets `[]`, with no additional text.
 
-        Example task:
-        I want Nike running shoes.
 
         Example output format list of attributes:
         ["price", "size", "material"]
-
-        Initial given task:
-        {task}
 
         Given category or domain:
         {category}
@@ -352,9 +356,7 @@ class TopSpecsSelectorLLM:
         Reordered list of attributes based on user priority:
         """
 
-    def generate(
-        self, task: str, category: str, specs, found_attributes
-    ) -> Optional[str]:
+    def generate(self, category: str, specs, found_attributes) -> Optional[str]:
         spec_list = specs
         spec_list_str = ""
         for key, value in spec_list.items():
@@ -375,7 +377,6 @@ class TopSpecsSelectorLLM:
                 spec_list_str += f"- {key}: {value}\n"
 
         system_prompt = self.system_prompt_template.format(
-            task=task,
             category=category,
             specs=spec_list_str,
             found_attributes=found_attributes,
@@ -390,14 +391,13 @@ class TopSpecsSelectorLLM:
 
     def top_specs(
         self,
-        task: str,
         category: str,
         specs: dict[str, Union[str, list[Any]]],
         found_attributes: list[str] = [],
         top_count: int = 4,
     ) -> list[str]:
         top_str = self.generate(
-            task=task, category=category, specs=specs, found_attributes=found_attributes
+            category=category, specs=specs, found_attributes=found_attributes
         )
         if top_str:
             try:
@@ -416,6 +416,8 @@ class TopSpecsSelectorLLM:
 # AdditionalQuestionLLM
 # -----------------------------------------------------------------
 from typing import Any, Union
+
+
 class AdditionalQuestionLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
@@ -443,17 +445,17 @@ class AdditionalQuestionLLM:
         Question to ask to user (after reformulation):
         """
 
-    def generate(self, task: str, spec: str, spec_dict: dict[str, Union[str, list[Any]]]) -> Optional[str]:
+    def generate(
+        self, task: str, spec: str, spec_dict: dict[str, Union[str, list[Any]]]
+    ) -> Optional[str]:
         def remove_digits(input_string: str) -> str:
             translator = str.maketrans("", "", "0123456789")
             return input_string.translate(translator)
 
         spec_processed = remove_digits(spec)
-        
+
         system_prompt = self.system_prompt_template.format(
-            task=task,
-            spec=spec_processed,
-            spec_dict=spec_dict
+            task=task, spec=spec_processed, spec_dict=spec_dict
         )
         system_message = SystemMessage(content=system_prompt)
         try:
@@ -464,6 +466,7 @@ class AdditionalQuestionLLM:
         except Exception as e:
             print(f"Error: {str(e)}")
         return None
+
 
 # -----------------------------------------------------------------
 # QuestionRephraserLLM
@@ -482,9 +485,7 @@ class QuestionRephraserLLM:
         """
 
     def generate(self, question: str) -> Optional[str]:
-        system_prompt = self.system_prompt_template.format(
-            question=question
-        )
+        system_prompt = self.system_prompt_template.format(question=question)
         system_message = SystemMessage(content=system_prompt)
         try:
             response = self.llm.model.invoke([system_message])
@@ -492,6 +493,7 @@ class QuestionRephraserLLM:
         except Exception as e:
             print(f"Error: {str(e)}")
         return None
+
 
 # -----------------------------------------------------------------
 # SimilarQuestionRemoverLLM
@@ -1022,16 +1024,20 @@ class ConversationLoop:
         previous_state = ConversationState.WAITING_FOR_INITIAL_TASK
         current_state = ConversationState.WAITING_FOR_INITIAL_TASK
         current_task = None
+        found_attributes = {}
+        specs_and_descriptions = {}
         additional_qna_couples = []
         decomposed_tasks_queue = []
         current_task_query_result = pd.DataFrame()
         category = None
 
         def reset_state() -> None:
-            nonlocal previous_state, current_state, current_task, additional_qna_couples, decomposed_tasks_queue, current_task_query_result, category
+            nonlocal previous_state, current_state, current_task, additional_qna_couples, decomposed_tasks_queue, current_task_query_result, category, found_attributes, specs_and_descriptions
             previous_state = ConversationState.WAITING_FOR_INITIAL_TASK
             current_state = ConversationState.WAITING_FOR_INITIAL_TASK
             current_task = None
+            found_attributes = {}
+            specs_and_descriptions = {}
             additional_qna_couples = []
             decomposed_tasks_queue = []
             current_task_query_result = pd.DataFrame()
@@ -1134,23 +1140,13 @@ class ConversationLoop:
                     llm=self.llm, task=current_task
                 )
 
-                found_attributes = self.attribute_finder_llm.generate(
+                found_attributes_str = self.attribute_finder_llm.generate(
                     task=current_task,
                     allowed_entities=allowed_entities,
                     spec_list=specs_and_descriptions,
                 )
 
-                print(found_attributes)
-
-                reformulated_query = self.initial_sentence_analyser_llm.generate(
-                    sentence=current_task,
-                    found_attributes=found_attributes,
-                )
-
-                print(reformulated_query)
-                print(self.max_additional_questions)
-
-                found_attributes = json.loads(found_attributes)
+                found_attributes = json.loads(found_attributes_str)
                 attributes_dict = found_attributes["attributes"]
                 remove_these_keys = attributes_dict.keys()
 
@@ -1160,10 +1156,7 @@ class ConversationLoop:
                     if key not in remove_these_keys:
                         reduced_specs[key] = value
 
-                print(f">>>SPECIFICATIONS AND DESCRIPTIONS: {reduced_specs}")
-
                 top_specs = self.top_specs_selector_llm.top_specs(
-                    task=reformulated_query,
                     category=category,
                     specs=reduced_specs,
                     found_attributes=remove_these_keys,
@@ -1175,28 +1168,34 @@ class ConversationLoop:
                 additional_questions = []
                 for spec in top_specs:
                     additional_question = self.additional_question_llm.generate(
-                        task=reformulated_query, spec=spec
+                        task=current_task, spec=spec, spec_dict=reduced_specs
                     )
                     if not additional_question:
                         continue
                     additional_questions.append(additional_question)
-                additional_questions = (
-                    self.similar_question_remover_llm.remove_similar_questions(
-                        questions=additional_questions
-                    )
-                )
-                
+                # additional_questions = (
+                #     self.similar_question_remover_llm.remove_similar_questions(
+                #         questions=additional_questions
+                #     )
+                # )
+
                 additional_questions_rephrased = []
                 for additional_question in additional_questions:
-                    rephrasing = self.question_rephraser_llm.generate(question=additional_question)
+                    rephrasing = self.question_rephraser_llm.generate(
+                        question=additional_question
+                    )
                     additional_questions_rephrased.append(rephrasing)
-                
-                for additional_question, additional_question_rephrased in zip(additional_questions, additional_questions_rephrased):
-                    ai_text += additional_question_rephrased #additional_question
+
+                for additional_question, additional_question_rephrased, spec in zip(
+                    additional_questions, additional_questions_rephrased, top_specs
+                ):
+                    ai_text += additional_question_rephrased  # additional_question
                     user_answer = yield (True, ai_text)
                     ai_text = ""
                     user_answer = user_answer.strip()
                     additional_qna_couples.append((additional_question, user_answer))
+                    found_attributes["attributes"][spec] = user_answer
+                    print(f">>>FOUND_ATTRIBUTES: {found_attributes}")
 
                 update_state(ConversationState.ADDITIONAL_QUESTIONS_ASKED)
                 continue
@@ -1207,10 +1206,16 @@ class ConversationLoop:
             elif (
                 current_state == ConversationState.ADDITIONAL_QUESTIONS_ASKED
             ):  # and previous_state == ConversationState.PROCESSING_DECOMPOSED_TASK:
-                reformulated_query = self.rag_query_generator_llm.generate(
-                    task=current_task, couple_list=additional_qna_couples
+                # reformulated_query = self.rag_query_generator_llm.generate(
+                #    task=current_task, couple_list=additional_qna_couples
+                # )
+                reformulated_query = self.initial_sentence_analyser_llm.generate(
+                    found_attributes=found_attributes,
+                    spec_list=specs_and_descriptions,
                 )
                 additional_qna_couples = []
+                found_attributes = {}
+                specs_and_descriptions = {}
                 # TODO: replace mock in future
                 current_task_query_result = _services[
                     "tabular_vector_store"
