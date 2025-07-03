@@ -978,9 +978,10 @@ from typing import Generator
 
 
 class ConversationLoop:
-    def __init__(self, llm: LLM, max_tasks: int = 3, max_additional_questions: int = 4):
+    def __init__(self, llm: LLM, collection_name: str = "pixie", max_tasks: int = 3, max_additional_questions: int = 4):
         # LLM with different system prompts and behavior
         self.llm = llm
+        self.collection_name = collection_name
         self.conversation_topics_checker_llm = ConversationTopicsCheckerLLM(llm=llm)
         self.task_decomposer_llm = TaskDecomposerLLM(llm=llm)
         self.top_specs_selector_llm = TopSpecsSelectorLLM(llm=llm)
@@ -1017,7 +1018,7 @@ class ConversationLoop:
         """
         # TODO: replace mock in future
         allowed_entities = _services["tabular_vector_store"].get_allowed_entities(
-            collection_name="auva"
+            collection_name=self.collection_name
         )  # mock_tabular_rag_allowed_entities()
 
         # Mutable state
