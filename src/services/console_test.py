@@ -10,7 +10,7 @@ llm = AzureOpenAILLM(
 )
 
 # Create conversation_loop per new session
-conversation_loop = ConversationLoop(llm=llm)
+conversation_loop = ConversationLoop(llm=llm, collection_name="auva")
 wait_for_user_input = True
 
 while True:
