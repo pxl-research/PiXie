@@ -1,4 +1,5 @@
 from typing import Any, Union
+import re
 from services.abstractclasses.llm import LLM
 from services.llms.azure_openai_llm import AzureOpenAILLM
 
@@ -795,11 +796,26 @@ def mock_tabular_rag_choose_table(
     }
 
     chosen_key = "printers"
-    spec_list = {}
+    spec_dict = {}
     if chosen_key:
-        spec_list = mapping[chosen_key]
+        spec_dict = mapping[chosen_key]
 
-    return (chosen_key, spec_list)
+    def deduplicate_similar_keys(input_dict):
+        seen = set()
+        result = {}
+
+        for key in input_dict:
+            # Normalize the key by replacing _<digit>_ with _
+            normalized_key = re.sub(r"_(\d+)_", "_", key)
+
+            if normalized_key not in seen:
+                seen.add(normalized_key)
+                result[key] = input_dict[key]
+
+        return result
+
+    spec_dict = deduplicate_similar_keys(spec_dict)
+    return (chosen_key, spec_dict)
 
 
 def mock_tabular_rag_toolcall(query: str) -> pd.DataFrame:
