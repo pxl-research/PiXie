@@ -350,13 +350,10 @@ class TopSpecsSelectorLLM:
         Given dict of attributes and meta information:
         {specs}
 
-        Already found attributes in the task. Don't ask about them again:
-        {found_attributes}
-
         Reordered list of attributes based on user priority:
         """
 
-    def generate(self, category: str, specs, found_attributes) -> Optional[str]:
+    def generate(self, category: str, specs) -> Optional[str]:
         spec_list = specs
         spec_list_str = ""
         for key, value in spec_list.items():
@@ -378,8 +375,7 @@ class TopSpecsSelectorLLM:
 
         system_prompt = self.system_prompt_template.format(
             category=category,
-            specs=spec_list_str,
-            found_attributes=found_attributes,
+            specs=spec_list_str
         )
         system_message = SystemMessage(content=system_prompt)
         try:
@@ -393,11 +389,10 @@ class TopSpecsSelectorLLM:
         self,
         category: str,
         specs: dict[str, Union[str, list[Any]]],
-        found_attributes: list[str] = [],
         top_count: int = 4,
     ) -> list[str]:
         top_str = self.generate(
-            category=category, specs=specs, found_attributes=found_attributes
+            category=category, specs=specs
         )
         if top_str:
             try:
@@ -1160,7 +1155,6 @@ class ConversationLoop:
                 top_specs = self.top_specs_selector_llm.top_specs(
                     category=category,
                     specs=reduced_specs,
-                    found_attributes=remove_these_keys,
                     top_count=self.max_additional_questions,
                 )
 
