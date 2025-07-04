@@ -108,6 +108,9 @@ class AttributeFinderLLM:
         return None
 
 
+# -----------------------------------------------------------------
+# InitialSentenceAnalyserLLM
+# -----------------------------------------------------------------
 class InitialSentenceAnalyserLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
@@ -124,43 +127,41 @@ class InitialSentenceAnalyserLLM:
                 "<attribute n>": "<value n>"
             }}
         }}
+        
 
         Follow these rules:
-        1. Compare the values of the found attributes with the given spec list. When the type of the attribute is categorical, make sure the value is one of the possible values in the spec list.
-        Translate to the language of the spec list and take the most similar one.
-        If no applicable value is found, remove the attribute from the found attributes list.
+        1. Keep pure textual or categorical values as-is, even if they are in a different language. Do NOT change them!
+        2. Numerical comparisons should be made more SQL-friendly.
         2. Formulate the sentence in the following format:
         Ik zoek een <main entity> met <attribute 1> is <value 1> en <attribute 2> is <value 2> en ... en <attribute n> is <value n>.
+        
 
         Example:
         {{
             "entity": "truien",
             "attributes": {{
-                "kleur": "blauw",
+                "kleur": "blue",
                 "maat": "M",
-                "prijs": "Maximaal 50 euro",
-                "stofsoort", "Weet ik niet"
+                "prijs": "Max 50 euro"
             }}
         }}
 
         Reformulated sentence:
-        Ik zoek een trui met kleur is blauw en maat is M en prijs is kleiner dan 50.
+        Ik zoek een trui met kleur is blue en maat is M en prijs is kleiner dan 50.
 
-        See how "stofsoort" is removed because because the value indicates unsureness.
+        See how the value "blue" is not translated even though the rest of the sentence is in Dutch.
+        Values should stay as-is!
 
         Given found attributes:
         {found_attributes}
 
-        Given spec list:
-        {spec_list}
-
         Result:
         """
 
-    def generate(self, found_attributes, spec_list) -> str | None:
+    def generate(self, found_attributes: dict[str, Union[str, dict[str, Any]]]) -> str | None:
 
         system_prompt = self.system_prompt_template.format(
-            found_attributes=found_attributes, spec_list=spec_list
+            found_attributes=found_attributes
         )
 
         system_message = SystemMessage(content=system_prompt)
@@ -567,6 +568,49 @@ class UncertainAttributeRemoverLLM:
         except json.JSONDecodeError as e:
             print(f"Error decoding LLM output as JSON: {str(e)}")
             return found_attributes # Return original if LLM output is not valid JSON
+
+# -----------------------------------------------------------------
+# CategoricalChooserLLM
+# -----------------------------------------------------------------
+from typing import Any, Union
+import json
+class CategoricalChooserLLM:
+    def __init__(self, llm: LLM):
+        self.llm = llm
+        self.system_prompt_template = """
+        You are a semantic classifier.
+        Task: Find the single category from {categories} that best resembles '{value}' conceptually.
+        Match based on core meaning, *regardless of language*.
+
+        Output: ONLY the chosen category as a plain JSON string (e.g., "laptop"). No other text.
+        If no strong resemblance, return original '{value}' as a plain JSON string.
+        """
+
+    def generate(
+        self, value: str, categories: list[str]
+    ) -> Optional[str]:
+        system_prompt = self.system_prompt_template.format(
+            value=value, categories=categories
+        )
+        system_message = SystemMessage(content=system_prompt)
+        try:
+            response = self.llm.model.invoke([system_message])
+            return response.content
+        except Exception as e:
+            print(f"Error: {str(e)}")
+        return None
+
+    def choose_category(
+        self, value: str, categories: list[str]
+    ) -> str:
+        llm_output = self.generate(value=value, categories=categories)
+        if not llm_output:
+            return value
+        try:
+            chosen_category = json.loads(llm_output)
+            return chosen_category
+        except json.JSONDecodeError as e:
+            return chosen_category # Return original if LLM output is not valid JSON
 
 # -----------------------------------------------------------------
 # RAGQueryGeneratorLLM
@@ -1037,6 +1081,7 @@ class ConversationLoop:
         self.ending_conversation_llm = EndingConversationLLM(llm=llm)
         self.final_answer_llm = FinalAnswerLLM(llm=llm)
         self.uncertain_attribute_remover_llm = UncertainAttributeRemoverLLM(llm=llm)
+        self.categorical_chooser_llm = CategoricalChooserLLM(llm=llm)
         self.initial_sentence_analyser_llm = InitialSentenceAnalyserLLM(llm=llm)
         self.attribute_finder_llm = AttributeFinderLLM(llm=llm)
         # TODO: LLM which transforms answers in the preferred style
@@ -1252,9 +1297,14 @@ class ConversationLoop:
                 #    task=current_task, couple_list=additional_qna_couples
                 # )
                 found_attributes = self.uncertain_attribute_remover_llm.uncertain_attribute_remove(found_attributes=found_attributes)
+                for found_attribute, found_value in list(found_attributes["attributes"].items()):
+                    if specs_and_descriptions[found_attribute]["type"] == "categorical":
+                        possible_values = specs_and_descriptions[found_attribute]["values"]
+                        chosen_value = self.categorical_chooser_llm.choose_category(value=found_value, categories=possible_values)
+                        found_attributes["attributes"][found_attribute] = chosen_value
+                
                 reformulated_query = self.initial_sentence_analyser_llm.generate(
-                    found_attributes=found_attributes,
-                    spec_list=specs_and_descriptions,
+                    found_attributes=found_attributes
                 )
                 found_attributes = {}
                 specs_and_descriptions = {}
