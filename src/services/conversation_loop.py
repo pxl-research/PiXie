@@ -109,9 +109,9 @@ class AttributeFinderLLM:
 
 
 # -----------------------------------------------------------------
-# InitialSentenceAnalyserLLM
+# RAGQueryGeneratorLLM
 # -----------------------------------------------------------------
-class InitialSentenceAnalyserLLM:
+class RAGQueryGeneratorLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
         self.system_prompt_template = """
@@ -612,97 +612,6 @@ class CategoricalChooserLLM:
         except json.JSONDecodeError as e:
             return chosen_category # Return original if LLM output is not valid JSON
 
-# -----------------------------------------------------------------
-# RAGQueryGeneratorLLM
-# -----------------------------------------------------------------
-from typing import Optional
-from enum import Enum, auto
-import json
-import logging
-from langchain.schema import SystemMessage
-
-
-class RAGQueryGeneratorLLM:
-    def __init__(self, llm: LLM):
-        self.llm = llm
-        self.system_prompt_template = """
-        Your goal is to formulate a single, accurate question for a RAG (Retrieval-Augmented Generation) system.
-
-        You will be given:
-        - A task (initial user request)
-        - A list of (question, answer) tuples that may contain relevant details
-
-        Your job:
-        1. **Normalize the task** by identifying implicit attributes like brand, year, or type and making them explicit.
-           - Always mention the column name and its value. For example:
-           - "An Opel car" → "A car of brand Opel"
-           - "A Samsung TV" → "A TV of brand Samsung"
-           - "I want a Nike running shoe" → "I want a running shoe of brand Nike"
-           - This applies to **any identifiable attribute** (brand, year, genre, length, etc.)
-
-        2. Analyze the (question, answer) tuples:
-           - Only include details that **add new, specific, relevant** information to the task.
-           - Discard generic, irrelevant, or "not important" answers.
-           - Add useful answers as additional constraints in the reformulated question.
-
-        3. The reformulated question must:
-           - Be as **concise** as possible not mentioning generic or not important or do not know answers.
-           - Preserve all valuable search information.
-           - Always use attribute names (e.g., brand, year, genre, length) with their corresponding values.
-           - Be in the same language as the given task.
-
-        Example:
-
-        Task:
-        I want a 1999's cd.
-
-        Tuples:
-        [("What genre is the cd?", "metal"),
-         ("How long should the cd be?", "More than 1 hour"),
-         ("From which country is the cd?", "Not important")]
-
-        Reformulated question:
-        I want a cd from the year 1999 in the genre metal with a length greater than 1 hour.
-
-        Another example:
-
-        Task:
-        I want a Nike running shoe.
-
-        Tuples:
-        [("What size?", "43"),
-         ("Color?", "Not important"),
-         ("Do you prefer a specific material?", "Mesh")]
-
-        Reformulated question:
-        I want a running shoe of brand Nike in size 43 and made of material mesh.
-
-        Now do the same with the following:
-
-        Given task:
-        {task}
-
-        List of tuples (additional_question, answer):
-        {couple_list}
-
-        Reformulated question:
-        """
-
-    def generate(self, task: str, couple_list: list[tuple[str, str]]) -> Optional[str]:
-        system_prompt = self.system_prompt_template.format(
-            task=task, couple_list=couple_list
-        )
-
-        system_message = SystemMessage(content=system_prompt)
-        try:
-            response = self.llm.model.invoke([system_message])
-            result = response.content
-            result = result.strip()
-            return result
-        except Exception as e:
-            print(f"Error: {str(e)}")
-        return None
-
 
 # -----------------------------------------------------------------
 # FinalAnswerLLM
@@ -1082,7 +991,7 @@ class ConversationLoop:
         self.final_answer_llm = FinalAnswerLLM(llm=llm)
         self.uncertain_attribute_remover_llm = UncertainAttributeRemoverLLM(llm=llm)
         self.categorical_chooser_llm = CategoricalChooserLLM(llm=llm)
-        self.initial_sentence_analyser_llm = InitialSentenceAnalyserLLM(llm=llm)
+        self.rag_query_generator_llm = RAGQueryGeneratorLLM(llm=llm)
         self.attribute_finder_llm = AttributeFinderLLM(llm=llm)
         # TODO: LLM which transforms answers in the preferred style
 
@@ -1303,7 +1212,7 @@ class ConversationLoop:
                         chosen_value = self.categorical_chooser_llm.choose_category(value=found_value, categories=possible_values)
                         found_attributes["attributes"][found_attribute] = chosen_value
                 
-                reformulated_query = self.initial_sentence_analyser_llm.generate(
+                reformulated_query = self.rag_query_generator_llm.generate(
                     found_attributes=found_attributes
                 )
                 found_attributes = {}
