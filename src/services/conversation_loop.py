@@ -498,6 +498,8 @@ class QuestionRephraserLLM:
 # -----------------------------------------------------------------
 from typing import Any, Union
 import json
+from typing import Any, Union
+import json
 class UncertainAttributeRemoverLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
@@ -527,10 +529,10 @@ class UncertainAttributeRemoverLLM:
 
         Example:
         Input:
-        {'entity': 'wedding', 'attributes': {'location': 'Grand Ballroom', 'date': '2025-09-15', 'guest_count': 'less than 150', 'theme': 'do not know', 'catering_style': 'does not matter'}}
+        {{'entity': 'wedding', 'attributes': {{'location': 'Grand Ballroom', 'date': '2025-09-15', 'guest_count': 'less than 150', 'theme': 'do not know', 'catering_style': 'does not matter'}}}}
 
         Output:
-        {'entity': 'wedding', 'attributes': {'location': 'Grand Ballroom', 'date': '2025-09-15', 'guest_count': 'less than 150'}}
+        {{'entity': 'wedding', 'attributes': {{'location': 'Grand Ballroom', 'date': '2025-09-15', 'guest_count': 'less than 150'}}}}
 
         Given Input:
         {found_attributes}
@@ -542,7 +544,7 @@ class UncertainAttributeRemoverLLM:
         self, found_attributes: dict[str, Union[str, dict[str, Any]]]
     ) -> Optional[str]:
         system_prompt = self.system_prompt_template.format(
-            found_attributes=found_attributes
+            found_attributes=json.dumps(found_attributes)
         )
         system_message = SystemMessage(content=system_prompt)
         try:
@@ -552,6 +554,18 @@ class UncertainAttributeRemoverLLM:
             print(f"Error: {str(e)}")
         return None
 
+    def uncertain_attribute_remove(
+        self, found_attributes: dict[str, Union[str, dict[str, Any]]]
+    ) -> dict[str, Union[str, dict[str, Any]]]:
+        llm_output = self.generate(found_attributes=found_attributes)
+        if not llm_output:
+            return found_attributes
+        try:
+            cleaned_data = json.loads(llm_output)
+            return cleaned_data
+        except json.JSONDecodeError as e:
+            print(f"Error decoding LLM output as JSON: {str(e)}")
+            return found_attributes # Return original if LLM output is not valid JSON
 
 # -----------------------------------------------------------------
 # RAGQueryGeneratorLLM
@@ -1021,6 +1035,7 @@ class ConversationLoop:
         self.conversation_ending_decider_llm = ConversationEndingDeciderLLM(llm=llm)
         self.ending_conversation_llm = EndingConversationLLM(llm=llm)
         self.final_answer_llm = FinalAnswerLLM(llm=llm)
+        self.uncertain_attribute_remover_llm = UncertainAttributeRemoverLLM(llm=llm)
         self.initial_sentence_analyser_llm = InitialSentenceAnalyserLLM(llm=llm)
         self.attribute_finder_llm = AttributeFinderLLM(llm=llm)
         # TODO: LLM which transforms answers in the preferred style
@@ -1235,6 +1250,7 @@ class ConversationLoop:
                 # reformulated_query = self.rag_query_generator_llm.generate(
                 #    task=current_task, couple_list=additional_qna_couples
                 # )
+                found_attributes = self.uncertain_attribute_remover_llm.uncertain_attribute_remove(found_attributes=found_attributes)
                 reformulated_query = self.initial_sentence_analyser_llm.generate(
                     found_attributes=found_attributes,
                     spec_list=specs_and_descriptions,
