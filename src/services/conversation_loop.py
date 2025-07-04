@@ -124,10 +124,10 @@ class InitialSentenceAnalyserLLM:
                 "<attribute n>": "<value n>"
             }}
         }}
-        
 
         Follow these rules:
-        1. Compare the values of the found attributes with the given spec list. When the type of the attribute is categorical, make sure the value is one of the possible values in the spec list. If no applicable value is found, remove the attribute from the found attributes list.
+        1. Compare the values of the found attributes with the given spec list. When the type of the attribute is categorical, make sure the value is one of the possible values in the spec list. 
+        If no applicable value is found or the value indicates unsureness, remove the attribute from the found attributes list.
         2. Formulate the sentence in the following format:
         Ik zoek een <main entity> met <attribute 1> is <value 1> en <attribute 2> is <value 2> en ... en <attribute n> is <value n>.
 
@@ -137,13 +137,15 @@ class InitialSentenceAnalyserLLM:
             "attributes": {{
                 "kleur": "blauw",
                 "maat": "M",
-                "prijs": "Maximaal 50 euro"
+                "prijs": "Maximaal 50 euro",
+                "stofsoort", "Weet ik niet"
             }}
         }}
 
-
         Reformulated sentence:
         Ik zoek een trui met kleur is blauw en maat is M en prijs is kleiner dan 50.
+
+        See how "stofsoort" is removed because because the value indicates unsureness.
 
         Given found attributes:
         {found_attributes}
