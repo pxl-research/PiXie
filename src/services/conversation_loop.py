@@ -1038,19 +1038,17 @@ class ConversationLoop:
         current_task = None
         found_attributes = {}
         specs_and_descriptions = {}
-        additional_qna_couples = []
         decomposed_tasks_queue = []
         current_task_query_result = pd.DataFrame()
         category = None
 
         def reset_state() -> None:
-            nonlocal previous_state, current_state, current_task, additional_qna_couples, decomposed_tasks_queue, current_task_query_result, category, found_attributes, specs_and_descriptions
+            nonlocal previous_state, current_state, current_task, decomposed_tasks_queue, current_task_query_result, category, found_attributes, specs_and_descriptions
             previous_state = ConversationState.WAITING_FOR_INITIAL_TASK
             current_state = ConversationState.WAITING_FOR_INITIAL_TASK
             current_task = None
             found_attributes = {}
             specs_and_descriptions = {}
-            additional_qna_couples = []
             decomposed_tasks_queue = []
             current_task_query_result = pd.DataFrame()
             category = None
@@ -1204,7 +1202,6 @@ class ConversationLoop:
                     user_answer = yield (True, ai_text)
                     ai_text = ""
                     user_answer = user_answer.strip()
-                    additional_qna_couples.append((additional_question, user_answer))
                     found_attributes["attributes"][spec] = user_answer
                     print(f">>>FOUND_ATTRIBUTES: {found_attributes}")
 
@@ -1224,7 +1221,6 @@ class ConversationLoop:
                     found_attributes=found_attributes,
                     spec_list=specs_and_descriptions,
                 )
-                additional_qna_couples = []
                 found_attributes = {}
                 specs_and_descriptions = {}
                 # TODO: replace mock in future
