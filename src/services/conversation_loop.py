@@ -494,32 +494,56 @@ class QuestionRephraserLLM:
 
 
 # -----------------------------------------------------------------
-# SimilarQuestionRemoverLLM
+# UncertainAttributeRemoverLLM
 # -----------------------------------------------------------------
-class SimilarQuestionRemoverLLM:
+from typing import Any, Union
+import json
+class UncertainAttributeRemoverLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
         self.system_prompt_template = """
-        You are a helpful assistant that filters out similar or duplicate questions from a given list.
+        You can refine JSON data. Your task is to identify and remove key-value pairs from the 'attributes' object within a given JSON structure.
 
-        Your task:
-        - Analyze the list of user questions.
-        - Remove any questions that are semantically very similar or identical.
-        - Keep only distinct questions based on meaning, not just wording.
-        - The output must be a Python-style list of strings, like: ["What is X?", "How does Y work?"]
+        You must remove an attribute if its value suggests uncertainty, irrelevance or a lack of specific information. Examples of such values include, but are not limited to:
 
-        Requirements:
-        - Preserve the original wording of the remaining distinct questions.
-        - Do not return any explanation — only the final list.
+        * "Geen idee" (Dutch for "No idea")
+        * "Weet ik niet" (Dutch for "I don't know")
+        * "Onzeker" (Dutch for "Uncertain")
+        * "N.v.t." (Dutch for "Not applicable")
+        * "nvt"
+        * "unknown"
+        * "N/A"
+        * "None"
+        * "null" (as a string)
+        * "/"
+        * "..."
+        * Empty strings ""
 
-        Given list of questions:
-        {questions}
+        This should work multilingual.
 
-        Return the list of distinct questions:
+        Input: A JSON object.
+
+        Output: The modified JSON object with the specified attribute key-value pairs removed. Do not include any additional text or explanation, only the JSON.
+
+        Example:
+        Input:
+        {'entity': 'wedding', 'attributes': {'location': 'Grand Ballroom', 'date': '2025-09-15', 'guest_count': 'less than 150', 'theme': 'do not know', 'catering_style': 'does not matter'}}
+
+        Output:
+        {'entity': 'wedding', 'attributes': {'location': 'Grand Ballroom', 'date': '2025-09-15', 'guest_count': 'less than 150'}}
+
+        Given Input:
+        {found_attributes}
+
+        Output:
         """
 
-    def generate(self, questions: list[str]) -> Optional[str]:
-        system_prompt = self.system_prompt_template.format(questions=questions)
+    def generate(
+        self, found_attributes: dict[str, Union[str, dict[str, Any]]]
+    ) -> Optional[str]:
+        system_prompt = self.system_prompt_template.format(
+            found_attributes=found_attributes
+        )
         system_message = SystemMessage(content=system_prompt)
         try:
             response = self.llm.model.invoke([system_message])
@@ -527,13 +551,6 @@ class SimilarQuestionRemoverLLM:
         except Exception as e:
             print(f"Error: {str(e)}")
         return None
-
-    def remove_similar_questions(self, questions: list[str]) -> list[str]:
-        result_str = self.generate(questions=questions)
-        if result_str:
-            return ast.literal_eval(result_str)
-        else:
-            return []
 
 
 # -----------------------------------------------------------------
@@ -1000,7 +1017,6 @@ class ConversationLoop:
         self.top_specs_selector_llm = TopSpecsSelectorLLM(llm=llm)
         self.additional_question_llm = AdditionalQuestionLLM(llm=llm)
         self.question_rephraser_llm = QuestionRephraserLLM(llm=llm)
-        self.similar_question_remover_llm = SimilarQuestionRemoverLLM(llm=llm)
         self.rag_query_generator_llm = RAGQueryGeneratorLLM(llm=llm)
         self.conversation_ending_decider_llm = ConversationEndingDeciderLLM(llm=llm)
         self.ending_conversation_llm = EndingConversationLLM(llm=llm)
