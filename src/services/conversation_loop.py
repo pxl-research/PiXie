@@ -126,8 +126,9 @@ class InitialSentenceAnalyserLLM:
         }}
 
         Follow these rules:
-        1. Compare the values of the found attributes with the given spec list. When the type of the attribute is categorical, make sure the value is one of the possible values in the spec list. 
-        If no applicable value is found or the value indicates unsureness, remove the attribute from the found attributes list.
+        1. Compare the values of the found attributes with the given spec list. When the type of the attribute is categorical, make sure the value is one of the possible values in the spec list.
+        Translate to the language of the spec list and take the most similar one.
+        If no applicable value is found, remove the attribute from the found attributes list.
         2. Formulate the sentence in the following format:
         Ik zoek een <main entity> met <attribute 1> is <value 1> en <attribute 2> is <value 2> en ... en <attribute n> is <value n>.
 
