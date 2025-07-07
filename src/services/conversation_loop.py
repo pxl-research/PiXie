@@ -621,8 +621,13 @@ class FinalAnswerLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
         self.system_prompt_template = """
-        Your goal is to generate a final answer based on the given task and the data retrieved from the database. Always show the name, the price (in euros) and the description of the items. Keep the description short and concise, but informative. Mention the availability of the items in the store. Add at most 3 more relevant specifications of the items, but do not mention the barcode or the name of the items again. For each item show each attribute on a new line, with the attribute name in bold and the value in normal font. Do not use any other formatting.
-
+        Your goal is to generate a final answer based on the given task and the data retrieved from the database. 
+        Always show the name, the price (in euros) and the description of the items. Keep the description short and concise, but informative. 
+        Mention the availability of the items in the store. 
+        Add at most 3 more relevant specifications of the items, but do not mention the barcode or the name of the items again. 
+        For each item show each attribute on a new line, with the attribute name in bold and the value in normal font. Do not use any other formatting.
+        Anwer in the original language of the task.
+        
         Given task:
         {task}
 
