@@ -380,9 +380,9 @@ class RemoteTabularVectorStore:
             error_message="Failed to retrieve recommended table",
         )
         table_name = data.get("table_name", "")
-        columns = data.get("column_names", [])
+        attribute_descriptions = data.get("attribute_descriptions", {})
 
-        return table_name, columns
+        return table_name, attribute_descriptions
 
     def product_search(
         self, collection_name: str, product_name: str, question: str, top_k: int = 3

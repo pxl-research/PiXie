@@ -76,6 +76,7 @@ class AttributeFinderLLM:
     ):
         allowed_entities_str = "\n".join([f"- {entity}" for entity in allowed_entities])
         spec_list_str = ""
+        print(f"Spec list: {json.dumps(spec_list, indent=4)}")
         for key, value in spec_list.items():
             if isinstance(value, dict):
                 if "description" in value:
@@ -158,7 +159,9 @@ class RAGQueryGeneratorLLM:
         Result:
         """
 
-    def generate(self, found_attributes: dict[str, Union[str, dict[str, Any]]]) -> str | None:
+    def generate(
+        self, found_attributes: dict[str, Union[str, dict[str, Any]]]
+    ) -> str | None:
 
         system_prompt = self.system_prompt_template.format(
             found_attributes=found_attributes
@@ -379,8 +382,7 @@ class TopSpecsSelectorLLM:
                 spec_list_str += f"- {key}: {value}\n"
 
         system_prompt = self.system_prompt_template.format(
-            category=category,
-            specs=spec_list_str
+            category=category, specs=spec_list_str
         )
         system_message = SystemMessage(content=system_prompt)
         try:
@@ -396,9 +398,7 @@ class TopSpecsSelectorLLM:
         specs: dict[str, Union[str, list[Any]]],
         top_count: int = 4,
     ) -> list[str]:
-        top_str = self.generate(
-            category=category, specs=specs
-        )
+        top_str = self.generate(category=category, specs=specs)
         if top_str:
             try:
                 if self.recommendation_system:
@@ -502,6 +502,8 @@ from typing import Any, Union
 import json
 from typing import Any, Union
 import json
+
+
 class UncertainAttributeRemoverLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
@@ -567,13 +569,16 @@ class UncertainAttributeRemoverLLM:
             return cleaned_data
         except json.JSONDecodeError as e:
             print(f"Error decoding LLM output as JSON: {str(e)}")
-            return found_attributes # Return original if LLM output is not valid JSON
+            return found_attributes  # Return original if LLM output is not valid JSON
+
 
 # -----------------------------------------------------------------
 # CategoricalChooserLLM
 # -----------------------------------------------------------------
 from typing import Any, Union
 import json
+
+
 class CategoricalChooserLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
@@ -586,9 +591,7 @@ class CategoricalChooserLLM:
         If no strong resemblance, return original '{value}' as a plain JSON string.
         """
 
-    def generate(
-        self, value: str, categories: list[str]
-    ) -> Optional[str]:
+    def generate(self, value: str, categories: list[str]) -> Optional[str]:
         system_prompt = self.system_prompt_template.format(
             value=value, categories=categories
         )
@@ -600,9 +603,7 @@ class CategoricalChooserLLM:
             print(f"Error: {str(e)}")
         return None
 
-    def choose_category(
-        self, value: str, categories: list[str]
-    ) -> str:
+    def choose_category(self, value: str, categories: list[str]) -> str:
         llm_output = self.generate(value=value, categories=categories)
         if not llm_output:
             return value
@@ -610,7 +611,7 @@ class CategoricalChooserLLM:
             chosen_category = json.loads(llm_output)
             return chosen_category
         except json.JSONDecodeError as e:
-            return chosen_category # Return original if LLM output is not valid JSON
+            return chosen_category  # Return original if LLM output is not valid JSON
 
 
 # -----------------------------------------------------------------
@@ -620,7 +621,7 @@ class FinalAnswerLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
         self.system_prompt_template = """
-        Your goal is to generate a final answer based on the given task and the data retrieved from the database.
+        Your goal is to generate a final answer based on the given task and the data retrieved from the database. Always show the name, the price (in euros) and the description of the items. Keep the description short and concise, but informative. Mention the availability of the items in the store. Add at most 3 more relevant specifications of the items, but do not mention the barcode or the name of the items again. For each item show each attribute on a new line, with the attribute name in bold and the value in normal font. Do not use any other formatting.
 
         Given task:
         {task}
@@ -702,6 +703,10 @@ def mock_tabular_rag_choose_table(
                 "q1": 4977766788861,
                 "q3": 4977766824644,
             },
+            "naam": {
+                "type": "text",
+                "description": "This is the name of the printer.",
+            },
             "merk": {
                 "type": "categorical",
                 "description": "This is the brand of the printer",
@@ -733,10 +738,9 @@ def mock_tabular_rag_choose_table(
                 "description": "This is the print technology used by the printer.",
                 "values": ["inkjet", "laser", "LED", "thermal inkjet"],
             },
-            "printen": {
-                "type": "categorical",
+            "duplex_printen": {
+                "type": "boolean",
                 "description": "This string makes a distinction between colour and mono printers.",
-                "values": ["Colour printing", "Mono printing"],
             },
             "maximale_resolutie_0_dpi": {
                 "type": "categorical",
@@ -753,25 +757,17 @@ def mock_tabular_rag_choose_table(
                 "description": "This string indicates if the printer can scan and if so in color or not.",
                 "values": ["Colour scanning", "Mono scanning", "No"],
             },
-            "optische_scanresolutie_0_dpi": {
-                "type": "categorical",
-                "description": "This is the maximum resolution of the printer in dots per inch (DPI) for the first colour channel when scanning.",
-                "values": [600, 1200],
+            "totale_invoercapaciteit": {
+                "type": "continuous",
+                "description": "This is the total input capacity of the printer in sheets.",
+                "q1": 150,
+                "q3": 300,
             },
-            "optische_scanresolutie_1_dpi": {
-                "type": "categorical",
-                "description": "This is the maximum resolution of the printer in dots per inch (DPI) for the second colour channel when scanning.",
-                "values": [600, 1200, 2400],
-            },
-            "wifi": {
-                "type": "categorical",
-                "description": "This string indicates whether the printer has Wi-Fi connectivity.",
-                "values": ["Yes", "No"],
-            },
-            "ethernet_lan": {
-                "type": "categorical",
-                "description": "This string indicates whether the printer has Ethernet LAN connectivity.",
-                "values": ["Yes", "No"],
+            "totale_uitvoercapaciteit": {
+                "type": "continuous",
+                "description": "This is the total output capacity of the printer in sheets.",
+                "q1": 50,
+                "q3": 100,
             },
             "printsnelheid_zwart_standaardkwaliteit_a_ppm": {
                 "type": "continuous",
@@ -976,7 +972,13 @@ from typing import Generator
 
 
 class ConversationLoop:
-    def __init__(self, llm: LLM, collection_name: str = "pixie", max_tasks: int = 3, max_additional_questions: int = 4):
+    def __init__(
+        self,
+        llm: LLM,
+        collection_name: str = "pixie",
+        max_tasks: int = 3,
+        max_additional_questions: int = 4,
+    ):
         # LLM with different system prompts and behavior
         self.llm = llm
         self.collection_name = collection_name
@@ -1130,13 +1132,16 @@ class ConversationLoop:
             # --------------------------------------------
             elif current_state == ConversationState.PROCESSING_DECOMPOSED_TASK:
                 # TODO: replace mock in future
-                # category, specs = _services[
-                #    "tabular_vector_store"
-                # ].get_recommended_table(question=current_task, collection_name="auva")
+                category, specs_and_descriptions = _services[
+                    "tabular_vector_store"
+                ].get_recommended_table(question=current_task, collection_name="auva")
 
-                category, specs_and_descriptions = mock_tabular_rag_choose_table(
-                    llm=self.llm, task=current_task
-                )
+                print(category)
+                print(json.dumps(specs_and_descriptions, indent=4))
+
+                # category, specs_and_descriptions = mock_tabular_rag_choose_table(
+                #    llm=self.llm, task=current_task
+                # )
 
                 found_attributes_str = self.attribute_finder_llm.generate(
                     task=current_task,
@@ -1163,6 +1168,8 @@ class ConversationLoop:
                 print(f">>>TOP SPECS: {top_specs}")
 
                 additional_questions = []
+                selected_specs = []
+
                 for spec in top_specs:
                     additional_question = self.additional_question_llm.generate(
                         task=current_task, spec=spec, spec_dict=reduced_specs
@@ -1170,6 +1177,7 @@ class ConversationLoop:
                     if not additional_question:
                         continue
                     additional_questions.append(additional_question)
+                    selected_specs.append(spec)
                 # additional_questions = (
                 #     self.similar_question_remover_llm.remove_similar_questions(
                 #         questions=additional_questions
@@ -1184,7 +1192,7 @@ class ConversationLoop:
                     additional_questions_rephrased.append(rephrasing)
 
                 for additional_question, additional_question_rephrased, spec in zip(
-                    additional_questions, additional_questions_rephrased, top_specs
+                    additional_questions, additional_questions_rephrased, selected_specs
                 ):
                     ai_text += additional_question_rephrased  # additional_question
                     user_answer = yield (True, ai_text)
@@ -1205,13 +1213,23 @@ class ConversationLoop:
                 # reformulated_query = self.rag_query_generator_llm.generate(
                 #    task=current_task, couple_list=additional_qna_couples
                 # )
-                found_attributes = self.uncertain_attribute_remover_llm.uncertain_attribute_remove(found_attributes=found_attributes)
-                for found_attribute, found_value in list(found_attributes["attributes"].items()):
+                found_attributes = (
+                    self.uncertain_attribute_remover_llm.uncertain_attribute_remove(
+                        found_attributes=found_attributes
+                    )
+                )
+                for found_attribute, found_value in list(
+                    found_attributes["attributes"].items()
+                ):
                     if specs_and_descriptions[found_attribute]["type"] == "categorical":
-                        possible_values = specs_and_descriptions[found_attribute]["values"]
-                        chosen_value = self.categorical_chooser_llm.choose_category(value=found_value, categories=possible_values)
+                        possible_values = specs_and_descriptions[found_attribute][
+                            "values"
+                        ]
+                        chosen_value = self.categorical_chooser_llm.choose_category(
+                            value=found_value, categories=possible_values
+                        )
                         found_attributes["attributes"][found_attribute] = chosen_value
-                
+
                 reformulated_query = self.rag_query_generator_llm.generate(
                     found_attributes=found_attributes
                 )
