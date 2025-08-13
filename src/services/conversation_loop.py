@@ -2,12 +2,7 @@ from typing import Any, Union
 import re
 from services.abstractclasses.llm import LLM
 from services.llms.azure_openai_llm import AzureOpenAILLM
-
-# Import shared services for document management
-from services.init_services import get_services
-
-# Shared services for document management
-_services = get_services()
+from init_services import get_services
 
 
 # Example of usage code:
@@ -1022,8 +1017,10 @@ class ConversationLoop:
         Yields a bool and AI response and expects the next user input via `send()` if the bool is True.
         Send `stop` to end the loop.
         """
+        services = get_services()
+
         # TODO: replace mock in future
-        allowed_entities = _services["tabular_vector_store"].get_allowed_entities(
+        allowed_entities = services["tabular_vector_store"].get_allowed_entities(
             collection_name=self.collection_name
         )  # mock_tabular_rag_allowed_entities()
 
@@ -1137,7 +1134,7 @@ class ConversationLoop:
             # --------------------------------------------
             elif current_state == ConversationState.PROCESSING_DECOMPOSED_TASK:
                 # TODO: replace mock in future
-                category, specs_and_descriptions = _services[
+                category, specs_and_descriptions = services[
                     "tabular_vector_store"
                 ].get_recommended_table(question=current_task, collection_name="auva")
 
@@ -1241,7 +1238,7 @@ class ConversationLoop:
                 found_attributes = {}
                 specs_and_descriptions = {}
                 # TODO: replace mock in future
-                current_task_query_result = _services[
+                current_task_query_result = services[
                     "tabular_vector_store"
                 ].product_search(
                     collection_name="auva",

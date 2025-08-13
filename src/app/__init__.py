@@ -3,7 +3,7 @@ import sys
 
 # Configure logging with more detail and better formatting
 logging.basicConfig(
-    level=logging.DEBUG,  # Changed from INFO to DEBUG for more detail
+    level=logging.INFO,  # Changed from INFO to DEBUG for more detail
     format="%(asctime)s [%(levelname)8s] %(name)s:%(lineno)d - %(message)s",  # Added logger name and line number
     handlers=[
         logging.StreamHandler(sys.stdout),  # Explicitly use stdout

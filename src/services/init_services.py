@@ -54,6 +54,7 @@ def initialize_document_services():
     llm = create_llm()
 
     return {
+        "session_id": None,
         "llm": llm,
         "vector_store": create_rag_vector_store(),
         "tabular_vector_store": create_tabular_vector_store(),

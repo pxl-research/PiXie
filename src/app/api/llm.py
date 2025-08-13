@@ -5,6 +5,8 @@ from app.ui.chat.blocks_llm_chat_with_rag import append_user, append_ai_for_api
 from services.conversation_logger import conversation_logger
 import logging
 import time
+from services.init_services import get_services
+from services.conversation_loop import ConversationLoop
 
 
 # Pydantic modellen
@@ -19,6 +21,8 @@ class AIResponse(BaseModel):
 
 
 chat_router = APIRouter()
+services = get_services()
+conversation_loop = ConversationLoop(llm=services["llm"], collection_name="auva")
 
 
 @chat_router.post(
@@ -49,8 +53,19 @@ async def chat(
         dict: Het antwoord van de AI en bijgewerkte chatgeschiedenis.
     """
     start_time = time.time()
+    print("Er komt een vraag binnen")
+    print(f"User question: {input_data.user_question}")
 
     try:
+        print(f"Session ID: {input_data.session_id}")
+        print(f"Old session ID: {services['session_id']}")
+        if input_data.session_id != services["session_id"]:
+            print("Starting new conversation loop")
+            services["session_id"] = input_data.session_id
+            services["conversation_loop"] = ConversationLoop(
+                llm=services["llm"], collection_name="auva"
+            )
+
         current_user["session_id"] = input_data.session_id
         user_id = current_user.get("id", 0)
         session_id = input_data.session_id
@@ -91,9 +106,11 @@ async def chat(
         append_user(input_data.user_question, current_user)
 
         # Genereer een AI-antwoord en voeg dit toe aan de chatgeschiedenis
-        response: str = await append_ai_for_api(
-            input_data.user_question, current_user, input_data.collection
-        )
+        _, response = services["conversation_loop"].send(input_data.user_question)
+
+        # await append_ai_for_api(
+        #     input_data.user_question, current_user, input_data.collection
+        # )
 
         # Bereken verwerkingstijd
         processing_time_ms = int((time.time() - start_time) * 1000)
