@@ -124,7 +124,7 @@ def file_upload_interface():
 
             delete_file_button.click(
                 remove_document,
-                inputs=[selected_file],
+                inputs=[selected_file, collection_dropdown],
                 outputs=[files_list],
                 queue=False,
             )

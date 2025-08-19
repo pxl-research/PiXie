@@ -34,6 +34,38 @@ while True:
 """
 
 
+class ProductMatcherLLM:
+    def __init__(self, llm: LLM):
+        self.llm = llm
+        self.system_prompt_template = """
+        Your goal is to analyze the user's input and identify the product they are looking for.
+
+        You will be given a user query and a list of possible products. Choose the best matching product from the list. Only output the product name, nothing else. If no product matches, output "unknown".
+
+        Given user query:
+        {task}
+
+        Possible products:
+        {products}
+
+        Result:
+        """
+
+    def generate(self, task: str, products: list[str]) -> str | None:
+
+        system_prompt = self.system_prompt_template.format(
+            task=task, products=", ".join(products)
+        )
+
+        system_message = SystemMessage(content=system_prompt)
+        try:
+            response = self.llm.model.invoke([system_message])
+            return response.content.strip()
+        except Exception as e:
+            print(f"Error: {str(e)}")
+        return None
+
+
 class AttributeFinderLLM:
     def __init__(self, llm: LLM):
         self.llm = llm
@@ -199,8 +231,8 @@ class ConversationTopicsCheckerLLM:
            - or typical subtopics such as: specifications, prices, work-relatance to these topics, or practical usage.
 
         Rules:
-        - Return True if the user text is about the allowed topics, their synonyms, or the general category (even loosely).
-        - Return False if it's not meaningfully related.
+        - Return the chosen entity if a match is found. Always return the exact name of the entity.
+        - Return None if it's not meaningfully related.
 
         Given user text:
         {question}
@@ -211,7 +243,7 @@ class ConversationTopicsCheckerLLM:
     def allowed_entities_str(self, entities: list[str]) -> str:
         return "\n".join([f"- {entity}" for entity in entities])
 
-    def generate(self, question: str, entities: list[str]) -> Optional[str]:
+    def generate(self, question: str, entities: list[str]) -> str:
         system_prompt = self.system_prompt_template.format(
             question=question, allowed_entities=self.allowed_entities_str(entities)
         )
@@ -222,15 +254,11 @@ class ConversationTopicsCheckerLLM:
             return response.content
         except Exception as e:
             logging.error(f"Error: {str(e)}")
-        return None
+        return "None"
 
-    def check(self, question: str, entities: list[str]) -> bool:
+    def check(self, question: str, entities: list[str]) -> str:
         result = self.generate(question, entities)
-        if result is None:
-            return False
-        elif not "true" in result.lower():
-            return False
-        return True
+        return result
 
     def non_suitable_response(self, entities: list[str]) -> str:
         return f"Sorry, ik kan alleen helpen met vragen over deze onderwerpen:\n{self.allowed_entities_str(entities)}\n Gelieve enkel hiernaar te vragen."
@@ -995,6 +1023,7 @@ class ConversationLoop:
         self.categorical_chooser_llm = CategoricalChooserLLM(llm=llm)
         self.rag_query_generator_llm = RAGQueryGeneratorLLM(llm=llm)
         self.attribute_finder_llm = AttributeFinderLLM(llm=llm)
+        self.product_matcher_llm = ProductMatcherLLM(llm=llm)
         # TODO: LLM which transforms answers in the preferred style
 
         # Constants
@@ -1023,6 +1052,7 @@ class ConversationLoop:
         allowed_entities = services["tabular_vector_store"].get_allowed_entities(
             collection_name=self.collection_name
         )  # mock_tabular_rag_allowed_entities()
+        product_names = [name for name, _ in allowed_entities]
 
         # Mutable state
         previous_state = ConversationState.WAITING_FOR_INITIAL_TASK
@@ -1033,9 +1063,11 @@ class ConversationLoop:
         decomposed_tasks_queue = []
         current_task_query_result = pd.DataFrame()
         category = None
+        is_suitable = "None"
+        full_name = ""
 
         def reset_state() -> None:
-            nonlocal previous_state, current_state, current_task, decomposed_tasks_queue, current_task_query_result, category, found_attributes, specs_and_descriptions
+            nonlocal previous_state, current_state, current_task, decomposed_tasks_queue, current_task_query_result, category, found_attributes, specs_and_descriptions, is_suitable, full_name
             previous_state = ConversationState.WAITING_FOR_INITIAL_TASK
             current_state = ConversationState.WAITING_FOR_INITIAL_TASK
             current_task = None
@@ -1044,6 +1076,8 @@ class ConversationLoop:
             decomposed_tasks_queue = []
             current_task_query_result = pd.DataFrame()
             category = None
+            is_suitable = "None"
+            full_name = ""
 
         def update_state(state: ConversationState) -> None:
             nonlocal previous_state, current_state
@@ -1066,10 +1100,10 @@ class ConversationLoop:
                 is_suitable = self.conversation_topics_checker_llm.check(
                     question=user_input, entities=allowed_entities
                 )
-                if not is_suitable:
+                if is_suitable == "None":
                     ai_text += (
                         self.conversation_topics_checker_llm.non_suitable_response(
-                            entities=allowed_entities
+                            entities=product_names
                         )
                     )
                     user_input = yield (True, ai_text)
@@ -1096,7 +1130,7 @@ class ConversationLoop:
                 if empty_task_queue_or_error:
                     ai_text += (
                         self.conversation_topics_checker_llm.non_suitable_response(
-                            entities=allowed_entities
+                            entities=product_names
                         )
                     )
                     user_input = yield (True, ai_text)
@@ -1134,12 +1168,18 @@ class ConversationLoop:
             # --------------------------------------------
             elif current_state == ConversationState.PROCESSING_DECOMPOSED_TASK:
                 # TODO: replace mock in future
-                category, specs_and_descriptions = services[
-                    "tabular_vector_store"
-                ].get_recommended_table(question=current_task, collection_name="auva")
 
-                print(category)
-                print(json.dumps(specs_and_descriptions, indent=4))
+                for entity_name, entity_full_name in allowed_entities:
+                    if entity_name == is_suitable:
+                        full_name = entity_full_name
+                        break
+
+                specs_and_descriptions = services[
+                    "tabular_vector_store"
+                ].get_attribute_descriptions(
+                    collection_name="auva", product_name=full_name
+                )
+
 
                 # category, specs_and_descriptions = mock_tabular_rag_choose_table(
                 #    llm=self.llm, task=current_task
@@ -1162,7 +1202,7 @@ class ConversationLoop:
                         reduced_specs[key] = value
 
                 top_specs = self.top_specs_selector_llm.top_specs(
-                    category=category,
+                    category=is_suitable,
                     specs=reduced_specs,
                     top_count=self.max_additional_questions,
                 )
@@ -1242,7 +1282,7 @@ class ConversationLoop:
                     "tabular_vector_store"
                 ].product_search(
                     collection_name="auva",
-                    product_name=category,
+                    product_name=is_suitable,
                     question=reformulated_query,
                     top_k=3,
                 )

@@ -1,11 +1,12 @@
 import logging
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import os
 import pandas as pd
 import requests
 from pathlib import Path
 from typing import Any
+import urllib.parse
 
 
 logger = logging.getLogger(__name__)
@@ -344,7 +345,7 @@ class RemoteTabularVectorStore:
             "x-api-key": os.getenv("RAG_API_KEY"),
         }
 
-    def get_allowed_entities(self, collection_name: str) -> list[str]:
+    def get_allowed_entities(self, collection_name: str) -> list[Tuple[str, str]]:
         """
         Returns a list of allowed entities for the tabular vector store.
         This is a placeholder method and should be implemented based on actual requirements.
@@ -425,3 +426,42 @@ class RemoteTabularVectorStore:
             response, error_message="Failed to search products"
         )
         return data.get("data", [])
+
+    def get_products(self, collection_name: str = "auva") -> list[str]:
+        """
+        Retrieves a list of all products from the tabular vector store.
+        """
+        response = requests.get(
+            f"{self.url}/collections/{collection_name}/products",
+            headers=self._get_headers(),
+        )
+
+        data = self._handle_response(
+            response,
+            error_message="Failed to retrieve products",
+        )
+        products = data.get("items", [])
+
+        return products
+
+    def get_attribute_descriptions(
+        self, collection_name: str, product_name: str
+    ) -> list[str]:
+        """
+        Retrieves attribute descriptions for a specific product in a collection.
+        """
+        encoded_product = urllib.parse.quote(product_name, safe="")
+
+        print(f"Original product name: {product_name}")
+        print(f"Encoded product name: {encoded_product}")
+
+        response = requests.get(
+            f"{self.url}/collections/{collection_name}/products/{encoded_product}/attribute_descriptions",
+            headers=self._get_headers(),
+        )
+
+        data = self._handle_response(
+            response,
+            error_message="Failed to retrieve attribute descriptions",
+        )
+        return data.get("attribute_descriptions", [])

@@ -33,6 +33,6 @@ class AzureOpenAILLM(LLM):
             azure_endpoint=api_endpoint,
             openai_api_key=api_key,
             azure_deployment=model_version,
-            temperature=temperature,
+            # temperature=temperature,
             verbose=True,
         )
