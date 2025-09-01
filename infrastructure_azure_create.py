@@ -795,6 +795,7 @@ def main() -> None:
     #     sys.exit(1)
 
     # Install Docker in VM
+    # --------------------
     print("\n--- Initiating Docker Installation ---")
     if linux_vm_install_docker(ADMIN_USERNAME, ADMIN_PASSWORD, vm_public_ip_address):
         print("Docker installation commands sent successfully.")
