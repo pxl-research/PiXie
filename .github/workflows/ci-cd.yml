@@ -24,7 +24,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io  # Of je eigen registry, zoals 'docker.io' voor Docker Hub
-          username: ${{ philippehaldermans }}  # Gebruiker die de actie uitvoert
+          username: philippehaldermans  # Gebruiker die de actie uitvoert
           password: ${{ secrets.CR_PAT }}  # Automatische token gegenereerd door GitHub
 
       # 2.3 Build en Push de Docker Image
