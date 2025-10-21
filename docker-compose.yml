@@ -32,10 +32,10 @@ services:
     networks:
       - pixie
 
-  core-api:
-    image: ghcr.io/pxl-research/pixie-core:main
+  recommender:
+    image: ghcr.io/pxl-research/pixie-recommender:main
     platform: linux/amd64
-    container_name: pixie-core
+    container_name: pixie-recommender
     depends_on:
       tabular-api:
         condition: service_healthy
@@ -49,7 +49,7 @@ services:
     platform: linux/amd64
     container_name: pixie-chat-ui
     depends_on:
-      - core-api
+      - recommender
     env_file:
       - chat.env
     environment:
@@ -67,7 +67,7 @@ services:
     container_name: pixie-chat-ui-proxy
     depends_on:
       - chat-ui
-      - core-api
+      - recommender
     env_file:
       - chat.env
     ports:
@@ -80,7 +80,7 @@ services:
     platform: linux/amd64
     container_name: pixie-upload-ui
     depends_on:
-      - core-api
+      - recommender
     env_file:
       - upload.env
     ports:
