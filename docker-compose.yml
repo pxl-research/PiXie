@@ -1,57 +1,53 @@
 services:
-  tabular-db:
-    image: ghcr.io/pxl-research/pixie-tabular-db:main
+
+  rag-api:
+    image: ghcr.io/pxl-research/pixie-rag-api:main
     platform: linux/amd64
-    container_name: pixie-tabular-db
-    env_file:
-      - tabular.env
+    container_name: pixie-rag-api
     restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - qdrant
+    ports:
+      - "8011:8000"
     volumes:
-      - tabular-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      - "huggingface_cache:/root/.cache/huggingface"
+    networks:
+      pixie:
+        aliases:
+          - pixie_rag_api
+
+  qdrant:
+    image: qdrant/qdrant:v1.16.0
+    platform: linux/amd64
+    container_name: pixie-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333" # enkel toegankelijk voor andere containers. Optioneel, enkel voor de duidelijkheid.
+      - "6334:6334" # grpc
+    volumes:
+      - qdrant_data:/qdrant/storage
     networks:
       - pixie
 
-  tabular-api:
-    image: ghcr.io/pxl-research/pixie-tabular-api:main
+  informer-api:
+    image: ghcr.io/pxl-research/pixie-informer:main
     platform: linux/amd64
-    container_name: pixie-tabular-api
-    depends_on:
-      - tabular-db
-    env_file:
-      - tabular.env
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs')\""]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+    command: uv run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload --reload-exclude '.venv/*' --reload-exclude '__pycache__/*'
+    env_file: .env
     networks:
       - pixie
-
-  recommender:
-    image: ghcr.io/pxl-research/pixie-recommender:main
-    platform: linux/amd64
-    container_name: pixie-recommender
-    depends_on:
-      tabular-api:
-        condition: service_healthy
-    env_file:
-      - core.env
-    networks:
-      - pixie
+    container_name: pixie-informer-api
 
   chat-ui:
     image: ghcr.io/pxl-research/pixie-chat-ui:main
     platform: linux/amd64
     container_name: pixie-chat-ui
     depends_on:
-      - recommender
+      - informer-api
     env_file:
-      - chat.env
+      - .env
     environment:
       VITE_API_BASE_URL: http://localhost:8010
     ports:
@@ -67,9 +63,9 @@ services:
     container_name: pixie-chat-ui-proxy
     depends_on:
       - chat-ui
-      - recommender
+      - informer-api
     env_file:
-      - chat.env
+      - .env
     ports:
       - "8010:8000"
     networks:
@@ -80,9 +76,10 @@ services:
     platform: linux/amd64
     container_name: pixie-upload-ui
     depends_on:
-      - recommender
+      - informer-api
+      - rag-api
     env_file:
-      - upload.env
+      - .env
     ports:
       - "5173:80"
     networks:
@@ -94,4 +91,5 @@ networks:
     name: pixie-network
 
 volumes:
-  tabular-db-data:
+  qdrant_data:
+  huggingface_cache:
