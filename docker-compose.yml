@@ -1,3 +1,41 @@
+x-chat-ui-base: &chat_ui_base
+  # UI base (anchor, not a real service)
+  image: ghcr.io/pxl-research/pixie-chat-ui:main
+  platform: linux/amd64
+  env_file:
+    - .env
+  environment:
+    VITE_API_BASE_URL: http://localhost:8010
+  ports:
+    - "3000:3000"
+  volumes:
+    - ./branding:/app/dist/branding:ro
+  networks:
+    - pixie
+
+x-chat-ui-proxy-base: &chat_ui_proxy_base
+  # UI proxy base (anchor, not a real service)
+  image: ghcr.io/pxl-research/pixie-chat-ui-proxy:main
+  platform: linux/amd64
+  env_file:
+    - .env
+  ports:
+    - "8010:8000"
+  networks:
+    - pixie
+
+x-upload-ui-base: &upload_ui_base
+  # Upload UI base (anchor, not a real service)
+  image: ghcr.io/pxl-research/pixie-upload-ui:main
+  platform: linux/amd64
+  env_file:
+    - .env
+  ports:
+    - "5173:80"
+  networks:
+    - pixie
+
+# Core backends (RAG / Informer)
 services:
   rag-api:
     image: ghcr.io/pxl-research/pixie-rag-api:main
@@ -86,9 +124,10 @@ services:
       - tabular-db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
-      interval: 5s
+      interval: 10s
       timeout: 3s
       retries: 20
+      start_period: 20s
     networks:
       - pixie
 
@@ -134,20 +173,6 @@ services:
     networks:
       - pixie
 
-  x-chat-ui-base: &chat_ui_base
-    image: ghcr.io/pxl-research/pixie-chat-ui:main
-    platform: linux/amd64
-    env_file:
-      - .env
-    environment:
-      VITE_API_BASE_URL: http://localhost:8010
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./branding:/app/dist/branding:ro
-    networks:
-      - pixie
-
   chat-ui-informer:
     <<: *chat_ui_base
     container_name: pixie-chat-ui-informer
@@ -176,16 +201,6 @@ services:
         condition: service_healthy
       recommender:
         condition: service_healthy
-
-  x-chat-ui-proxy-base: &chat_ui_proxy_base
-    image: ghcr.io/pxl-research/pixie-chat-ui-proxy:main
-    platform: linux/amd64
-    env_file:
-      - .env
-    ports:
-      - "8010:8000"
-    networks:
-      - pixie
 
   chat-ui-proxy-informer:
     <<: *chat_ui_proxy_base
@@ -221,16 +236,6 @@ services:
         condition: service_healthy
       recommender:
         condition: service_healthy
-
-  x-upload-ui-base: &upload_ui_base
-    image: ghcr.io/pxl-research/pixie-upload-ui:main
-    platform: linux/amd64
-    env_file:
-      - .env
-    ports:
-      - "5173:80"
-    networks:
-      - pixie
 
   upload-ui-informer:
     <<: *upload_ui_base
