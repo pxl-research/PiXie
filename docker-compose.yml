@@ -10,7 +10,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - qdrant
+      qdrant:
+        condition: service_healthy
     ports:
       - "8011:8000"
     volumes:
@@ -99,14 +100,16 @@ services:
       - all
       - recommender
     depends_on:
-      - tabular-db
+      tabular-db:
+        condition: service_healthy
     env_file:
       - .env
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs')\""]
-      interval: 5s
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 10s
       timeout: 3s
-      retries: 20
+      retries: 12
+      start_period: 15s
     networks:
       - pixie
 
@@ -122,15 +125,18 @@ services:
         condition: service_healthy
     env_file:
       - core.env
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
     networks:
       - pixie
 
-  chat-ui:
+  x-chat-ui-base: &chat_ui_base
     image: ghcr.io/pxl-research/pixie-chat-ui:main
     platform: linux/amd64
-    container_name: pixie-chat-ui
-    depends_on:
-      - informer-api
     env_file:
       - .env
     environment:
@@ -142,13 +148,38 @@ services:
     networks:
       - pixie
 
-  chat-ui-proxy:
+  chat-ui-informer:
+    <<: *chat_ui_base
+    container_name: pixie-chat-ui-informer
+    profiles:
+      - informer
+    depends_on:
+      informer-api:
+        condition: service_healthy
+
+  chat-ui-recommender:
+    <<: *chat_ui_base
+    container_name: pixie-chat-ui-recommender
+    profiles:
+      - recommender
+    depends_on:
+      recommender:
+        condition: service_healthy
+
+  chat-ui-all:
+    <<: *chat_ui_base
+    container_name: pixie-chat-ui
+    profiles:
+      - all
+    depends_on:
+      informer-api:
+        condition: service_healthy
+      recommender:
+        condition: service_healthy
+
+  x-chat-ui-proxy-base: &chat_ui_proxy_base
     image: ghcr.io/pxl-research/pixie-chat-ui-proxy:main
     platform: linux/amd64
-    container_name: pixie-chat-ui-proxy
-    depends_on:
-      - chat-ui
-      - informer-api
     env_file:
       - .env
     ports:
@@ -156,19 +187,83 @@ services:
     networks:
       - pixie
 
-  upload-ui:
+  chat-ui-proxy-informer:
+    <<: *chat_ui_proxy_base
+    container_name: pixie-chat-ui-proxy-informer
+    profiles:
+      - informer
+    depends_on:
+      chat-ui-informer:
+        condition: service_started
+      informer-api:
+        condition: service_healthy
+
+  chat-ui-proxy-recommender:
+    <<: *chat_ui_proxy_base
+    container_name: pixie-chat-ui-proxy-recommender
+    profiles:
+      - recommender
+    depends_on:
+      chat-ui-recommender:
+        condition: service_started
+      recommender:
+        condition: service_healthy
+
+  chat-ui-proxy-all:
+    <<: *chat_ui_proxy_base
+    container_name: pixie-chat-ui-proxy
+    profiles:
+      - all
+    depends_on:
+      chat-ui-all:
+        condition: service_started
+      informer-api:
+        condition: service_healthy
+      recommender:
+        condition: service_healthy
+
+  x-upload-ui-base: &upload_ui_base
     image: ghcr.io/pxl-research/pixie-upload-ui:main
     platform: linux/amd64
-    container_name: pixie-upload-ui
-    depends_on:
-      - informer-api
-      - rag-api
     env_file:
       - .env
     ports:
       - "5173:80"
     networks:
       - pixie
+
+  upload-ui-informer:
+    <<: *upload_ui_base
+    container_name: pixie-upload-ui-informer
+    profiles:
+      - informer
+    depends_on:
+      informer-api:
+        condition: service_healthy
+      rag-api:
+        condition: service_healthy
+
+  upload-ui-recommender:
+    <<: *upload_ui_base
+    container_name: pixie-upload-ui-recommender
+    profiles:
+      - recommender
+    depends_on:
+      recommender:
+        condition: service_healthy
+
+  upload-ui-all:
+    <<: *upload_ui_base
+    container_name: pixie-upload-ui
+    profiles:
+      - all
+    depends_on:
+      informer-api:
+        condition: service_healthy
+      rag-api:
+        condition: service_healthy
+      recommender:
+        condition: service_healthy
 
 networks:
   pixie:
