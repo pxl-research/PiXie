@@ -43,6 +43,49 @@ services:
     container_name: pixie-informer-api
     profiles: [all, informer]
 
+  tabular-db:
+    image: ghcr.io/pxl-research/pixie-tabular-db:main
+    platform: linux/amd64
+    container_name: pixie-tabular-db
+    profiles: [all, recommender]
+    env_file: .env
+    restart: unless-stopped
+    volumes: [tabular-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - pixie
+
+  tabular-api:
+    image: ghcr.io/pxl-research/pixie-tabular-api:main
+    platform: linux/amd64
+    container_name: pixie-tabular-api
+    profiles: [all, recommender]
+    depends_on: [tabular-db]
+    env_file: .env
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - pixie
+
+  recommender:
+    image: ghcr.io/pxl-research/pixie-recommender:main
+    platform: linux/amd64
+    container_name: pixie-recommender
+    profiles: [all, recommender]
+    depends_on:
+      tabular-api:
+        condition: service_healthy
+    env_file:
+      - core.env
+    networks:
+      - pixie
 
   chat-ui:
     image: ghcr.io/pxl-research/pixie-chat-ui:main
