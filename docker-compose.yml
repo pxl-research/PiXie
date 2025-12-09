@@ -1,10 +1,11 @@
 services:
-
   rag-api:
     image: ghcr.io/pxl-research/pixie-rag-api:main
     platform: linux/amd64
     container_name: pixie-rag-api
-    profiles: [all, informer]
+    profiles:
+      - all
+      - informer
     restart: unless-stopped
     env_file:
       - .env
@@ -13,7 +14,7 @@ services:
     ports:
       - "8011:8000"
     volumes:
-      - "huggingface_cache:/root/.cache/huggingface"
+      - huggingface_cache:/root/.cache/huggingface
     networks:
       pixie:
         aliases:
@@ -23,7 +24,9 @@ services:
     image: qdrant/qdrant:v1.16.0
     platform: linux/amd64
     container_name: pixie-qdrant
-    profiles: [all, informer]
+    profiles:
+      - all
+      - informer
     restart: unless-stopped
     ports:
       - "6333:6333"
@@ -36,21 +39,28 @@ services:
   informer-api:
     image: ghcr.io/pxl-research/pixie-informer:main
     platform: linux/amd64
+    container_name: pixie-informer-api
+    profiles:
+      - all
+      - informer
     command: uv run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload --reload-exclude '.venv/*' --reload-exclude '__pycache__/*'
-    env_file: .env
+    env_file:
+      - .env
     networks:
       - pixie
-    container_name: pixie-informer-api
-    profiles: [all, informer]
 
   tabular-db:
     image: ghcr.io/pxl-research/pixie-tabular-db:main
     platform: linux/amd64
     container_name: pixie-tabular-db
-    profiles: [all, recommender]
-    env_file: .env
+    profiles:
+      - all
+      - recommender
+    env_file:
+      - .env
     restart: unless-stopped
-    volumes: [tabular-db-data:/var/lib/postgresql/data]
+    volumes:
+      - tabular-db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
       interval: 5s
@@ -63,9 +73,13 @@ services:
     image: ghcr.io/pxl-research/pixie-tabular-api:main
     platform: linux/amd64
     container_name: pixie-tabular-api
-    profiles: [all, recommender]
-    depends_on: [tabular-db]
-    env_file: .env
+    profiles:
+      - all
+      - recommender
+    depends_on:
+      - tabular-db
+    env_file:
+      - .env
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs')\""]
       interval: 5s
@@ -78,7 +92,9 @@ services:
     image: ghcr.io/pxl-research/pixie-recommender:main
     platform: linux/amd64
     container_name: pixie-recommender
-    profiles: [all, recommender]
+    profiles:
+      - all
+      - recommender
     depends_on:
       tabular-api:
         condition: service_healthy
