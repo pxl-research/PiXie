@@ -79,7 +79,13 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
+      # qdrant image heeft geen curl; check via bash /dev/tcp op HTTP 200
+      test:
+        - CMD-SHELL
+        - >
+          bash -c 'exec 3<>/dev/tcp/localhost/6333
+          && printf "GET /healthz HTTP/1.0\r\n\r\n" >&3
+          && head -n 1 <&3 | grep -q "200"'
       interval: 10s
       timeout: 3s
       retries: 12
@@ -163,7 +169,7 @@ services:
       tabular-api:
         condition: service_healthy
     env_file:
-      - core.env
+      - .env
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 10s
@@ -276,5 +282,6 @@ networks:
     name: pixie-network
 
 volumes:
+  tabular-db-data:
   qdrant_data:
   huggingface_cache:
