@@ -1,122 +1,98 @@
-# 📚 PiXie – High-level Architectuur & Dataflow
+# PiXie – Architectuur & Compose-profielen
 
-## 🧭 Overzicht
+## Overzicht
 
-De PiXie-architectuur bestaat uit meerdere gespecialiseerde microservices die elk een duidelijk afgebakende verantwoordelijkheid hebben.  
-De UI-componenten communiceren via API-calls met deze services om documenten te verwerken, embeddings op te slaan en vragen van gebruikers te beantwoorden.
+PiXie bestaat uit een set containers die je per profiel kunt starten:
 
-## 🧩 Componenten
+- `informer` – vraag/antwoord via RAG
+- `recommender` – aanbevelingen op tabulaire data
+- `all` – beide tegelijk
 
-| Component              | Type        | Status         | Rol                                                                                          |
-|-------------------------|------------|----------------|-----------------------------------------------------------------------------------------------|
-| `upload_ui`            | Frontend   | ✅ Actief      | Laat gebruikers documenten uploaden en start preprocess- en opslagflow                       |
-| `chat_ui`              | Frontend   | ✅ Actief      | Laat gebruikers vragen stellen en toont antwoorden (informer of recommender)                  |
-| `pixie-preprocessing`  | Backend    | ❌ In ontwikkeling | Verwerkt tekstuele documenten (md, docx, pdf) → chunking → embeddings genereren               |
-| `pixie-rag-db`         | Backend    | ❌ In ontwikkeling | Qdrant vectorstore – opslag en retrieval van embeddings                                       |
-| `pixie-tabular-db`     | Backend    | ✅ Actief      | PostgreSQL-database voor tabulaire data (csv, xlsx)                                          |
-| `pixie-informer`       | Backend    | ❌ In ontwikkeling | Retrieval & orchestratie van informatieve vragen                                            |
-| `pixie-reranker`       | Backend    | ❌ In ontwikkeling | Rerankt retrieved chunks op relevantie                                                       |
-| `pixie-recommender`    | Backend    | ✅ Actief      | Orkestreert aanbevelings- of keuzehulpscenario’s op basis van tabulaire data                 |
+Start voorbeelden:
 
----
+```bash
+docker compose --profile informer up -d --build
+docker compose --profile recommender up -d --build
+docker compose --profile all up -d --build
+# alles stoppen: docker compose --profile all --profile informer --profile recommender down --remove-orphans
+```
 
-## 📤 Upload Flow
+Je kunt ook `COMPOSE_PROFILES` in `.env` zetten (bijv. `COMPOSE_PROFILES=informer` of `COMPOSE_PROFILES=all,informer,recommender`). Dan volstaat `docker compose up -d`/`down`. Per run overschrijven kan altijd met `--profile`.
 
-### Beschrijving
-Wanneer een gebruiker een document uploadt via `upload_ui`:
+## Componenten (huidig)
 
-1. UI bepaalt het bestandstype.  
-2. Indien **tekstueel** (.md, .docx, .pdf):  
-   - UI → `POST /preprocess` naar `pixie-preprocessing`  
-   - Preprocessing → chunking + embedding  
-   - Embeddings → `POST /save` naar `pixie-rag-db`  
-3. Indien **tabulair** (.xlsx, .csv):  
-   - UI → `POST /save` naar `pixie-tabular-db`  
+| Component            | Type      | Rol                                                                                   |
+|----------------------|-----------|----------------------------------------------------------------------------------------|
+| `rag-api`            | FastAPI   | Retrievallaag voor RAG: ontvangt queries, haalt context op uit Qdrant en serveert antwoorden. |
+| `qdrant`             | Vector DB | Vectorstore voor embeddings en similarity search.                                      |
+| `informer-api`       | FastAPI   | Orkestreert informatieve Q&A bovenop rag-api: intenthandling, context ophalen, antwoord bouwen. |
+| `tabular-db`         | Postgres  | Relationele opslag voor tabulaire datasets.                                            |
+| `tabular-api`        | FastAPI   | API voor tabulaire data: CRUD/query bovenop Postgres voor de recommender.              |
+| `recommender`        | FastAPI   | Aanbevelingsengine op tabulaire data; kan bijvragen en levert keuzes/adviezen.         |
+| `chat-ui-*`          | Frontend  | Chat UI (per profiel/all) waar gebruikers vragen stellen en antwoorden zien.           |
+| `chat-ui-proxy-*`    | BFF/proxy | Proxy/BFF die chatverkeer routeert naar informer- en/of recommender-API.               |
+| `upload-ui-*`        | Frontend  | Upload UI waarmee documenten ingest worden richting informer/rag-pijplijn.             |
 
-### Mermaid-diagram
+## Mermaid – Chat flow (informer)
+
 ```mermaid
 sequenceDiagram
-    participant U as upload_ui
-    participant P as pixie-preprocessing
-    participant R as pixie-rag-db
-    participant T as pixie-tabular-db
+    participant C as chat-ui
+    participant P as chat-ui-proxy
+    participant I as informer-api
+    participant RAG as rag-api
+    participant Q as qdrant
 
-    U->>U: detecteer bestandstype
-    alt Tekstueel (.md/.docx/.pdf)
-        U->>P: POST /preprocess (bestand)
-        P->>P: chunking & embeddings
-        P->>R: POST /save (embeddings)
-        R-->>U: 200 OK
-    else Tabulair (.xlsx/.csv)
-        U->>T: POST /save (tabulaire data)
-        T-->>U: 200 OK
+    C->>P: Vraag (informer-profiel)
+    P->>I: /chat
+    I->>RAG: retrieve
+    RAG->>Q: vector search
+    I-->>P: Antwoord
+    P-->>C: Antwoord
+```
+
+## Mermaid – Chat flow (recommender)
+
+```mermaid
+sequenceDiagram
+    participant C as chat-ui
+    participant P as chat-ui-proxy
+    participant REC as recommender
+    participant TAPI as tabular-api
+    participant TDB as tabular-db
+
+    C->>P: Vraag (recommender-profiel)
+    P->>REC: /recommend
+    REC->>TAPI: fetch documents
+    TAPI->>TDB: SQL
+    REC-->>P: Aanbeveling
+    P-->>C: Antwoord
+```
+
+## Mermaid – Upload flow (RAG / tabular)
+
+```mermaid
+sequenceDiagram
+    participant U as upload-ui
+    participant RAG as rag-api
+    participant Q as qdrant
+    participant TAPI as tabular-api
+    participant TDB as tabular-db
+
+    U->>U: Kies targets (RAG en/of tabular)
+    opt Tabular target
+        U->>TAPI: POST /collections/{collection}/documents (FormData)
+        TAPI->>TDB: Opslaan metadata/inhoud
+        TAPI-->>U: OK
+    end
+    opt RAG target
+        U->>RAG: POST /documents/upload (ack job)
+        RAG->>Q: Opslag embeddings/chunks
+        RAG-->>U: Job ack / status
     end
 ```
 
----
+## Healthchecks & depends_on
 
-## 💬 Chat Flow
-
-### Beschrijving
-Wanneer een gebruiker een vraag stelt via `chat_ui`:
-
-1. UI verstuurt vraag → intent wordt bepaald.  
-2. **Als het een informatieve vraag is**:  
-   - `chat_ui` → `pixie-informer`  
-   - Informer → `pixie-rag-db` (retrieve chunks)  
-   - Optioneel: informer → `pixie-reranker` (rerank)  
-   - Informer formuleert antwoord en stuurt terug naar UI.  
-3. **Als het een aanbevelingsvraag is**:  
-   - `chat_ui` → `pixie-recommender`  
-   - Recommender → `pixie-tabular-db` (queries)  
-   - Bijvragen indien nodig, daarna aanbeveling terug naar UI.
-
-### Mermaid-diagram
-```mermaid
-sequenceDiagram
-    participant C as chat_ui
-    participant I as pixie-informer
-    participant RR as pixie-reranker
-    participant R as pixie-rag-db
-    participant REC as pixie-recommender
-    participant T as pixie-tabular-db
-
-    C->>C: bepaal intent (informatie / aanbeveling)
-    alt Informatieve vraag
-        C->>I: POST /inform
-        I->>R: GET /retrieve (top-k chunks)
-        opt Reranking
-            I->>RR: POST /rerank
-        end
-        I-->>C: Antwoord
-    else Aanbevelingsvraag
-        C->>REC: POST /recommend
-        REC->>T: SQL queries
-        loop Indien nodig
-            REC-->>C: Bijvraag
-            C->>REC: Antwoord bijvraag
-        end
-        REC-->>C: Aanbeveling
-    end
-```
-
----
-
-## 🛠️ Belangrijke eigenschappen
-
-- **Duidelijke scheiding per verantwoordelijk domein**  
-  → Elke service doet één ding goed (preprocess, storage, retrieval, recommendation).  
-- **Filetype bepaalt verwerkingspad**  
-  → Tekstuele documenten gaan naar embeddings, tabulaire naar Postgres.  
-- **Orchestratie ligt nu bij UI**  
-  → UI bepaalt pad en maakt meerdere API-calls. (→ kandidaat voor toekomstige BFF)  
-- **Flexibele uitbreidbaarheid**  
-  → Extra services (bv. summarizer, classifier) kunnen makkelijk worden toegevoegd.
-
----
-
-## 📌 Samenvatting
-
-De huidige PiXie-architectuur gebruikt meerdere microservices met duidelijke verantwoordelijkheden.  
-De frontend (`upload_ui` en `chat_ui`) regelt de orchestratie via API-calls naar preprocessing, opslag, retrieval en aanbeveling.  
-Deze aanpak werkt goed voor modulariteit en flexibiliteit, maar kan op termijn geoptimaliseerd worden via een BFF-laag, asynchrone verwerking en betere observability.
+- Health: `/health` voor rag-api, informer-api, tabular-api, recommender; `/healthz` voor qdrant. Startperiod: rag-api 120s (model load); qdrant 20s; de rest 15s.
+- Afhankelijkheden met `condition: service_healthy`: qdrant→rag-api, rag/qdrant→informer-api, tabular-db→tabular-api, tabular-api→recommender.
