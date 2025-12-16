@@ -54,7 +54,15 @@ services:
     env_file:
       - .env
     environment:
-      QDRANT_URL: http://qdrant:6333
+      - QDRANT_URL=http://qdrant:6333
+      - JOB_STATE_PATH=/var/lib/pixie/jobs.json
+      - JOB_MAX_CONCURRENCY=1
+      - JOB_MAX_QUEUE_SIZE=8
+      - RAG_OCR_ENABLED=true
+      - RAG_OCR_ENGINE=tesseract
+      - RAG_OCR_LANG=nld
+      - REDIS_URL=redis://redis:6379/0
+      - JOB_QUEUE_NAME=pixie-jobs
     depends_on:
       qdrant:
         condition: service_healthy
@@ -62,6 +70,8 @@ services:
       - "8011:8000"
     volumes:
       - huggingface_cache:/root/.cache/huggingface
+      - uploads:/tmp/uploads
+      - job_state:/var/lib/pixie
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 10s
@@ -72,6 +82,27 @@ services:
       pixie:
         aliases:
           - pixie_rag_api
+
+  rag-worker:
+    image: ghcr.io/pxl-research/pixie-rag-api:main
+    platform: linux/amd64
+    container_name: pixie_rag_worker
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - JOB_QUEUE_NAME=pixie-jobs
+      - JOB_STATE_PATH=/var/lib/pixie/jobs.json
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+      - uploads:/tmp/uploads
+    command: ["uv", "run", "python", "worker.py"]
+    networks:
+      - pixie
 
   qdrant:
     image: qdrant/qdrant:v1.16.0
@@ -98,6 +129,17 @@ services:
       timeout: 3s
       retries: 12
       start_period: 20s
+    networks:
+      - pixie
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: pixie_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
     networks:
       - pixie
 
@@ -301,3 +343,6 @@ volumes:
   tabular-db-data:
   qdrant_data:
   huggingface_cache:
+  uploads:
+  redis_data:
+  job_state:
