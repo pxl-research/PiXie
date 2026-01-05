@@ -6,18 +6,20 @@ PiXie bestaat uit een set containers die je per profiel kunt starten:
 
 - `informer` – vraag/antwoord via RAG
 - `recommender` – aanbevelingen op tabulaire data
-- `all` – beide tegelijk
+- `questioner` – intake/vraaggesprek dat uitmondt in een samenvatting
+- `all` – alle profielen tegelijk
 
 Start voorbeelden:
 
 ```bash
 docker compose --profile informer up -d --build
 docker compose --profile recommender up -d --build
+docker compose --profile questioner up -d --build
 docker compose --profile all up -d --build
-# alles stoppen: docker compose --profile all --profile informer --profile recommender down --remove-orphans
+# alles stoppen: docker compose --profile all --profile informer --profile recommender --profile questioner down --remove-orphans
 ```
 
-Je kunt ook `COMPOSE_PROFILES` in `.env` zetten (bijv. `COMPOSE_PROFILES=informer` of `COMPOSE_PROFILES=all,informer,recommender`). Dan volstaat `docker compose up -d`/`down`. Per run overschrijven kan altijd met `--profile`.
+Je kunt ook `COMPOSE_PROFILES` in `.env` zetten (bijv. `COMPOSE_PROFILES=informer` of `COMPOSE_PROFILES=all,informer,recommender,questioner`). Dan volstaat `docker compose up -d`/`down`. Per run overschrijven kan altijd met `--profile`.
 
 ## Componenten (huidig)
 
@@ -29,9 +31,17 @@ Je kunt ook `COMPOSE_PROFILES` in `.env` zetten (bijv. `COMPOSE_PROFILES=informe
 | `tabular-db`         | Postgres  | Relationele opslag voor tabulaire datasets.                                            |
 | `tabular-api`        | FastAPI   | API voor tabulaire data: CRUD/query bovenop Postgres voor de recommender.              |
 | `recommender`        | FastAPI   | Aanbevelingsengine op tabulaire data; kan bijvragen en levert keuzes/adviezen.         |
+| `questioner-api`     | FastAPI   | Orkestreert vraaggesprek en genereert samenvattingen.                                  |
 | `chat-ui-*`          | Frontend  | Chat UI (per profiel/all) waar gebruikers vragen stellen en antwoorden zien.           |
-| `chat-ui-proxy-*`    | BFF/proxy | Proxy/BFF die chatverkeer routeert naar informer- en/of recommender-API.               |
+| `chat-ui-proxy-*`    | BFF/proxy | Proxy/BFF die chatverkeer routeert naar informer-, recommender- en/of questioner-API.  |
 | `upload-ui-*`        | Frontend  | Upload UI waarmee documenten ingest worden richting informer/rag-pijplijn.             |
+
+## Containers per profiel
+
+- `informer`: qdrant, rag-api, informer-api, chat-ui-informer, chat-ui-proxy-informer, upload-ui-informer
+- `recommender`: tabular-db, tabular-api, recommender, chat-ui-recommender, chat-ui-proxy-recommender, upload-ui-recommender
+- `questioner`: questioner-api, chat-ui-questioner, chat-ui-proxy-questioner
+- `all`: combinatie van alle drie plus de `*-all` UI/proxy varianten
 
 ## Mermaid – Chat flow (informer)
 
@@ -66,6 +76,19 @@ sequenceDiagram
     REC->>TAPI: fetch documents
     TAPI->>TDB: SQL
     REC-->>P: Aanbeveling
+    P-->>C: Antwoord
+```
+
+## Mermaid – Chat flow (questioner)
+
+```mermaid
+sequenceDiagram
+    participant C as chat-ui
+    participant P as chat-ui-proxy
+    participant Q as questioner-api
+    C->>P: Vraag (questioner-profiel)
+    P->>Q: /chat
+    Q-->>P: Volgende vraag of samenvatting
     P-->>C: Antwoord
 ```
 
