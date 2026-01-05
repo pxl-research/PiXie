@@ -5,13 +5,13 @@ x-chat-ui-base: &chat_ui_base
   env_file:
     - .env
   environment:
-    VITE_API_BASE_URL: http://localhost:8010
-  ports:
-    - "3000:3000"
+    API_BASE_URL: /api
   volumes:
     - ./branding:/app/dist/branding:ro
   networks:
-    - pixie
+    pixie:
+      aliases:
+        - ui
 
 x-chat-ui-proxy-base: &chat_ui_proxy_base
   # UI proxy base (anchor, not a real service)
@@ -22,10 +22,11 @@ x-chat-ui-proxy-base: &chat_ui_proxy_base
   environment:
       PIXIE_CORE_API_BASE_URL: http://recommender-api:8000
       PIXIE_INFORMER_API_BASE_URL: http://informer-api:8000
-  ports:
-    - "8010:8000"
+      PIXIE_QUESTIONER_API_BASE_URL: http://questioner-api:8000
   networks:
-    - pixie
+    pixie:
+      aliases:
+        - proxy
 
 x-upload-ui-base: &upload_ui_base
   # Upload UI base (anchor, not a real service)
@@ -88,6 +89,9 @@ services:
     platform: linux/amd64
     container_name: pixie_rag_worker
     restart: unless-stopped
+    profiles:
+      - all
+      - informer
     depends_on:
       - redis
       - qdrant
@@ -136,6 +140,9 @@ services:
     image: redis:7.4-alpine
     container_name: pixie_redis
     restart: unless-stopped
+    profiles:
+      - all
+      - informer
     ports:
       - "6379:6379"
     volumes:
@@ -237,6 +244,39 @@ services:
     networks:
       - pixie
 
+  questioner-api:
+    image: ghcr.io/pxl-research/pixie-questioner:main
+    platform: linux/amd64
+    container_name: pixie-questioner-api
+    profiles:
+      - all
+      - questioner
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+    networks:
+      - pixie
+
+  chat-gateway:
+    image: caddy:2.7
+    container_name: pixie-chat-gateway
+    profiles:
+      - all
+      - informer
+      - recommender
+      - questioner
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      - pixie
+
   chat-ui-informer:
     <<: *chat_ui_base
     container_name: pixie-chat-ui-informer
@@ -264,6 +304,17 @@ services:
       informer-api:
         condition: service_healthy
       recommender:
+        condition: service_healthy
+      questioner-api:
+        condition: service_healthy
+
+  chat-ui-questioner:
+    <<: *chat_ui_base
+    container_name: pixie-chat-ui-questioner
+    profiles:
+      - questioner
+    depends_on:
+      questioner-api:
         condition: service_healthy
 
   chat-ui-proxy-informer:
@@ -299,6 +350,19 @@ services:
       informer-api:
         condition: service_healthy
       recommender:
+        condition: service_healthy
+      questioner-api:
+        condition: service_healthy
+
+  chat-ui-proxy-questioner:
+    <<: *chat_ui_proxy_base
+    container_name: pixie-chat-ui-proxy-questioner
+    profiles:
+      - questioner
+    depends_on:
+      chat-ui-questioner:
+        condition: service_started
+      questioner-api:
         condition: service_healthy
 
   upload-ui-informer:
