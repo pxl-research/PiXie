@@ -253,6 +253,8 @@ services:
       - questioner
     env_file:
       - .env
+    volumes:
+      - ./branding:/branding:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 10s
@@ -400,7 +402,6 @@ services:
 
 networks:
   pixie:
-    external: true
     name: pixie-network
 
 volumes:
