@@ -143,6 +143,7 @@ services:
 
   redis:
     image: redis:7.4-alpine
+    platform: linux/amd64
     container_name: pixie_redis
     restart: unless-stopped
     profiles:
@@ -204,6 +205,7 @@ services:
 
   audit-db:
     image: ${AUDIT_DB_IMAGE:-ghcr.io/pxl-research/pixie-audit-db:main}
+    platform: linux/amd64
     container_name: pixie-audit-db
     profiles:
       - all
@@ -236,6 +238,8 @@ services:
       - recommender
       - questioner
     restart: unless-stopped
+    ports:
+      - "8019:8000"
     env_file:
       - .env
     environment:
@@ -316,7 +320,8 @@ services:
       - pixie
 
   chat-gateway:
-    image: caddy:2.7
+    image: caddy:2.7.6
+    platform: linux/amd64
     container_name: pixie-chat-gateway
     profiles:
       - all
@@ -332,6 +337,7 @@ services:
 
   chat-ui-informer:
     <<: *chat_ui_base
+    platform: linux/amd64
     container_name: pixie-chat-ui-informer
     profiles:
       - informer
@@ -341,6 +347,7 @@ services:
 
   chat-ui-recommender:
     <<: *chat_ui_base
+    platform: linux/amd64
     container_name: pixie-chat-ui-recommender
     profiles:
       - recommender
@@ -350,6 +357,7 @@ services:
 
   chat-ui-all:
     <<: *chat_ui_base
+    platform: linux/amd64
     container_name: pixie-chat-ui
     profiles:
       - all
@@ -363,6 +371,7 @@ services:
 
   chat-ui-questioner:
     <<: *chat_ui_base
+    platform: linux/amd64
     container_name: pixie-chat-ui-questioner
     profiles:
       - questioner
@@ -372,6 +381,7 @@ services:
 
   chat-ui-proxy-informer:
     <<: *chat_ui_proxy_base
+    platform: linux/amd64
     container_name: pixie-chat-ui-proxy-informer
     profiles:
       - informer
@@ -388,6 +398,7 @@ services:
 
   chat-ui-proxy-recommender:
     <<: *chat_ui_proxy_base
+    platform: linux/amd64
     container_name: pixie-chat-ui-proxy-recommender
     profiles:
       - recommender
@@ -404,6 +415,7 @@ services:
 
   chat-ui-proxy-all:
     <<: *chat_ui_proxy_base
+    platform: linux/amd64
     container_name: pixie-chat-ui-proxy
     profiles:
       - all
@@ -424,6 +436,7 @@ services:
 
   chat-ui-proxy-questioner:
     <<: *chat_ui_proxy_base
+    platform: linux/amd64
     container_name: pixie-chat-ui-proxy-questioner
     profiles:
       - questioner
@@ -440,6 +453,7 @@ services:
 
   upload-ui-informer:
     <<: *upload_ui_base
+    platform: linux/amd64
     container_name: pixie-upload-ui-informer
     profiles:
       - informer
@@ -451,6 +465,7 @@ services:
 
   upload-ui-recommender:
     <<: *upload_ui_base
+    platform: linux/amd64
     container_name: pixie-upload-ui-recommender
     profiles:
       - recommender
@@ -460,6 +475,7 @@ services:
 
   upload-ui-all:
     <<: *upload_ui_base
+    platform: linux/amd64
     container_name: pixie-upload-ui
     profiles:
       - all
