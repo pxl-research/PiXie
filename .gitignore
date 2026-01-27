@@ -1,2 +1,5 @@
 *.env
+!cases/**/client.env
+!cases/**/client.env.example
+cases/**/secrets.env
 env/

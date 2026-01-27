@@ -1,8 +1,33 @@
 :3000 {
   encode gzip zstd
 
+  # QR entrypoint: /l/LOC123 -> set cookie and redirect to chat UI
+  # Allow only URL-safe slugs: letters, numbers, underscore, dash
+  @loc path_regexp loc ^/l/([A-Za-z0-9_-]+)$
+  handle @loc {
+    route {
+      # Map short codes -> location names (per case)
+      import /case/locations.caddy
+
+      @loc_known expression `{loc_name} != ""`
+      header @loc_known Set-Cookie "pixie_loc_code={re.loc.1}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax"
+      header @loc_known Set-Cookie "pixie_loc={loc_name}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax"
+      redir @loc_known / 302
+
+      respond "Unknown location code" 404
+    }
+  }
+  # Invalid /l/* patterns get a 400 to avoid unexpected cookie values
+  handle_path /l/* {
+    respond "Invalid location code" 400
+  }
+
   handle_path /api/* {
-    reverse_proxy proxy:8000
+    reverse_proxy proxy:8000 {
+      # Forward location cookie to the proxy/audit layer
+      header_up X-Pixie-Location {http.request.cookie.pixie_loc}
+      header_up X-Pixie-Location-Code {http.request.cookie.pixie_loc_code}
+    }
   }
 
   handle {

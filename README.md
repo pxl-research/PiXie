@@ -21,6 +21,57 @@ docker compose --profile all up -d --build
 
 Je kunt ook `COMPOSE_PROFILES` in `.env` zetten (bijv. `COMPOSE_PROFILES=informer` of `COMPOSE_PROFILES=all,informer,recommender,questioner`). Dan volstaat `docker compose up -d`/`down`. Per run overschrijven kan altijd met `--profile`.
 
+## Cases (klantbundels)
+
+Alle klant-specifieke onderdelen zitten in `cases/<CASE_ID>/` en worden als één bundel gemount naar `/case`.
+Zo houd je de core generiek en wissel je per klant alleen de case-map.
+
+Structuur (voorbeeld):
+
+```
+cases/
+  brooklyn/
+    client.env
+    secrets.env
+    branding/
+    prompts/
+    locations.caddy
+    notes.md
+  _template/
+    client.env.example
+    secrets.env.example
+    branding/
+    prompts/
+    locations.caddy
+    notes.md
+```
+
+Snel starten met een klant:
+1) Zet `CASE_ID=<klant>` in `.env`
+2) Zorg dat `cases/<klant>/client.env` en `cases/<klant>/secrets.env` bestaan
+3) Start met `docker compose up -d`
+
+Nieuwe klant aanmaken:
+1) Kopieer `cases/_template` naar `cases/<klant>`
+2) Vul `client.env` en `secrets.env` in
+3) Voeg branding en prompts toe
+
+Checklist (nieuwe klant):
+- `cases/<klant>/client.env` gevuld (geen secrets)
+- `cases/<klant>/secrets.env` gevuld (wel secrets, niet committen)
+- `cases/<klant>/branding` bevat logo/background
+- `cases/<klant>/prompts` gevuld (als questioner gebruikt)
+- `cases/<klant>/locations.caddy` bijgewerkt (of `default ""` laten)
+- `CASE_ID=<klant>` gezet in `.env`
+
+Locaties (QR):
+- `cases/<klant>/locations.caddy` bevat de code → locatie mapping
+- Geen QR-locaties? Laat alleen `default ""` staan (preset in template)
+
+Let op:
+- `secrets.env` staat in `.gitignore` en wordt niet gecommit
+- Houd `ACTIVE_CLIENT_ID` gelijk aan de case-mapnaam
+
 ## Componenten (huidig)
 
 | Component            | Type      | Rol                                                                                   |

@@ -4,10 +4,13 @@ x-chat-ui-base: &chat_ui_base
   platform: linux/amd64
   env_file:
     - .env
+    - ./cases/${CASE_ID}/client.env
+    - ./cases/${CASE_ID}/secrets.env
   environment:
     API_BASE_URL: /api
   volumes:
-    - ./branding:/app/dist/branding:ro
+    # Only expose the active case's branding assets
+    - ./cases/${CASE_ID}/branding:/app/dist/branding/${CASE_ID}:ro
   networks:
     pixie:
       aliases:
@@ -17,10 +20,7 @@ x-chat-ui-proxy-env: &chat_ui_proxy_env
   PIXIE_CORE_API_BASE_URL: http://recommender-api:8000
   PIXIE_INFORMER_API_BASE_URL: http://informer-api:8000
   PIXIE_QUESTIONER_API_BASE_URL: http://questioner-api:8000
-  AUDIT_LOGGING_ENABLED: ${AUDIT_LOGGING_ENABLED:-true}
-  AUDIT_API_URL: ${AUDIT_API_URL:-http://audit-api:8000}
-  AUDIT_LOG_TIMEOUT_MS: ${AUDIT_LOG_TIMEOUT_MS:-250}
-  AUDIT_API_KEY: ${AUDIT_API_KEY:-}
+  # Audit envs come from env_file (client/secrets)
 
 x-chat-ui-proxy-base: &chat_ui_proxy_base
   # UI proxy base (anchor, not a real service)
@@ -28,6 +28,8 @@ x-chat-ui-proxy-base: &chat_ui_proxy_base
   platform: linux/amd64
   env_file:
     - .env
+    - ./cases/${CASE_ID}/client.env
+    - ./cases/${CASE_ID}/secrets.env
   networks:
     pixie:
       aliases:
@@ -39,6 +41,8 @@ x-upload-ui-base: &upload_ui_base
   platform: linux/amd64
   env_file:
     - .env
+    - ./cases/${CASE_ID}/client.env
+    - ./cases/${CASE_ID}/secrets.env
   environment:
       TABULAR_PROXY_TARGET: http://tabular-api:8000/
       RAG_PROXY_TARGET: http://rag-api:8000/
@@ -59,6 +63,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+      - ./cases/${CASE_ID}/client.env
+      - ./cases/${CASE_ID}/secrets.env
     environment:
       - QDRANT_URL=http://qdrant:6333
       - JOB_STATE_PATH=/var/lib/pixie/jobs.json
@@ -102,6 +108,8 @@ services:
       - qdrant
     env_file:
       - .env
+      - ./cases/${CASE_ID}/client.env
+      - ./cases/${CASE_ID}/secrets.env
     environment:
       - REDIS_URL=redis://redis:6379/0
       - JOB_QUEUE_NAME=pixie-jobs
@@ -170,6 +178,8 @@ services:
         condition: service_healthy
     env_file:
       - .env
+      - ./cases/${CASE_ID}/client.env
+      - ./cases/${CASE_ID}/secrets.env
     environment:
       RAG_API_URL: http://rag-api:8000
       RAG_RETRIEVE_PATH: /chunks/search
@@ -191,6 +201,8 @@ services:
       - recommender
     env_file:
       - .env
+      - ./cases/${CASE_ID}/client.env
+      - ./cases/${CASE_ID}/secrets.env
     restart: unless-stopped
     volumes:
       - tabular-db-data:/var/lib/postgresql/data
@@ -242,10 +254,8 @@ services:
       - "8019:8000"
     env_file:
       - .env
-    environment:
-      AUDIT_DB_URL: ${AUDIT_DB_URL:-postgres://audit:audit@audit-db:5432/audit}
-      LOG_LEVEL: ${AUDIT_API_LOG_LEVEL:-info}
-      AUDIT_API_KEY: ${AUDIT_API_KEY:-}
+      - ./cases/${CASE_ID}/client.env
+      - ./cases/${CASE_ID}/secrets.env
     depends_on:
       audit-db:
         condition: service_healthy
@@ -264,6 +274,8 @@ services:
         condition: service_healthy
     env_file:
       - .env
+      - ./cases/${CASE_ID}/client.env
+      - ./cases/${CASE_ID}/secrets.env
     environment:
       DB_HOST: ${DB_HOST:-tabular-db}
       DB_PORT: ${DB_PORT:-5432}
@@ -288,6 +300,8 @@ services:
         condition: service_healthy
     env_file:
       - .env
+      - ./cases/${CASE_ID}/client.env
+      - ./cases/${CASE_ID}/secrets.env
     environment:
       TABULAR_API_URL: http://tabular-api:8000
     healthcheck:
@@ -308,8 +322,10 @@ services:
       - questioner
     env_file:
       - .env
+      - ./cases/${CASE_ID}/client.env
+      - ./cases/${CASE_ID}/secrets.env
     volumes:
-      - ./branding:/branding:ro
+      - ./cases/${CASE_ID}:/case:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 10s
@@ -328,10 +344,15 @@ services:
       - informer
       - recommender
       - questioner
+    env_file:
+      - .env
+      - ./cases/${CASE_ID}/client.env
+      - ./cases/${CASE_ID}/secrets.env
     ports:
       - "3000:3000"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./cases/${CASE_ID}:/case:ro
     networks:
       - pixie
 
