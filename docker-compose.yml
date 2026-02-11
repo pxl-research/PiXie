@@ -230,7 +230,7 @@ services:
       POSTGRES_USER: audit
       POSTGRES_PASSWORD: audit
     volumes:
-      - audit-db-data:/var/lib/postgresql/data
+      - audit-db-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
       interval: 10s
@@ -515,6 +515,7 @@ networks:
 volumes:
   tabular-db-data:
   audit-db-data:
+    name: pixie_audit-db-data
   qdrant_data:
   huggingface_cache:
   uploads:
