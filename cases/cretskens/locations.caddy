@@ -1,0 +1,6 @@
+# Location code mapping for this case
+# Format: <CODE> <location_slug>
+# Leave only default if you don't use QR locations.
+map {re.loc.1} {loc_name} {
+  default ""
+}
