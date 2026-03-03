@@ -10,8 +10,9 @@
       import /case/locations.caddy
 
       @loc_known expression `{loc_name} != ""`
-      header @loc_known Set-Cookie "pixie_loc_code={re.loc.1}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax"
-      header @loc_known Set-Cookie "pixie_loc={loc_name}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax"
+      # Keep location cookies short-lived to reduce unattended walk-away reuse.
+      header @loc_known Set-Cookie "pixie_loc_code={re.loc.1}; Path=/; Max-Age=21600; HttpOnly; SameSite=Lax"
+      header @loc_known Set-Cookie "pixie_loc={loc_name}; Path=/; Max-Age=21600; HttpOnly; SameSite=Lax"
       redir @loc_known / 302
 
       respond "Unknown location code" 404

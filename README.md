@@ -19,6 +19,10 @@ docker compose --profile all up -d --build
 # alles stoppen: docker compose --profile all --profile informer --profile recommender --profile questioner down --remove-orphans
 ```
 
+Security default: alleen de chat-gateway op poort `3000` is extern bereikbaar.
+Interne API/DB-poorten (zoals Redis, Qdrant, audit API, upload UI) zijn naar
+`127.0.0.1` gebonden.
+
 Je kunt ook `COMPOSE_PROFILES` in `.env` zetten (bijv. `COMPOSE_PROFILES=informer` of `COMPOSE_PROFILES=all,informer,recommender,questioner`). Dan volstaat `docker compose up -d`/`down`. Per run overschrijven kan altijd met `--profile`.
 
 ## Cases (klantbundels)
