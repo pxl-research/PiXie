@@ -24,11 +24,7 @@
   }
 
   handle_path /api/* {
-    reverse_proxy proxy:8000 {
-      # Forward location cookie to the proxy/audit layer
-      header_up X-Pixie-Location {http.request.cookie.pixie_loc}
-      header_up X-Pixie-Location-Code {http.request.cookie.pixie_loc_code}
-    }
+    reverse_proxy proxy:8000
   }
 
   handle {

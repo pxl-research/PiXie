@@ -314,7 +314,7 @@ services:
       - pixie
 
   questioner-api:
-    image: ghcr.io/pxl-research/pixie-questioner:feat-llm-driven-wine-advisor
+    image: ghcr.io/pxl-research/pixie-questioner:main
     platform: linux/amd64
     container_name: pixie-questioner-api
     profiles:

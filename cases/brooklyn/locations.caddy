@@ -1,8 +1,8 @@
 # Location code mapping for client "brooklyn"
 # Format: <CODE> <location_slug>
 map {re.loc.1} {loc_name} {
-  P1 paskamer
-  R1 rek
+  P1 pashokje
+  R1 jeansrek
   K1 kassa
   default ""
 }
