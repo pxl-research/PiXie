@@ -1,0 +1,34 @@
+:3000 {
+	encode gzip zstd
+
+	# QR entrypoint: /l/LOC123 -> set cookie and redirect to chat UI
+	# Allow only URL-safe slugs: letters, numbers, underscore, dash
+	@loc path_regexp loc ^/l/([A-Za-z0-9_-]+)$
+	handle @loc {
+		route {
+			# Map short codes -> location names (per case)
+			import /case/locations.caddy
+
+			@loc_known expression `{loc_name} != ""`
+			# Keep location cookies short-lived to reduce unattended walk-away reuse.
+			header @loc_known Set-Cookie "pixie_loc_code={re.loc.1}; Path=/; Max-Age=21600; HttpOnly; SameSite=Lax"
+			header @loc_known Set-Cookie "pixie_loc={loc_name}; Path=/; Max-Age=21600; HttpOnly; SameSite=Lax"
+			redir @loc_known / 302
+
+			respond "Unknown location code" 404
+		}
+	}
+
+	handle_path /l/* {
+		respond "Invalid location code" 400
+	}
+
+	# Kiosk mode talks straight to questioner and bypasses chat-ui-proxy.
+	handle_path /questioner/* {
+		reverse_proxy questioner-api:8000
+	}
+
+	handle {
+		reverse_proxy ui:8080
+	}
+}

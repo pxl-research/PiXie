@@ -1,7 +1,6 @@
 x-chat-ui-base: &chat_ui_base
   # UI base (anchor, not a real service)
   image: ghcr.io/pxl-research/pixie-chat-ui:main
-  platform: linux/amd64
   env_file:
     - .env
     - ./cases/${CASE_ID}/client.env
@@ -25,7 +24,6 @@ x-chat-ui-proxy-env: &chat_ui_proxy_env
 x-chat-ui-proxy-base: &chat_ui_proxy_base
   # UI proxy base (anchor, not a real service)
   image: ghcr.io/pxl-research/pixie-chat-ui-proxy:main
-  platform: linux/amd64
   env_file:
     - .env
     - ./cases/${CASE_ID}/client.env
@@ -34,6 +32,21 @@ x-chat-ui-proxy-base: &chat_ui_proxy_base
     pixie:
       aliases:
         - proxy
+
+x-chat-kiosk-ui-base: &chat_kiosk_ui_base
+  # Kiosk UI base (anchor, not a real service)
+  image: ghcr.io/pxl-research/pixie-chat-kiosk-ui:main
+  env_file:
+    - ./cases/${CASE_ID}/client.env
+  environment:
+    QUESTIONER_API_BASE_URL: /questioner
+  volumes:
+    # Only expose the active case's branding assets
+    - ./cases/${CASE_ID}/branding:/usr/share/nginx/html/branding/${CASE_ID}:ro
+  networks:
+    pixie:
+      aliases:
+        - ui
 
 x-upload-ui-base: &upload_ui_base
   # Upload UI base (anchor, not a real service)
@@ -217,7 +230,6 @@ services:
 
   audit-db:
     image: ${AUDIT_DB_IMAGE:-ghcr.io/pxl-research/pixie-audit-db:main}
-    platform: linux/amd64
     container_name: pixie-audit-db
     profiles:
       - all
@@ -242,7 +254,6 @@ services:
 
   audit-api:
     image: ${AUDIT_API_IMAGE:-ghcr.io/pxl-research/pixie-audit-api:main}
-    platform: linux/amd64
     container_name: pixie-audit-api
     profiles:
       - all
@@ -315,7 +326,6 @@ services:
 
   questioner-api:
     image: ghcr.io/pxl-research/pixie-questioner:main
-    platform: linux/amd64
     container_name: pixie-questioner-api
     profiles:
       - all
@@ -337,13 +347,12 @@ services:
 
   chat-gateway:
     image: caddy:2.7.6
-    platform: linux/amd64
     container_name: pixie-chat-gateway
     profiles:
       - all
       - informer
       - recommender
-      - questioner
+      - ui-standard
     env_file:
       - .env
       - ./cases/${CASE_ID}/client.env
@@ -358,7 +367,6 @@ services:
 
   chat-ui-informer:
     <<: *chat_ui_base
-    platform: linux/amd64
     container_name: pixie-chat-ui-informer
     profiles:
       - informer
@@ -368,7 +376,6 @@ services:
 
   chat-ui-recommender:
     <<: *chat_ui_base
-    platform: linux/amd64
     container_name: pixie-chat-ui-recommender
     profiles:
       - recommender
@@ -378,7 +385,6 @@ services:
 
   chat-ui-all:
     <<: *chat_ui_base
-    platform: linux/amd64
     container_name: pixie-chat-ui
     profiles:
       - all
@@ -392,17 +398,24 @@ services:
 
   chat-ui-questioner:
     <<: *chat_ui_base
-    platform: linux/amd64
     container_name: pixie-chat-ui-questioner
     profiles:
-      - questioner
+      - ui-standard
+    depends_on:
+      questioner-api:
+        condition: service_healthy
+
+  chat-kiosk-ui-questioner:
+    <<: *chat_kiosk_ui_base
+    container_name: pixie-chat-kiosk-ui-questioner
+    profiles:
+      - ui-kiosk
     depends_on:
       questioner-api:
         condition: service_healthy
 
   chat-ui-proxy-informer:
     <<: *chat_ui_proxy_base
-    platform: linux/amd64
     container_name: pixie-chat-ui-proxy-informer
     profiles:
       - informer
@@ -419,7 +432,6 @@ services:
 
   chat-ui-proxy-recommender:
     <<: *chat_ui_proxy_base
-    platform: linux/amd64
     container_name: pixie-chat-ui-proxy-recommender
     profiles:
       - recommender
@@ -436,7 +448,6 @@ services:
 
   chat-ui-proxy-all:
     <<: *chat_ui_proxy_base
-    platform: linux/amd64
     container_name: pixie-chat-ui-proxy
     profiles:
       - all
@@ -457,10 +468,9 @@ services:
 
   chat-ui-proxy-questioner:
     <<: *chat_ui_proxy_base
-    platform: linux/amd64
     container_name: pixie-chat-ui-proxy-questioner
     profiles:
-      - questioner
+      - ui-standard
     depends_on:
       chat-ui-questioner:
         condition: service_started
@@ -471,6 +481,23 @@ services:
     environment:
       <<: *chat_ui_proxy_env
       PIXIE_PROFILE: questioner
+
+  chat-gateway-kiosk:
+    image: caddy:2.7.6
+    container_name: pixie-chat-gateway-kiosk
+    profiles:
+      - ui-kiosk
+    env_file:
+      - .env
+      - ./cases/${CASE_ID}/client.env
+      - ./cases/${CASE_ID}/secrets.env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./Caddyfile.kiosk:/etc/caddy/Caddyfile:ro
+      - ./cases/${CASE_ID}:/case:ro
+    networks:
+      - pixie
 
   upload-ui-informer:
     <<: *upload_ui_base

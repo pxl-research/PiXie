@@ -14,16 +14,26 @@ Start voorbeelden:
 ```bash
 docker compose --profile informer up -d --build
 docker compose --profile recommender up -d --build
-docker compose --profile questioner up -d --build
+docker compose --profile questioner --profile ui-standard up -d --build
+docker compose --profile questioner --profile ui-kiosk up -d --build
 docker compose --profile all up -d --build
-# alles stoppen: docker compose --profile all --profile informer --profile recommender --profile questioner down --remove-orphans
+# alles stoppen: docker compose --profile all --profile informer --profile recommender --profile questioner --profile ui-standard --profile ui-kiosk down --remove-orphans
 ```
 
 Security default: alleen de chat-gateway op poort `3000` is extern bereikbaar.
 Interne API/DB-poorten (zoals Redis, Qdrant, audit API, upload UI) zijn naar
 `127.0.0.1` gebonden.
 
-Je kunt ook `COMPOSE_PROFILES` in `.env` zetten (bijv. `COMPOSE_PROFILES=informer` of `COMPOSE_PROFILES=all,informer,recommender,questioner`). Dan volstaat `docker compose up -d`/`down`. Per run overschrijven kan altijd met `--profile`.
+Je kunt ook `COMPOSE_PROFILES` in `.env` zetten (bijv. `COMPOSE_PROFILES=informer`, `COMPOSE_PROFILES=questioner,ui-standard` of `COMPOSE_PROFILES=questioner,ui-kiosk`). Dan volstaat `docker compose up -d`/`down`. Per run overschrijven kan altijd met `--profile`.
+
+Voor questioner zijn er twee UI-modi:
+
+- `ui-standard` start de klassieke `chat-ui` samen met `chat-ui-proxy`
+- `ui-kiosk` start de afgeslankte kiosk-UI zonder `chat-ui-proxy`
+- beide modi halen branding en basiscopy uit `cases/<CASE_ID>/client.env` en `cases/<CASE_ID>/branding`
+- de questioner stack is niet langer hard gepind op `linux/amd64`, zodat Docker op een Jetson de `linux/arm64` varianten kan pullen zodra die images gepubliceerd zijn
+
+Gebruik voor questioner exact één van die twee UI-profielen tegelijk.
 
 ## Cases (klantbundels)
 
@@ -53,7 +63,22 @@ cases/
 Snel starten met een klant:
 1) Zet `CASE_ID=<klant>` in `.env`
 2) Zorg dat `cases/<klant>/client.env` en `cases/<klant>/secrets.env` bestaan
-3) Start met `docker compose up -d`
+3) Kies `COMPOSE_PROFILES` passend bij je frontendmodus
+4) Start met `docker compose up -d`
+
+Voorbeeld questioner op Jetson:
+
+```env
+CASE_ID=cretskens
+COMPOSE_PROFILES=questioner,ui-kiosk
+```
+
+Voorbeeld standaard questioner UI:
+
+```env
+CASE_ID=brooklyn
+COMPOSE_PROFILES=questioner,ui-standard
+```
 
 Nieuwe klant aanmaken:
 1) Kopieer `cases/_template` naar `cases/<klant>`
@@ -88,6 +113,7 @@ Let op:
 | `recommender`        | FastAPI   | Aanbevelingsengine op tabulaire data; kan bijvragen en levert keuzes/adviezen.         |
 | `questioner-api`     | FastAPI   | Orkestreert vraaggesprek en genereert samenvattingen.                                  |
 | `chat-ui-*`          | Frontend  | Chat UI (per profiel/all) waar gebruikers vragen stellen en antwoorden zien.           |
+| `chat-kiosk-ui-*`    | Frontend  | Lichtgewicht kiosk UI voor single-screen questioner deployments.                        |
 | `chat-ui-proxy-*`    | BFF/proxy | Proxy/BFF die chatverkeer routeert naar informer-, recommender- en/of questioner-API.  |
 | `upload-ui-*`        | Frontend  | Upload UI waarmee documenten ingest worden richting informer/rag-pijplijn.             |
 
@@ -95,7 +121,8 @@ Let op:
 
 - `informer`: qdrant, rag-api, informer-api, chat-ui-informer, chat-ui-proxy-informer, upload-ui-informer
 - `recommender`: tabular-db, tabular-api, recommender, chat-ui-recommender, chat-ui-proxy-recommender, upload-ui-recommender
-- `questioner`: questioner-api, chat-ui-questioner, chat-ui-proxy-questioner
+- `questioner` + `ui-standard`: questioner-api, chat-ui-questioner, chat-ui-proxy-questioner, chat-gateway
+- `questioner` + `ui-kiosk`: questioner-api, chat-kiosk-ui-questioner, chat-gateway-kiosk
 - `all`: combinatie van alle drie plus de `*-all` UI/proxy varianten
 
 ## Mermaid – Chat flow (informer)
