@@ -163,7 +163,7 @@ Define the operator expectation:
 
 **Step 2: Run test to verify it fails**
 
-Run: `rg -n "pixie-chat-kiosk-ui|chat-kiosk-ui-questioner|ui-kiosk" docker-compose.yml README.md`
+Run: `rg -n "pixie-chat-ui-kiosk-ui|chat-kiosk-ui-questioner|ui-kiosk" docker-compose.yml README.md`
 
 Expected: no PiXie-side kiosk image wiring yet.
 
@@ -172,7 +172,7 @@ Expected: no PiXie-side kiosk image wiring yet.
 Add a kiosk UI service to `docker-compose.yml` using an explicit image reference:
 
 ```yaml
-image: ghcr.io/pxl-research/pixie-chat-kiosk-ui:main
+image: ghcr.io/pxl-research/pixie-chat-ui-kiosk-ui:main
 ```
 
 Mount the active case branding folder in the same way the standard UI does, and ensure it joins the `pixie` network with alias `ui`.
@@ -184,7 +184,7 @@ Note in `README.md` that:
 
 **Step 4: Run test to verify it passes**
 
-Run: `docker compose -f docker-compose.yml config >/tmp/pixie-compose.out && rg -n "ghcr.io/pxl-research/pixie-chat-kiosk-ui|branding" /tmp/pixie-compose.out`
+Run: `docker compose -f docker-compose.yml config >/tmp/pixie-compose.out && rg -n "ghcr.io/pxl-research/pixie-chat-ui-kiosk-ui|branding" /tmp/pixie-compose.out`
 
 Expected: kiosk image and case branding mount are present in rendered config.
 

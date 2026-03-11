@@ -35,7 +35,7 @@ x-chat-ui-proxy-base: &chat_ui_proxy_base
 
 x-chat-kiosk-ui-base: &chat_kiosk_ui_base
   # Kiosk UI base (anchor, not a real service)
-  image: ghcr.io/pxl-research/pixie-chat-kiosk-ui:main
+  image: ghcr.io/pxl-research/pixie-chat-ui-kiosk-ui:main
   env_file:
     - ./cases/${CASE_ID}/client.env
   environment:
