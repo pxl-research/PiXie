@@ -9,7 +9,7 @@ x-chat-ui-base: &chat_ui_base
     API_BASE_URL: /api
   volumes:
     # Only expose the active case's branding assets
-    - ./cases/${CASE_ID}/branding:/app/dist/branding/${CASE_ID}:ro
+    - ./cases/${CASE_ID}/branding:/app/services/chat-ui/dist/branding/${CASE_ID}:ro
   networks:
     pixie:
       aliases:
